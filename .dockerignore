@@ -1,0 +1,14 @@
+# ⚠ .env imaja ASLA girmez; sırlar çalışma zamanında env ile verilir (compose env_file).
+.env
+.env.*
+!.env.example
+.git
+node_modules
+**/node_modules
+dist
+**/dist
+.expo
+coverage
+docs
+*.md
+.github
