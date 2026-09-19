@@ -3,6 +3,7 @@ import { Shell } from './components/shell';
 import { AuthProvider, useAuth } from './lib/auth';
 import { LoginPage } from './pages/login';
 import { Placeholder } from './pages/placeholder';
+import { NeedDetailPage, NeedsListPage } from './pages/needs';
 
 const NAV = {
   talent: [
@@ -62,15 +63,8 @@ function Routed() {
         )}
         {me.role === 'organization' && (
           <>
-            <Route
-              path="/ihtiyaclar"
-              element={
-                <Placeholder
-                  title="İhtiyaçlar"
-                  note="Derdini anlat; ajan soru sorup net bir ihtiyaç kartına çevirsin."
-                />
-              }
-            />
+            <Route path="/ihtiyaclar" element={<NeedsListPage />} />
+            <Route path="/ihtiyaclar/:id" element={<NeedDetailPage />} />
             <Route
               path="/adaylar"
               element={

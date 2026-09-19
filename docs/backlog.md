@@ -6,9 +6,9 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Monorepo iskeleti, lint/format/typecheck/test, CI
 - [x] Şema v1 (beş nesne + kanıt + ajan/onay/denetim), ilk migration
 - [ ] Canlı ortam: alan adı, HTTPS, push'ta dağıtım
-- [ ] Giriş: genç GitHub OAuth; kurum/operatör e-posta sihirli link (KARAR-07)
-- [ ] Oturum, rol koruması, `withRole` middleware
-- [ ] Web iskeleti: kabuk, tasarım tokenleri, üç rol için boş sayfalar
+- [x] Giriş: genç GitHub OAuth; kurum/operatör e-posta sihirli link (KARAR-07)
+- [x] Oturum, rol koruması, `withRole` middleware
+- [x] Web iskeleti: kabuk, tasarım tokenleri, üç rol için boş sayfalar
 - [ ] Mobil iskeleti: Expo, giriş, boş ekranlar
 - [ ] Tohum verisi (sentetik, `seed:` önekli)
 
@@ -22,8 +22,8 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [ ] Otomatik hikâye bloğu
 
 ## Tanımla (05)
-- [ ] İhtiyaç yapılandırma ajanı (`need_structurer`): soru-cevap → NeedCard
-- [ ] Kurum ihtiyaç ekranı (sohbet + kart önizleme + onay)
+- [x] İhtiyaç yapılandırma ajanı (`need_structurer`): soru-cevap → NeedCard
+- [x] Kurum ihtiyaç ekranı (sohbet + kart önizleme + onay)
 - [ ] Netlik ölçümü kaydı
 
 ## Eşleştir (03)

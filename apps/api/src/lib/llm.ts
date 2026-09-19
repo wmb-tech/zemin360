@@ -11,6 +11,30 @@ export function createLlmFromEnv(env: Env): LlmProvider {
     case 'openai':
       throw new Error('openai sağlayıcısı henüz uygulanmadı (ADR-0002 ikinci uygulama)');
     case 'fake':
-      return createFakeProvider();
+      // Geliştirme/demo: her ajan çağrısı aynı kurgulu adımı döner. Şemaya uymak zorunda;
+      // uymazsa 500 — sessizce boş kart üretmez.
+      return createFakeProvider({
+        value: {
+          draft: {
+            title: 'E-ticaret mağazası için mobil uygulama',
+            summary: 'Mevcut web mağazasının React Native ile iOS/Android uygulaması.',
+            collaborationType: 'project',
+            expectedOutput: 'App Store ve Google Play’de yayınlanmış uygulama',
+            durationWeeks: 12,
+            workMode: null,
+            compensation: null,
+            requiredSkills: ['React Native', 'REST API'],
+            niceToHaveSkills: ['TypeScript'],
+            worksWith: null,
+            constraints: [],
+          },
+          missing: [],
+          done: false,
+          nextQuestion: {
+            text: 'Kişi uzaktan mı çalışacak, yoksa ofiste mi?',
+            why: 'Çalışma biçimi eşleşmeyi doğrudan etkiliyor',
+          },
+        },
+      });
   }
 }
