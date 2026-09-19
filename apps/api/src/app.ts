@@ -8,12 +8,17 @@ import { createConsoleEmailSender, type EmailSender } from './lib/email';
 import type { Env } from './lib/env';
 import { AppError, fail } from './lib/response';
 import { health } from './routes/health';
+import { needRoutes } from './needs/routes';
+import { createNeedService } from './needs/service';
+import { createLlmFromEnv } from './lib/llm';
+import type { LlmProvider } from '@evidex/ai';
 
 export interface AppDeps {
   env: Env;
   db: Db;
   email?: EmailSender;
   fetchGithubProfile?: (code: string) => Promise<GithubProfile>;
+  llm?: LlmProvider;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -21,11 +26,13 @@ export function createApp(deps: AppDeps) {
   const app = new Hono();
   const auth = createAuthService(deps.db);
   const email = deps.email ?? createConsoleEmailSender();
+  const llm = deps.llm ?? createLlmFromEnv(deps.env);
 
   app.use('*', logger());
   app.use('/api/*', cors({ origin: deps.env.WEB_ORIGIN, credentials: true }));
 
   app.route('/api/health', health);
+  app.route('/api/needs', needRoutes(auth, createNeedService(deps.db, llm)));
   app.route(
     '/api/auth',
     authRoutes({

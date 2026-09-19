@@ -15,6 +15,13 @@
       "when": 1789858320153,
       "tag": "0001_login_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789859198918,
+      "tag": "0002_need_turns",
+      "breakpoints": true
     }
   ]
 }

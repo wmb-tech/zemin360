@@ -204,7 +204,14 @@ export const needs = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
     rawText: text('raw_text').notNull(), // kurumun ilk yazdığı metin (netlik ölçümü için)
-    card: jsonb('card').$type<Record<string, unknown>>(), // NeedCard şeması
+    card: jsonb('card').$type<Record<string, unknown>>(), // taslak/onaylı NeedCard
+    // Ajanla soru-cevap geçmişi [{question, answer}] — netlik ölçümü ve yeniden çalıştırma için
+    turns: jsonb('turns').$type<{ question: string; answer: string }[]>().default([]).notNull(),
+    pendingQuestion: jsonb('pending_question').$type<{ text: string; why: string } | null>(),
+    missingFields: text('missing_fields')
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
     cardStatus: cardStatusEnum('card_status').default('draft').notNull(),
     cardApprovedAt: timestamp('card_approved_at', { withTimezone: true }),
     ...timestamps,

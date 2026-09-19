@@ -10,6 +10,7 @@
     "test": "bun --env-file=.env.test run ../../packages/db/src/resetTest.ts && bun --env-file=.env.test run ../../packages/db/src/migrate.ts && bun --env-file=.env.test test src"
   },
   "dependencies": {
+    "@evidex/ai": "workspace:*",
     "@evidex/db": "workspace:*",
     "@evidex/shared": "workspace:*",
     "drizzle-orm": "^0.45",

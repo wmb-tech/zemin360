@@ -84,6 +84,10 @@ export const NeedCard = z.object({
 });
 export type NeedCard = z.infer<typeof NeedCard>;
 
+/** Onay anında kurumun elle düzelttiği alanlar. */
+export const NeedCardEdits = NeedCard.partial();
+export type NeedCardEdits = z.infer<typeof NeedCardEdits>;
+
 /** Gerekçeli eşleşme çıktısı (döngü adımı: eşleştir). */
 export const MatchReasoning = z.object({
   strength: MatchStrength,
