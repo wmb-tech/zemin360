@@ -1,0 +1,26 @@
+{
+  "name": "@evidex/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5100",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 5100",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@evidex/shared": "workspace:*",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-router": "^7"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
+    "tailwindcss": "^4",
+    "vite": "^7"
+  }
+}

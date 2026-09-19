@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+
+/*
+ * Tasarım tokenleri — tek yer. Renkler oklch; koyu tema sonraki adım.
+ * Kanıt seviyeleri için dört renk: kart okunurken seviye bir bakışta ayrılmalı.
+ */
+@theme {
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --color-ink: oklch(0.22 0.02 270);
+  --color-ink-soft: oklch(0.45 0.02 270);
+  --color-paper: oklch(0.99 0.003 90);
+  --color-paper-2: oklch(0.965 0.006 90);
+  --color-line: oklch(0.9 0.01 270);
+  --color-accent: oklch(0.52 0.19 275);
+  --color-accent-soft: oklch(0.94 0.04 275);
+  --color-verified: oklch(0.55 0.15 150);
+  --color-documented: oklch(0.6 0.13 235);
+  --color-referenced: oklch(0.62 0.15 55);
+  --color-declared: oklch(0.6 0.01 270);
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
