@@ -1,0 +1,17 @@
+{
+  "name": "@evidex/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch --env-file=../../.env src/index.ts",
+    "start": "bun src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@evidex/db": "workspace:*",
+    "@evidex/shared": "workspace:*",
+    "hono": "^4",
+    "zod": "^4"
+  }
+}
