@@ -10,7 +10,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Oturum, rol koruması, `withRole` middleware
 - [x] Web iskeleti: kabuk, tasarım tokenleri, üç rol için boş sayfalar
 - [ ] Mobil iskeleti: Expo, giriş, boş ekranlar
-- [ ] Tohum verisi (sentetik, `seed:` önekli)
+- [x] Tohum verisi (sentetik, @evidex.dev)
 
 ## Doğrula (02)
 - [ ] GitHub App: kurulum, repo seçimi, sahiplik doğrulama
@@ -29,9 +29,9 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 ## Eşleştir (03)
 - [x] Ön eleme (anahtar kelime örtüşmesi; tür/süre/konum filtresi kişi tercihleri gelince)
 - [x] Gerekçe ajanı (`matcher`): MatchReasoning
-- [x] Operatör onay kuyruğu (API) · [ ] ekranı
+- [x] Operatör onay kuyruğu (API + ekran)
 - [x] Tanıştırma e-postası (kuyruk → onay → iki tarafa) · [ ] ajan taslağı
-- [x] Kurum görünümü (API): önce özet, tanıştırma sonrası tam kart (KARAR-09) · [ ] ekranı
+- [x] Kurum görünümü (API + ekran): önce özet, tanıştırma sonrası tam kart (KARAR-09)
 
 ## İzle (06)
 - [ ] İş birliği kaydı ve durum geçişleri

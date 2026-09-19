@@ -254,6 +254,16 @@ export function NeedDetailPage() {
           </Field>
           <Field label="Kiminle çalışacak">{card.worksWith}</Field>
         </dl>
+        {approved && (
+          <div className="border-line mt-6 border-t pt-4">
+            <Link
+              to={`/ihtiyaclar/${need.id}/adaylar`}
+              className="text-accent text-sm font-semibold hover:underline"
+            >
+              Adayları gör →
+            </Link>
+          </div>
+        )}
         {!approved && (
           <div className="border-line mt-6 border-t pt-4">
             {need.missingFields.length > 0 ? (

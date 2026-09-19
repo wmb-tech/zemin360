@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { LoginPage } from './pages/login';
 import { Placeholder } from './pages/placeholder';
 import { NeedDetailPage, NeedsListPage } from './pages/needs';
+import { CandidatesPage } from './pages/candidates';
+import { OperatorQueuePage } from './pages/operator-queue';
 
 const NAV = {
   talent: [
@@ -11,10 +13,7 @@ const NAV = {
     { to: '/kanit', label: 'Kanıtlarım' },
     { to: '/davetler', label: 'Davetler' },
   ],
-  organization: [
-    { to: '/ihtiyaclar', label: 'İhtiyaçlar' },
-    { to: '/adaylar', label: 'Adaylar' },
-  ],
+  organization: [{ to: '/ihtiyaclar', label: 'İhtiyaçlar' }],
   operator: [
     { to: '/kuyruk', label: 'Onay kuyruğu' },
     { to: '/ag', label: 'Ağ' },
@@ -65,28 +64,12 @@ function Routed() {
           <>
             <Route path="/ihtiyaclar" element={<NeedsListPage />} />
             <Route path="/ihtiyaclar/:id" element={<NeedDetailPage />} />
-            <Route
-              path="/adaylar"
-              element={
-                <Placeholder
-                  title="Adaylar"
-                  note="Gerekçeli öneriler: uyuyor çünkü… / eksik olan…"
-                />
-              }
-            />
+            <Route path="/ihtiyaclar/:id/adaylar" element={<CandidatesPage />} />
           </>
         )}
         {me.role === 'operator' && (
           <>
-            <Route
-              path="/kuyruk"
-              element={
-                <Placeholder
-                  title="Onay kuyruğu"
-                  note="Ajanın önerdiği her dışa dönük eylem burada bekler; tek tıkla gider."
-                />
-              }
-            />
+            <Route path="/kuyruk" element={<OperatorQueuePage />} />
             <Route
               path="/ag"
               element={<Placeholder title="Ağ" note="Gençler ve kurumlar; kart durumları." />}
