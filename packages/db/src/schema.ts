@@ -214,6 +214,8 @@ export const needs = pgTable(
       .notNull(),
     cardStatus: cardStatusEnum('card_status').default('draft').notNull(),
     cardApprovedAt: timestamp('card_approved_at', { withTimezone: true }),
+    // Operatör kısa listeyi onaylayınca kurum adayları görür (ADR-0004)
+    shortlistPublishedAt: timestamp('shortlist_published_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [index('needs_org_idx').on(t.organizationId)],

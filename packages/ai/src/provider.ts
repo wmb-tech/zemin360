@@ -37,7 +37,9 @@ export interface LlmProvider {
 }
 
 /** Testlerde ve sağlayıcı anahtarı yokken kullanılan sahte sağlayıcı: asla ağa çıkmaz. */
-export function createFakeProvider(answers: { text?: string; value?: unknown } = {}): LlmProvider {
+export function createFakeProvider(
+  answers: { text?: string; value?: unknown; bySchema?: Record<string, unknown> } = {},
+): LlmProvider {
   const usage = (): LlmUsage => ({
     inputTokens: 0,
     outputTokens: 0,
@@ -50,8 +52,13 @@ export function createFakeProvider(answers: { text?: string; value?: unknown } =
     async complete() {
       return { text: answers.text ?? '', usage: usage() };
     },
-    async structured(_messages, schema) {
-      return { value: schema.parse(answers.value), usage: usage() };
+    async structured(_messages, schema, opts) {
+      // Şema adına göre cevap: aynı sahte sağlayıcı birden fazla ajanı besleyebilsin.
+      const ham =
+        opts?.schemaName && answers.bySchema && opts.schemaName in answers.bySchema
+          ? answers.bySchema[opts.schemaName]
+          : answers.value;
+      return { value: schema.parse(ham), usage: usage() };
     },
   };
 }

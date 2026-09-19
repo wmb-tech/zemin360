@@ -96,3 +96,18 @@ export const MatchReasoning = z.object({
   summaryForOrganization: z.string().max(600),
 });
 export type MatchReasoning = z.infer<typeof MatchReasoning>;
+
+/** Eşleşme ajanının tek çağrıda döndürdüğü sıralı liste (ADR-0002: şemalı çıktı). */
+export const MatchBatchResult = z.object({
+  results: z.array(MatchReasoning.extend({ talentId: z.string().uuid() })).max(20),
+});
+export type MatchBatchResult = z.infer<typeof MatchBatchResult>;
+
+/** Onay kuyruğundaki eylem türleri (ADR-0004). */
+export const ApprovalAction = z.enum([
+  'publish_shortlist',
+  'introduce',
+  'send_follow_up',
+  'invite',
+]);
+export type ApprovalAction = z.infer<typeof ApprovalAction>;

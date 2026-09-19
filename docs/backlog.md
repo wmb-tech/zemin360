@@ -27,11 +27,11 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [ ] Netlik ölçümü kaydı
 
 ## Eşleştir (03)
-- [ ] Sert filtre (tür, süre, konum)
-- [ ] Gerekçe ajanı (`matcher`): MatchReasoning
-- [ ] Operatör onay kuyruğu ekranı
-- [ ] Tanıştırma e-postası (ajan taslağı, operatör düzeltir)
-- [ ] Kurum görünümü: önce özet, tanıştırma sonrası tam kart (KARAR-09)
+- [x] Ön eleme (anahtar kelime örtüşmesi; tür/süre/konum filtresi kişi tercihleri gelince)
+- [x] Gerekçe ajanı (`matcher`): MatchReasoning
+- [x] Operatör onay kuyruğu (API) · [ ] ekranı
+- [x] Tanıştırma e-postası (kuyruk → onay → iki tarafa) · [ ] ajan taslağı
+- [x] Kurum görünümü (API): önce özet, tanıştırma sonrası tam kart (KARAR-09) · [ ] ekranı
 
 ## İzle (06)
 - [ ] İş birliği kaydı ve durum geçişleri

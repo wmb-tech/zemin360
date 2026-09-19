@@ -11,6 +11,9 @@ import { health } from './routes/health';
 import { needRoutes } from './needs/routes';
 import { createNeedService } from './needs/service';
 import { createLlmFromEnv } from './lib/llm';
+import { createMatchingService } from './matching/service';
+import { operatorRoutes } from './operator/routes';
+import { createOperatorService } from './operator/service';
 import type { LlmProvider } from '@evidex/ai';
 
 export interface AppDeps {
@@ -32,7 +35,9 @@ export function createApp(deps: AppDeps) {
   app.use('/api/*', cors({ origin: deps.env.WEB_ORIGIN, credentials: true }));
 
   app.route('/api/health', health);
-  app.route('/api/needs', needRoutes(auth, createNeedService(deps.db, llm)));
+  const matching = createMatchingService(deps.db, llm);
+  app.route('/api/needs', needRoutes(auth, createNeedService(deps.db, llm, matching), matching));
+  app.route('/api/operator', operatorRoutes(auth, createOperatorService(deps.db, email), matching));
   app.route(
     '/api/auth',
     authRoutes({

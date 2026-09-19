@@ -10,13 +10,14 @@ import {
 import type { NeedCardEdits } from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
 import { AppError } from '../lib/response';
+import type { MatchingService } from '../matching/service';
 
 /**
  * ### İhtiyaç servisi — döngü adımı: tanımla (05)
  * Kurum ham metni yazar → ajan taslak + soru → cevap → … → kurum onaylar.
  * ⚠ Onay yalnız kurumun; ajan `done` dese de kart onaysız `draft` kalır.
  */
-export function createNeedService(db: Db, llm: LlmProvider) {
+export function createNeedService(db: Db, llm: LlmProvider, matching: MatchingService) {
   async function organizationOf(userId: string) {
     const [uye] = await db
       .select({ organizationId: organizationMembers.organizationId })
@@ -117,6 +118,8 @@ export function createNeedService(db: Db, llm: LlmProvider) {
         })
         .where(eq(needs.id, needId))
         .returning();
+      // Onay eşleştirmeyi tetikler; kısa liste operatör kuyruğuna düşer (kurum henüz görmez).
+      await matching.runForNeed(needId);
       return onayli!;
     },
   };

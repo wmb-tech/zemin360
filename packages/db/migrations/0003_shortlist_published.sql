@@ -1,0 +1,1 @@
+ALTER TABLE "needs" ADD COLUMN "shortlist_published_at" timestamp with time zone;

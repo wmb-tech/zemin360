@@ -22,6 +22,13 @@
       "when": 1789859198918,
       "tag": "0002_need_turns",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789859856949,
+      "tag": "0003_shortlist_published",
+      "breakpoints": true
     }
   ]
 }

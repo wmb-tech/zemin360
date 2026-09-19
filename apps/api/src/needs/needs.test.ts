@@ -43,11 +43,15 @@ async function kurumOturumu(
 describe('ihtiyaçlar (tanımla)', () => {
   it('ham metin → taslak + soru; cevap → yeni adım; eksik kart onaylanamaz; tam kart onaylanır', async () => {
     const llm = createFakeProvider({
-      value: {
-        draft: bosTaslak,
-        missing: [],
-        done: false,
-        nextQuestion: { text: 'Ne kadar sürede?', why: 'süre' },
+      bySchema: {
+        need_step: {
+          draft: bosTaslak,
+          missing: [],
+          done: false,
+          nextQuestion: { text: 'Ne kadar sürede?', why: 'süre' },
+        },
+        // Onay eşleştirmeyi tetikler; DB'de başka testten kalan onaylı kart olabilir.
+        match_batch: { results: [] },
       },
     });
     const { app: appLlm, gonderilen } = testApp({ llm });
