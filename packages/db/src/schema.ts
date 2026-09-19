@@ -88,6 +88,16 @@ export const sessions = pgTable('sessions', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Sihirli link (KARAR-07): tek kullanımlık, 15 dk, hash saklanır. */
+export const loginTokens = pgTable('login_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 /* ---------- Kişi kartı ---------- */
 
 export const talents = pgTable('talents', {

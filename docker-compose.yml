@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: evidex
       POSTGRES_DB: evidex
     ports:
-      - '5432:5432'
+      - '5433:5432' # ⚠ 5433: yerel Postgres 5432'yi tutuyor olabilir
     volumes:
       - evidex_pg:/var/lib/postgresql/data
     healthcheck:

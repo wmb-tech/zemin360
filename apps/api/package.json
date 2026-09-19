@@ -6,12 +6,18 @@
   "scripts": {
     "dev": "bun --watch --env-file=../../.env src/index.ts",
     "start": "bun src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun --env-file=.env.test run ../../packages/db/src/resetTest.ts && bun --env-file=.env.test run ../../packages/db/src/migrate.ts && bun --env-file=.env.test test src"
   },
   "dependencies": {
     "@evidex/db": "workspace:*",
     "@evidex/shared": "workspace:*",
+    "drizzle-orm": "^0.45",
     "hono": "^4",
+    "pg": "^8",
     "zod": "^4"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
   }
 }

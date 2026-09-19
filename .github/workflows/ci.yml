@@ -8,6 +8,19 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: evidex
+          POSTGRES_PASSWORD: evidex
+          POSTGRES_DB: evidex_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U evidex"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
