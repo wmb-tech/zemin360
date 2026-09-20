@@ -3,7 +3,7 @@ import { Clock, Send } from 'lucide-react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { Enter, Live } from '../components/motion';
-import { Button, Empty, ErrorNote, Input, Panel, Skeleton } from '../components/ui';
+import { Button, Empty, ErrorNote, Input, Metin, Panel, Skeleton } from '../components/ui';
 
 interface OpenChallenge {
   id: string;
@@ -111,9 +111,10 @@ export function TalentChallengesPage() {
                   </div>
                   <div className="disclose" data-open={acik}>
                     <div>
-                      <p className="text-ink mt-4 max-w-[70ch] text-base leading-relaxed whitespace-pre-wrap">
-                        {c.brief}
-                      </p>
+                      <Metin
+                        text={c.brief}
+                        className="text-ink mt-4 max-w-[70ch] text-base leading-relaxed"
+                      />
                       <h3 className="text-ink-soft mt-5 text-xs font-bold tracking-wide uppercase">
                         Nasıl değerlendirilecek
                       </h3>

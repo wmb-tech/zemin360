@@ -38,7 +38,9 @@ export function createMetricsService(db: Db) {
           from needs n
           join (select need_id, min(introduced_at) as first_intro from matches where introduced_at is not null group by need_id) m
             on m.need_id = n.id
-          where n.card_approved_at is not null`)
+          -- Tanıştırma kart onayından önce görünüyorsa tarih sırası bozuktur (elle düzeltilmiş
+          -- kayıt); negatif süre üretmek yerine dışarıda bırakılır (docs/redesign/04 §API notes).
+          where n.card_approved_at is not null and m.first_intro >= n.card_approved_at`)
       ).rows as { needs_with_intro: number; avg_hours: number | null }[];
 
       // 4. İlk beşten görüşmeye dönüş

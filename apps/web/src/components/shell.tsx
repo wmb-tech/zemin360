@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import {
   Building2,
@@ -10,6 +11,7 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
+  MoreHorizontal,
   Network,
   Users,
   type LucideIcon,
@@ -44,6 +46,10 @@ const roleLabel = { talent: 'Genç', organization: 'Kurum', operator: 'GİRVAK' 
 export function Shell({ nav }: { nav: NavItem[] }) {
   const { me, logout } = useAuth();
   const dense = me?.role === 'operator';
+  // Telefon alt menüsü en çok 4 madde taşır; fazlası "Diğer" altında (amputasyon değil, katlama).
+  const altMenu = nav.length > 4 ? nav.slice(0, 3) : nav;
+  const digerMenu = nav.length > 4 ? nav.slice(3) : [];
+  const [digerAcik, setDigerAcik] = useState(false);
   const kimlik =
     me?.role === 'organization' && me.organization ? me.organization.name : (me?.name ?? '');
 
@@ -122,35 +128,85 @@ export function Shell({ nav }: { nav: NavItem[] }) {
       </div>
 
       {/* Alt menü — telefon */}
+      {digerAcik && (
+        <div
+          className="fixed inset-0 z-20 bg-[color-mix(in_oklch,var(--color-ink)_30%,transparent)] md:hidden"
+          onClick={() => setDigerAcik(false)}
+          aria-hidden
+        />
+      )}
       <nav
-        className="border-line bg-surface fixed inset-x-0 bottom-0 z-20 flex border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="border-line bg-surface fixed inset-x-0 bottom-0 z-30 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
         aria-label="Ana menü"
       >
-        {nav.slice(0, 4).map((n) => {
-          const Icon = ICONS[n.icon];
-          return (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              className={({ isActive }) =>
-                `flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${
-                  isActive ? 'text-accent-strong' : 'text-ink-soft'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={`flex h-7 w-11 items-center justify-center rounded-full ${isActive ? 'bg-accent-soft' : ''}`}
+        {digerAcik && (
+          <ul className="border-line border-b px-2 py-2" id="diger-menu">
+            {digerMenu.map((n) => {
+              const Icon = ICONS[n.icon];
+              return (
+                <li key={n.to}>
+                  <NavLink
+                    to={n.to}
+                    onClick={() => setDigerAcik(false)}
+                    className={({ isActive }) =>
+                      `flex min-h-11 items-center gap-3 rounded-[var(--radius-control)] px-3 text-sm font-semibold ${
+                        isActive ? 'bg-accent-soft text-accent-strong' : 'text-ink'
+                      }`
+                    }
                   >
                     <Icon size={18} strokeWidth={2} aria-hidden />
-                  </span>
-                  {n.label}
-                </>
-              )}
-            </NavLink>
-          );
-        })}
+                    {n.label}
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div className="flex">
+          {altMenu.map((n) => {
+            const Icon = ICONS[n.icon];
+            return (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                onClick={() => setDigerAcik(false)}
+                className={({ isActive }) =>
+                  `flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${
+                    isActive ? 'text-accent-strong' : 'text-ink-soft'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className={`flex h-7 w-11 items-center justify-center rounded-full ${isActive ? 'bg-accent-soft' : ''}`}
+                    >
+                      <Icon size={18} strokeWidth={2} aria-hidden />
+                    </span>
+                    {n.label}
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
+          {digerMenu.length > 0 && (
+            <button
+              onClick={() => setDigerAcik((v) => !v)}
+              aria-expanded={digerAcik}
+              aria-controls="diger-menu"
+              className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${
+                digerAcik ? 'text-accent-strong' : 'text-ink-soft'
+              }`}
+            >
+              <span
+                className={`flex h-7 w-11 items-center justify-center rounded-full ${digerAcik ? 'bg-accent-soft' : ''}`}
+              >
+                <MoreHorizontal size={18} strokeWidth={2} aria-hidden />
+              </span>
+              Diğer
+            </button>
+          )}
+        </div>
       </nav>
     </div>
   );

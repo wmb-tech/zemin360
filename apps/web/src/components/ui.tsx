@@ -229,3 +229,60 @@ export function Panel({ children, className = '' }: { children: ReactNode; class
 export function Eyebrow({ children }: { children: ReactNode }) {
   return <div className="text-ink-soft text-xs font-bold tracking-wide uppercase">{children}</div>;
 }
+
+/**
+ * Ajan metni (görev tanımı gibi) hafif Markdown taşır: **kalın**, `kod`, "- " ve "1. " satırları.
+ * Tam Markdown motoru yok; bilinmeyen işaret olduğu gibi kalır. HTML'e dönüştürmez (XSS yok).
+ */
+export function Metin({ text, className = '' }: { text: string; className?: string }) {
+  const satir = (s: string, key: number) => {
+    const parcalar = s.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+    return (
+      <span key={key}>
+        {parcalar.map((p, i) =>
+          p.startsWith('**') ? (
+            <strong key={i} className="text-ink font-bold">
+              {p.slice(2, -2)}
+            </strong>
+          ) : p.startsWith('`') ? (
+            <code key={i} className="bg-paper-2 rounded px-1 py-0.5 font-mono text-[0.9em]">
+              {p.slice(1, -1)}
+            </code>
+          ) : (
+            p
+          ),
+        )}
+      </span>
+    );
+  };
+  const bloklar = text.replace(/\r/g, '').split(/\n{2,}/);
+  return (
+    <div className={`space-y-3 ${className}`}>
+      {bloklar.map((b, bi) => {
+        const satirlar = b.split('\n').filter((l) => l.trim() !== '');
+        const liste = satirlar.length > 0 && satirlar.every((l) => /^\s*(-|\*|\d+[.)])\s+/.test(l));
+        if (liste) {
+          const sirali = /^\s*\d/.test(satirlar[0] ?? '');
+          const Tag = sirali ? 'ol' : 'ul';
+          return (
+            <Tag key={bi} className={`space-y-1 pl-5 ${sirali ? 'list-decimal' : 'list-disc'}`}>
+              {satirlar.map((l, li) => (
+                <li key={li}>{satir(l.replace(/^\s*(-|\*|\d+[.)])\s+/, ''), li)}</li>
+              ))}
+            </Tag>
+          );
+        }
+        return (
+          <p key={bi}>
+            {satirlar.map((l, li) => (
+              <span key={li}>
+                {li > 0 && <br />}
+                {satir(l, li)}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
