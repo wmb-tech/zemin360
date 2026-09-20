@@ -213,6 +213,42 @@ export function createOperatorService(
       if (!kayit)
         throw new AppError('not_found', 'İş birliği kaydı yok (tanıştırma yapılmamış)', 404);
       await audit(operatorId, 'collaboration.status', 'match', matchId, { status });
+      // İzle (06): operatör durumu elle değiştirince iki taraf da haberdar olur — şeffaflık
+      // tek yönlü değil. Uç durumlarda (bitti/olmadı) ve başlangıçta; ara adımlar sessiz.
+      if (status === 'started' || status === 'completed' || status === 'did_not_happen') {
+        const [m] = await db.select().from(matches).where(eq(matches.id, matchId)).limit(1);
+        const [need] = m
+          ? await db.select().from(needs).where(eq(needs.id, m.needId)).limit(1)
+          : [];
+        const [talent] = m
+          ? await db
+              .select({ email: users.email, name: users.name })
+              .from(talents)
+              .innerJoin(users, eq(users.id, talents.userId))
+              .where(eq(talents.id, m.talentId))
+              .limit(1)
+          : [];
+        const uyeler = need
+          ? await db
+              .select({ email: users.email })
+              .from(organizationMembers)
+              .innerJoin(users, eq(users.id, organizationMembers.userId))
+              .where(eq(organizationMembers.organizationId, need.organizationId))
+          : [];
+        const metin = {
+          started:
+            'GİRVAK kaydına göre iş birliğiniz başladı. Üç gün içinde kısa bir takip sorusu göndereceğiz.',
+          completed:
+            'GİRVAK kaydına göre iş birliğiniz tamamlandı. Kurum değerlendirmesi gencin kartına referans olarak işlenir; teşekkürler.',
+          did_not_happen:
+            'GİRVAK kaydına göre bu iş birliği gerçekleşmedi. Sorun değil; yeni eşleşmelerde yine haber vereceğiz.',
+        }[status];
+        const basliq = `Evidex: iş birliği durumu — ${(need?.card as { title?: string } | null)?.title ?? 'ihtiyaç'}`;
+        for (const to of [talent?.email, ...uyeler.map((u) => u.email)].filter((e): e is string =>
+          Boolean(e),
+        ))
+          await email.send({ to, subject: basliq, text: metin });
+      }
       return kayit;
     },
 

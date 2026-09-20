@@ -222,6 +222,18 @@ describe('eşleştir + onay kuyruğu', () => {
       json({ status: 'meeting' }, opCookie),
     );
     expect(durum.status).toBe(200);
+    // Ara adım sessiz; "başladı" iki tarafa haber verir.
+    const mailOnce = gonderilen.length;
+    await app.request(
+      `/api/operator/collaborations/${matchId}/status`,
+      json({ status: 'started' }, opCookie),
+    );
+    expect(
+      gonderilen
+        .slice(mailOnce)
+        .map((m) => m.to)
+        .sort(),
+    ).toEqual(['ayse@example.com', 'mehmet@firma.com']);
     const olcum = (
       await (await app.request('/api/operator/metrics', { headers: { cookie: opCookie } })).json()
     ).data;

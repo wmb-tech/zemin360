@@ -24,7 +24,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 ## Tanımla (05)
 - [x] İhtiyaç yapılandırma ajanı (`need_structurer`): soru-cevap → NeedCard
 - [x] Kurum ihtiyaç ekranı (sohbet + kart önizleme + onay)
-- [ ] Netlik ölçümü kaydı
+- [x] Netlik ölçümü kaydı (turns + ilk eksik alan → ölçüm paneli)
 
 ## Eşleştir (03)
 - [x] Ön eleme (anahtar kelime örtüşmesi; tür/süre/konum filtresi kişi tercihleri gelince)
@@ -34,7 +34,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Kurum görünümü (API + ekran): önce özet, tanıştırma sonrası tam kart (KARAR-09)
 
 ## İzle (06)
-- [x] İş birliği kaydı ve durum geçişleri (operatör API + ekran) · [ ] kurum/genç bildirimi
+- [x] İş birliği kaydı ve durum geçişleri (operatör API + ekran) · [x] kurum/genç bildirimi (başladı/bitti/olmadı)
 - [x] Takip ajanı (`follow_up`): 3 gün sonra soru, cevabı işle, sessizi işaretle (ADR-0006)
 - [x] Bitiş değerlendirmesi → referanslı kanıt (KARAR-10)
 
@@ -48,11 +48,11 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Meydan okuma: ihtiyaçtan görev üretme, açma, teslim, rubrik değerlendirme, kanıta dönüşüm
 - [x] Keşif ajanı: GitHub araması → gerekçeli seçim → davet kuyruğu (ADR-0007)
 - [x] Kulüp kanalı: toplu davet (liste → kuyruk → onay → e-posta; ağdakiler elenir)
-- [ ] Talepten çekim bildirimi
+- [x] Talepten çekim bildirimi (= kısa liste yayınlanınca güçlü adaya e-posta)
 - [x] Paylaşılabilir kart sayfası (`/k/:slug`, onaylı iddialar, kimlik yok, kapatınca link ölür)
 
 ## Ölçüm ve sunum
 - [x] Ölçüm paneli (beş metrik, paydalı)
 - [x] Açılış sayfası (oturumsuz `/`; giriş `/giris`)
 - [x] Devir belgesi, 4 aylık yol haritası, eğitim planı (`docs/04`)
-- [ ] Demo senaryosu, üç prova
+- [x] Demo senaryosu (`docs/05`) · [ ] üç prova (canlı adres sonrası)
