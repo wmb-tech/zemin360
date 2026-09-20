@@ -13,6 +13,7 @@ import { CollaborationsPage } from './pages/collaborations';
 import { CheckinPage } from './pages/checkin';
 import { NetworkPage } from './pages/network';
 import { PublicCardPage } from './pages/public-card';
+import { LandingPage } from './pages/landing';
 
 const NAV = {
   talent: [
@@ -32,7 +33,15 @@ const NAV = {
 function Routed() {
   const { me, loading } = useAuth();
   if (loading) return null;
-  if (!me) return <LoginPage />;
+  if (!me)
+    return (
+      <Routes>
+        <Route index element={<LandingPage />} />
+        <Route path="/giris" element={<LoginPage />} />
+        {/* Oturumsuz derin linkler (e-postadan gelen) girişe döner; giriş sonrası rol ana sayfası */}
+        <Route path="*" element={<Navigate to="/giris" replace />} />
+      </Routes>
+    );
 
   const nav = [...NAV[me.role]];
   const home = nav[0]!.to;

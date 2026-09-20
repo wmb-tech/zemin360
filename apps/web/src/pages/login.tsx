@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { api } from '../lib/api';
 
 /** KARAR-07: genç GitHub ile, kurum/operatör e-posta bağlantısıyla girer. */
@@ -20,7 +21,9 @@ export function LoginPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
-      <h1 className="text-3xl font-extrabold tracking-tight">Evidex</h1>
+      <Link to="/" className="text-3xl font-extrabold tracking-tight">
+        Evidex
+      </Link>
       <p className="text-ink-soft mt-2">Beyan değil kanıt. Skor değil gerekçe.</p>
 
       <section className="border-line mt-10 rounded-xl border p-6">

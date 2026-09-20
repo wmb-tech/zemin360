@@ -27,8 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setMe(await api<Me>('/api/auth/me'));
     } catch (e) {
-      // 401 = oturum yok, normal. Başka hata ise gizlenmez.
-      if (!(e instanceof ApiRequestError && e.status === 401)) throw e;
+      // 401 = oturum yok, normal. Başka hata (API kapalı) gizlenmez ama sayfayı da kilitlemez:
+      // açılış sayfası oturumsuz çalışır.
+      if (!(e instanceof ApiRequestError && e.status === 401)) console.error(e);
       setMe(null);
     } finally {
       setLoading(false);
