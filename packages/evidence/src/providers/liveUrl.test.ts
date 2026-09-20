@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { assertPublicUrl, createLiveUrlEvidence } from './liveUrl';
+import {
+  assertPublicResolution,
+  assertPublicUrl,
+  createLiveUrlEvidence,
+  isPrivateIp,
+} from './liveUrl';
 
 describe('canlı URL sağlayıcısı', () => {
   it('yerel/özel adresleri reddeder (SSRF)', () => {
@@ -27,6 +32,7 @@ describe('canlı URL sağlayıcısı', () => {
       'https://c.example/.well-known/evidex.txt': 'baska',
     };
     const p = createLiveUrlEvidence({
+      resolve: async () => ['93.184.216.34'],
       fetchText: async (url) => ({
         status: sayfalar[url.toString()] === undefined ? 404 : 200,
         text: sayfalar[url.toString()] ?? '',
@@ -42,6 +48,7 @@ describe('canlı URL sağlayıcısı', () => {
 
   it('sinyal çıkarır, içerik saklamaz', async () => {
     const p = createLiveUrlEvidence({
+      resolve: async () => ['93.184.216.34'],
       fetchText: async () => ({
         status: 200,
         text: '<html><head><title>Kafe Sipariş</title><script src="/assets/index-abc.js"></script></head></html>',
@@ -53,5 +60,39 @@ describe('canlı URL sağlayıcısı', () => {
     expect(s.title).toBe('Kafe Sipariş');
     expect(s.tools).toContain('Vite');
     expect(JSON.stringify(s)).not.toContain('<html');
+  });
+
+  it("public ad özel IP'ye çözülürse istek hiç atılmaz (DNS ile SSRF)", async () => {
+    let cagri = 0;
+    const p = createLiveUrlEvidence({
+      resolve: async () => ['127.0.0.1'],
+      fetchText: async () => {
+        cagri++;
+        return { status: 200, text: '', headers: new Headers() };
+      },
+    });
+    await expect(p.extract('https://masum-gorunen.example/')).rejects.toThrow();
+    expect(cagri).toBe(0);
+    await expect(
+      assertPublicResolution(new URL('https://x.example/'), async () => [
+        '93.184.216.34',
+        '10.0.0.1',
+      ]),
+    ).rejects.toThrow();
+    for (const ip of [
+      '10.1.2.3',
+      '172.16.0.1',
+      '192.168.0.1',
+      '169.254.169.254',
+      '100.64.0.1',
+      '0.0.0.0',
+      '::1',
+      'fe80::1',
+      '::ffff:127.0.0.1',
+    ]) {
+      expect(isPrivateIp(ip)).toBe(true);
+    }
+    expect(isPrivateIp('93.184.216.34')).toBe(false);
+    expect(() => assertPublicUrl('http://[2001:db8::1]/')).toThrow();
   });
 });

@@ -19,9 +19,58 @@ export function assertPublicUrl(raw: string): URL {
   }
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Yalnız http/https');
   const host = url.hostname;
-  if (OZEL_HOST.test(host) || OZEL_172.test(host) || !host.includes('.'))
+  if (host.includes(':') || OZEL_HOST.test(host) || OZEL_172.test(host) || !host.includes('.'))
     throw new Error('Özel ya da yerel adres kabul edilmez');
   return url;
+}
+
+/** IPv4/IPv6 özel, loopback, link-local, CGNAT, bulut metadata ve ayrılmış aralıklar. */
+export function isPrivateIp(ip: string): boolean {
+  if (ip.includes(':')) {
+    const v6 = ip.toLowerCase();
+    if (v6 === '::1' || v6 === '::') return true;
+    if (v6.startsWith('fe80:') || v6.startsWith('fc') || v6.startsWith('fd')) return true;
+    const m = v6.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/); // IPv4-mapped
+    return m ? isPrivateIp(m[1]!) : false;
+  }
+  const p = ip.split('.').map(Number);
+  if (p.length !== 4 || p.some((n) => Number.isNaN(n))) return true; // sınıflanamayan = güvensiz
+  const [a, b] = p as [number, number, number, number];
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) || // CGNAT
+    (a === 169 && b === 254) || // link-local + bulut metadata
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    a >= 224 // multicast / ayrılmış
+  );
+}
+
+export type Resolver = (hostname: string) => Promise<string[]>;
+
+async function defaultResolve(hostname: string): Promise<string[]> {
+  const { lookup } = await import('node:dns/promises');
+  const kayitlar = await lookup(hostname, { all: true });
+  return kayitlar.map((k) => k.address);
+}
+
+/**
+ * ⚠ SSRF: hostname listesi tek başına yetmez — public bir ad özel IP'ye çözülebilir. Her
+ * istekten hemen önce ad çözülür; TÜM adresler özel aralık dışında olmalı. DNS rebinding
+ * artığına karşı yönlendirme takip edilmez ve zaman aşımı kısadır.
+ */
+export async function assertPublicResolution(url: URL, resolve: Resolver = defaultResolve) {
+  let ipler: string[];
+  try {
+    ipler = await resolve(url.hostname);
+  } catch {
+    throw new Error('Alan adı çözümlenemedi');
+  }
+  if (ipler.length === 0 || ipler.some(isPrivateIp)) {
+    throw new Error('Adres özel bir ağa çözülüyor; kabul edilmez');
+  }
 }
 
 async function fetchText(
@@ -45,8 +94,16 @@ async function fetchText(
   }
 }
 
-export function createLiveUrlEvidence(deps: { fetchText?: typeof fetchText } = {}) {
-  const get = deps.fetchText ?? fetchText;
+export function createLiveUrlEvidence(
+  deps: { fetchText?: typeof fetchText; resolve?: Resolver } = {},
+) {
+  const ham = deps.fetchText ?? fetchText;
+  const resolve = deps.resolve ?? defaultResolve;
+  // Her istekten önce DNS kapısı; well-known dahil.
+  const get: typeof fetchText = async (url, ms) => {
+    await assertPublicResolution(url, resolve);
+    return ham(url, ms);
+  };
   return {
     async verifyOwnership(
       rawUrl: string,
