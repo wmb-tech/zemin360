@@ -53,7 +53,12 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
-            cd /opt/evidex
-            docker compose -f docker-compose.prod.yml pull api
-            docker compose -f docker-compose.prod.yml up -d
-            docker image prune -f
+            # Sunucuda deploy kullanıcısının sudo yetkisi yalnız bu compose dosyasıyla sınırlı
+            sudo /usr/bin/docker compose -f /opt/evidex/docker-compose.yml pull api
+            sudo /usr/bin/docker compose -f /opt/evidex/docker-compose.yml up -d
+            sudo /usr/bin/docker image prune -f
+            for i in $(seq 1 30); do
+              if curl -sf http://127.0.0.1:3100/api/health >/dev/null 2>&1 || sudo /usr/bin/docker logs evidex-api 2>&1 | grep -q "evidex-api :3100"; then echo "api ayakta"; exit 0; fi
+              sleep 2
+            done
+            echo "api açılmadı"; sudo /usr/bin/docker logs --tail 50 evidex-api; exit 1
