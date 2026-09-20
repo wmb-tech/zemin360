@@ -151,6 +151,16 @@ export function createApp(deps: AppDeps) {
   // /takip/:token, /k/:slug). Geliştirmede Vite ayrı portta; bu blok devreye girmez.
   const webDist = deps.webDist;
   if (webDist && existsSync(webDist)) {
+    // Önbellek: hash'li varlıklar bir yıl değişmez; kabuk (index.html) her açılışta doğrulanır.
+    // Aksi hâlde tarayıcı dağıtımdan sonra eski paketi çalıştırıyor (ilk gerçek kullanıcıda oldu).
+    app.use('/*', async (c, next) => {
+      await next();
+      if (c.req.path.startsWith('/api/')) return;
+      c.header(
+        'Cache-Control',
+        c.req.path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+      );
+    });
     app.use('/*', serveStatic({ root: webDist }));
     const indexHtml = serveStatic({ root: webDist, path: 'index.html' });
     app.get('*', async (c, next) => {
