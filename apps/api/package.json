@@ -16,10 +16,12 @@
     "@evidex/shared": "workspace:*",
     "drizzle-orm": "^0.45",
     "hono": "^4",
+    "nodemailer": "^10.0.10",
     "pg": "^8",
     "zod": "^4"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1"
   }
 }

@@ -1,5 +1,10 @@
 # Canlı ortam — tek VM, tek komut
 
+> **Bugünkü canlı:** `evidex.wmbyazilim.com` → WMB Hetzner kutusu (62.238.61.164), kenar Caddy'nin
+> `/srv/wmb/caddy/evidex.caddy` dosyası + `/opt/evidex/docker-compose.yml` (bu depodaki prod compose'un
+> caddy'siz, `closer-edge` ağına bağlı hâli). Deploy kullanıcısı `evidex` (yalnız kendi compose'una sudo).
+> Sırlar sunucuda `/opt/evidex/.env` ve `secrets/gcp.json`; GitHub'da yalnız SSH anahtarı.
+
 Hedef (KARAR-14): 9 Ekim'de canlı adres. Tarif: Docker Compose + Caddy (HTTPS otomatik) +
 GitHub Actions (imaj ghcr.io'ya, sunucuda `compose pull && up`). Tek süreç API + web; Postgres
 aynı VM'de, günlük yedek.

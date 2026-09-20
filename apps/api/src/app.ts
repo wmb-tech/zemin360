@@ -6,7 +6,7 @@ import { logger } from 'hono/logger';
 import type { Db } from '@evidex/db';
 import { authRoutes } from './auth/routes';
 import { createAuthService, type GithubProfile } from './auth/service';
-import { createConsoleEmailSender, type EmailSender } from './lib/email';
+import { createEmailSenderFromEnv, type EmailSender } from './lib/email';
 import type { Env } from './lib/env';
 import { AppError, fail } from './lib/response';
 import { health } from './routes/health';
@@ -59,7 +59,7 @@ export interface AppDeps {
 export function createApp(deps: AppDeps) {
   const app = new Hono();
   const auth = createAuthService(deps.db);
-  const email = deps.email ?? createConsoleEmailSender();
+  const email = deps.email ?? createEmailSenderFromEnv(deps.env);
   const llm = deps.llm ?? createLlmFromEnv(deps.env);
   const github =
     deps.github !== undefined
