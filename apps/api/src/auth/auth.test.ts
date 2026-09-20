@@ -25,8 +25,11 @@ describe('kimlik', () => {
     expect(me.ok).toBe(true);
     expect(me.data.role).toBe('organization');
 
-    // Aynı link ikinci kez 401: sessizce yeni oturum vermez.
-    expect((await app.request(path, { redirect: 'manual' })).status).toBe(401);
+    // Aynı link ikinci kez oturum vermez: giriş sayfasına okunur hata koduyla döner, çerez yok.
+    const ikinci = await app.request(path, { redirect: 'manual' });
+    expect(ikinci.status).toBe(302);
+    expect(ikinci.headers.get('location')).toContain('/giris?hata=invalid_link');
+    expect(cookieOf(ikinci, 'evidex_session')).toBe('');
   });
 
   it('geçersiz e-posta 422 döner', async () => {
