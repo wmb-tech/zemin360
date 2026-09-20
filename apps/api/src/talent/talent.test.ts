@@ -218,3 +218,85 @@ describe('canlı URL kanıtı', () => {
     expect(kart.claims[0].level).toBe('verified');
   });
 });
+
+describe('belge kanıtı', () => {
+  it('PDF yükle → sinyal saklanır, dosya değil → belgeli iddia; aynı belge 409; PDF olmayan 422', async () => {
+    let cagri = 0;
+    const document = {
+      async extract(bytes: Uint8Array) {
+        cagri++;
+        if (new TextDecoder().decode(bytes.subarray(0, 5)) !== '%PDF-')
+          throw new Error('Yalnız PDF kabul edilir');
+        return {
+          pages: 1,
+          wordCount: 40,
+          sha256: 'deadbeef'.repeat(8),
+          title: 'TEKNOFEST 2025',
+          issuer: 'TEKNOFEST 2025',
+          years: [2025],
+          docType: 'competition' as const,
+          excerptLines: ['TEKNOFEST 2025', 'Finalist Belgesi'],
+          language: 'tr' as const,
+        };
+      },
+    };
+    const llm = createFakeProvider({
+      bySchema: {
+        card_draft: {
+          headline: 'Genç geliştirici',
+          story: 'TEKNOFEST 2025 finalisti; belgeyle destekli.',
+          claims: [
+            {
+              text: 'TEKNOFEST 2025 finalisti (belge)',
+              sourceRefs: ['teknofest.pdf#deadbeefdead'],
+              periodStart: '2025-09-01',
+              periodEnd: '2025-09-05',
+            },
+          ],
+        },
+      },
+    });
+    const { app } = testApp({
+      llm,
+      document,
+      githubProfile: { id: 602, login: 'ece-belge', name: 'Ece', email: 'ece-b@example.com' },
+    });
+    const giris = await app.request('/api/auth/github/callback?code=abc&state=s7b', {
+      headers: { cookie: 'evidex_oauth_state=s7b' },
+      redirect: 'manual',
+    });
+    const cookie = cookieOf(giris, 'evidex_session');
+
+    const yukle = (icerik: string, ad = 'teknofest.pdf') => {
+      const fd = new FormData();
+      fd.append('file', new File([icerik], ad, { type: 'application/pdf' }));
+      return app.request('/api/me/evidence/document', {
+        method: 'POST',
+        headers: { cookie },
+        body: fd,
+      });
+    };
+    expect((await yukle('bu bir pdf değil')).status).toBe(422);
+    const r = await yukle('%PDF-1.4 sahte içerik');
+    expect(r.status).toBe(201);
+    const kart = (await r.json()).data;
+    const belge = kart.sources.find((x: { kind: string }) => x.kind === 'document');
+    expect(belge.ref).toBe('teknofest.pdf#deadbeefdead');
+    expect(belge.ownershipVerified).toBe(false);
+    expect(kart.claims).toHaveLength(1);
+    expect(kart.claims[0].level).toBe('documented');
+    expect(kart.claims[0].sourceIds).toEqual([belge.id]);
+    // Sinyalde belge metni yok, yalnız kısa alıntı.
+    const sinyal = (
+      await (
+        await app.request('/api/me/evidence/signals', json({ sourceIds: [belge.id] }, cookie))
+      ).json()
+    ).data;
+    expect(JSON.stringify(sinyal)).toContain('Finalist Belgesi');
+    expect(JSON.stringify(sinyal)).not.toContain('sahte içerik');
+    // Aynı belge ikinci kez: 409, ajan tekrar çağrılmaz.
+    const once = cagri;
+    expect((await yukle('%PDF-1.4 sahte içerik')).status).toBe(409);
+    expect(cagri).toBe(once + 1);
+  });
+});

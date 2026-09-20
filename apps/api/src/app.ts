@@ -25,10 +25,12 @@ import { createChallengeService } from './challenges/service';
 import { publicCardRoutes, talentRoutes } from './talent/routes';
 import { createTalentService } from './talent/service';
 import {
+  createDocumentEvidence,
   createGithubEvidence,
   createGithubScout,
   createLiveUrlEvidence,
   createPublicRepoEvidence,
+  type DocumentEvidence,
   type GithubEvidence,
   type GithubScout,
   type LiveUrlEvidence,
@@ -46,6 +48,7 @@ export interface AppDeps {
   liveUrl?: LiveUrlEvidence;
   publicRepo?: PublicRepoEvidence;
   githubScout?: GithubScout;
+  document?: DocumentEvidence;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -67,7 +70,13 @@ export function createApp(deps: AppDeps) {
               : {}),
           })
         : null;
-  const talent = createTalentService(deps.db, llm, github, deps.liveUrl ?? createLiveUrlEvidence());
+  const talent = createTalentService(
+    deps.db,
+    llm,
+    github,
+    deps.liveUrl ?? createLiveUrlEvidence(),
+    deps.document ?? createDocumentEvidence(),
+  );
 
   app.use('*', logger());
   app.use('/api/*', cors({ origin: deps.env.WEB_ORIGIN, credentials: true }));

@@ -7,6 +7,7 @@ import { newRawToken } from '../auth/tokens';
 import type { Env } from '../lib/env';
 import { AppError, ok } from '../lib/response';
 import type { TalentService } from './service';
+import { DOCUMENT_MAX_BYTES } from '@evidex/evidence';
 
 const ClaimPatch = z.object({
   text: z.string().min(8).max(240).optional(),
@@ -77,6 +78,15 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
           await c.req.json().catch(() => ({})),
         );
         return ok(c, await svc.addLiveUrl(c.get('user').id, body.url), 201);
+      })
+      .post('/evidence/document', async (c) => {
+        const body = await c.req.parseBody();
+        const file = body['file'];
+        if (!(file instanceof File)) throw new AppError('validation', 'PDF dosyası gerekli', 422);
+        if (file.size > DOCUMENT_MAX_BYTES)
+          throw new AppError('too_large', 'Belge 5 MB sınırını aşıyor', 413);
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        return ok(c, await svc.addDocument(c.get('user').id, file.name, bytes), 201);
       })
       .post('/evidence/url/:id/verify', async (c) =>
         ok(c, await svc.verifyLiveUrl(c.get('user').id, c.req.param('id'))),

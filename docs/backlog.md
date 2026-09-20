@@ -16,7 +16,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] GitHub App: kurulum, repo seçimi, sahiplik doğrulama
 - [x] GitHub sinyal çıkarma (diller, süre, sahiplik oranı, katkıcı, README/test, canlı)
 - [x] Canlı URL sağlayıcısı (meta etiketi/well-known doğrulama + tarama, SSRF korumalı)
-- [ ] Belge sağlayıcısı (PDF yükleme, özet sinyal)
+- [x] Belge sağlayıcısı (PDF yükleme → sinyal, dosya saklanmaz → belgeli iddia)
 - [x] Kart taslağı ajanı (`card_drafter`): sinyal → iddia (seviye + zaman)
 - [x] Kart onay akışı (web) · [x] mobil; taslak vs onay farkı kaydı
 - [x] Otomatik hikâye bloğu

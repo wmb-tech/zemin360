@@ -34,3 +34,9 @@ değişmez. Kod saklamamak güven ve KVKK yükünü düşürür.
 Kanıt sağlayıcıları `packages/evidence/providers/<ad>` altında ortak arayüzle. Kart
 yeniden hesaplanabilir: sinyaller güncellenince iddialar taslak olarak yenilenir, kişi tekrar
 onaylar (canlı ağ adımı).
+
+
+## Ek (20 Eyl): belge kaynağı
+PDF yüklenir, metin çıkarılır, dosya atılır. Saklanan: sayfa, kelime sayısı, sha256, başlık, kurum satırı, yıllar,
+tür (sertifika/yarışma/staj/referans/transkript) ve ≤ 8 satır / ≤ 400 karakter alıntı. Alıntı belgenin ne olduğunu
+söyler, içeriğini kopyalamaz. Sahiplik makineyle doğrulanamaz → seviye **documented**.

@@ -14,6 +14,7 @@
     "@evidex/shared": "workspace:*",
     "@octokit/app": "^16.1.4",
     "@octokit/rest": "^22.0.1",
+    "unpdf": "^1.8.1",
     "zod": "^4"
   }
 }

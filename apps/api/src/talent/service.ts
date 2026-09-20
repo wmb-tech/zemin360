@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import { cardClaims, evidenceSignals, evidenceSources, talents, users } from '@evidex/db';
 import { runCardDrafter, type LlmProvider } from '@evidex/ai';
-import type { GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
+import type { DocumentEvidence, GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
 import { newRawToken } from '../auth/tokens';
 import { assertPublicUrl } from '@evidex/evidence';
 import { recordAgentRun } from '../agents/runs';
@@ -37,6 +37,7 @@ export function createTalentService(
   llm: LlmProvider,
   github: GithubEvidence | null,
   liveUrl: LiveUrlEvidence,
+  document: DocumentEvidence,
 ) {
   async function talentOf(userId: string) {
     const [satir] = await db
@@ -97,9 +98,13 @@ export function createTalentService(
             talentId,
             text: c.text,
             draftText: c.text,
+            // Seviye kaynaktan (ADR-0003): hepsi sahiplik-doğrulanmış → verified; belge varsa
+            // documented; aksi hâlde declared. Ajan seviye vermez.
             level: srcs.every((x) => x.ownershipVerified)
               ? ('verified' as const)
-              : ('declared' as const),
+              : srcs.some((x) => x.kind === 'document')
+                ? ('documented' as const)
+                : ('declared' as const),
             sourceIds: srcs.map((x) => x.id),
             periodStart: c.periodStart,
             periodEnd: c.periodEnd,
@@ -395,6 +400,43 @@ export function createTalentService(
           updatedAt: new Date(),
         })
         .where(eq(evidenceSources.id, kaynak.id));
+      await redraft(talent.id, user.githubLogin ?? user.name);
+      return this.card(userId);
+    },
+
+    /**
+     * Belge yükle (KARAR-02): PDF okunur, sinyal saklanır, dosya ATILIR (ADR-0003). Aynı belge
+     * (sha256) iki kez eklenmez. Kart yeniden taslaklanır; iddia "belgeli" seviyesinde gelir.
+     */
+    async addDocument(userId: string, fileName: string, bytes: Uint8Array) {
+      const { talent, user } = await talentOf(userId);
+      let signals;
+      try {
+        signals = await document.extract(bytes);
+      } catch (e) {
+        throw new AppError(
+          'invalid_document',
+          e instanceof Error ? e.message : 'Belge okunamadı',
+          422,
+        );
+      }
+      const ref = `${fileName.replace(/[^\w.\-ğüşöçıİĞÜŞÖÇ ]/g, '').slice(0, 80)}#${signals.sha256.slice(0, 12)}`;
+      const [kaynak] = await db
+        .insert(evidenceSources)
+        .values({
+          talentId: talent.id,
+          kind: 'document',
+          ref,
+          ownershipVerified: false,
+          ownershipMethod: 'upload',
+          lastScannedAt: new Date(),
+        })
+        .onConflictDoNothing()
+        .returning();
+      if (!kaynak) throw new AppError('already_added', 'Bu belge zaten ekli', 409);
+      await db
+        .insert(evidenceSignals)
+        .values({ sourceId: kaynak.id, signals: signals as unknown as Record<string, unknown> });
       await redraft(talent.id, user.githubLogin ?? user.name);
       return this.card(userId);
     },

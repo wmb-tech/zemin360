@@ -5,6 +5,7 @@ import type { EmailSender } from '../lib/email';
 import type { GithubProfile } from '../auth/service';
 import { createFakeProvider, type LlmProvider } from '@evidex/ai';
 import type {
+  DocumentEvidence,
   GithubEvidence,
   GithubScout,
   LiveUrlEvidence,
@@ -20,6 +21,7 @@ export function testApp(
     liveUrl?: LiveUrlEvidence;
     publicRepo?: PublicRepoEvidence;
     githubScout?: GithubScout;
+    document?: DocumentEvidence;
   } = {},
 ) {
   const env = loadEnv();
@@ -39,6 +41,7 @@ export function testApp(
     ...(opts.liveUrl ? { liveUrl: opts.liveUrl } : {}),
     ...(opts.publicRepo ? { publicRepo: opts.publicRepo } : {}),
     ...(opts.githubScout ? { githubScout: opts.githubScout } : {}),
+    ...(opts.document ? { document: opts.document } : {}),
     fetchGithubProfile: async () =>
       opts.githubProfile ?? { id: 1, login: 'ayse', name: 'Ayşe', email: 'ayse@example.com' },
   });

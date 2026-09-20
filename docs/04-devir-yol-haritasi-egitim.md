@@ -36,7 +36,7 @@ göreli yazıldı; sözleşme imzalanınca takvime çevrilir.
 | KVKK aydınlatma metni ve rıza kutusu | genç ve kurum verisi | GİRVAK hukuk + WMB (ekran) |
 
 ### Bilinen sınırlar (dürüst liste)
-- Belge (PDF) kanıt sağlayıcısı yok; seviye "belgeli" şemada var, yükleme yolu yok.
+- Belge (PDF) sahipliği makineyle doğrulanamaz; belge yalnız "belgeli" seviyesi verir, dosya saklanmadığı için sonradan denetim operatörün elindeki asıl belgeyle yapılır.
 - Koyu tema yok. Erişilebilirlik denetimi (WCAG) yapılmadı.
 - Zamanlayıcı tek süreç; çoklu süreçte kilit gerekir (ADR-0006).
 - Keşif yalnız GitHub; tasarımcı/içerik üreticisi için Behance/Dribbble yolu haritada.
@@ -59,7 +59,7 @@ kullanım ölçülür.
 - Çıktı: canlı adres, pilot raporu #1.
 
 ### Ay 2 — Kanıt genişlemesi ve mobil (hafta 5–8)
-- Belge sağlayıcısı (PDF: sertifika, yarışma belgesi) → "belgeli" seviye gerçek.
+- Belge doğrulama: yayıncı kurum e-postasıyla teyit (TEKNOFEST, üniversite) → belgeli+.
 - Behance/Dribbble/Figma canlı link sinyali (tasarım profilleri için).
 - Mobil (genç tarafı) mağazalarda: kart, kanıt bağlama, meydan okumalar, takip cevabı, bildirim.
 - Kurum tarafında "ihtiyaç şablonları" (GİRVAK'ın sık gördüğü 5 ihtiyaç türü).

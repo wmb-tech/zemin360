@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
@@ -153,9 +153,30 @@ export function TalentCardPage() {
           busy={busy}
           run={run}
         />
-        <div className="border-line text-ink-soft mt-3 rounded-xl border border-dashed p-4 text-sm">
-          Belge (PDF) ve ağ içi referans kaynakları yakında.
-        </div>
+        <DocumentBlock
+          sources={card.sources.filter((s) => s.kind === 'document')}
+          busy={busy}
+          run={run}
+        />
+        {card.sources.some(
+          (s) => s.kind === 'network_reference' || s.kind === 'challenge_submission',
+        ) && (
+          <div className="border-line mt-3 rounded-xl border p-4">
+            <div className="font-semibold">Platform içi kanıt</div>
+            <ul className="mt-2 space-y-1 text-sm">
+              {card.sources
+                .filter((s) => s.kind === 'network_reference' || s.kind === 'challenge_submission')
+                .map((s) => (
+                  <li key={s.id} className="flex items-center gap-2">
+                    <span className="text-ink-soft text-xs">
+                      {s.kind === 'network_reference' ? 'Kurum referansı' : 'Meydan okuma teslimi'}
+                    </span>
+                    <span className="truncate font-mono text-xs">{s.ref}</span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </section>
 
@@ -442,6 +463,77 @@ function LiveUrlBlock({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * Belge (PDF) kanıtı: sertifika, yarışma belgesi, staj yazısı. Dosya saklanmaz; sinyal çıkar,
+ * iddia "belgeli" seviyesinde gelir. 5 MB, 30 sayfa sınırı sunucuda.
+ */
+function DocumentBlock({
+  sources,
+  busy,
+  run,
+}: {
+  sources: Source[];
+  busy: string | null;
+  run: (key: string, fn: () => Promise<unknown>) => Promise<void>;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  async function upload(file: File) {
+    const fd = new FormData();
+    fd.append('file', file);
+    await run('doc', () =>
+      fetch('/api/me/evidence/document', { method: 'POST', body: fd, credentials: 'include' }).then(
+        async (r) => {
+          const b = (await r.json()) as { ok: boolean; error?: { message: string } };
+          if (!b.ok) throw new Error(b.error?.message ?? 'Yüklenemedi');
+        },
+      ),
+    );
+    if (inputRef.current) inputRef.current.value = '';
+  }
+  return (
+    <div className="border-line mt-3 rounded-xl border p-4">
+      <div className="font-semibold">Belge</div>
+      <div className="text-ink-soft text-xs">
+        Sertifika, yarışma belgesi, staj yazısı (PDF). Dosya saklanmaz; ne olduğu okunur, iddia
+        "belgeli" seviyesinde gelir.
+      </div>
+      <ul className="mt-2 space-y-1">
+        {sources.map((s) => (
+          <li key={s.id} className="flex items-center gap-2 text-sm">
+            <span className="truncate font-mono text-xs">{s.ref.split('#')[0]}</span>
+            <span className="text-documented text-xs">belgeli</span>
+            <button
+              onClick={() =>
+                void run(s.id, () => api(`/api/me/evidence/sources/${s.id}`, { method: 'DELETE' }))
+              }
+              className="text-ink-soft ml-auto text-xs hover:text-red-600"
+            >
+              Kaldır
+            </button>
+          </li>
+        ))}
+      </ul>
+      <label className="mt-3 inline-block">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void upload(f);
+          }}
+        />
+        <span
+          className={`border-line hover:bg-paper-2 inline-block cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-semibold ${busy === 'doc' ? 'opacity-50' : ''}`}
+        >
+          {busy === 'doc' ? 'Okunuyor…' : 'PDF yükle'}
+        </span>
+      </label>
     </div>
   );
 }
