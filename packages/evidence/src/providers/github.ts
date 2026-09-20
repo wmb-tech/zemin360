@@ -23,6 +23,7 @@ export interface RepoRef {
   fullName: string; // owner/name
   private: boolean;
   defaultBranch: string;
+  pushedAt?: string | undefined; // ISO; okuma sırası (en güncel önce)
 }
 
 export function createGithubEvidence(cfg: GithubAppConfig) {
@@ -80,6 +81,7 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
         fullName: r.full_name,
         private: r.private,
         defaultBranch: r.default_branch,
+        pushedAt: r.pushed_at ?? undefined,
       }));
     },
 

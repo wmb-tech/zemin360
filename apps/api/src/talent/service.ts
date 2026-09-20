@@ -16,7 +16,9 @@ import { recordAgentRun } from '../agents/runs';
 import { AppError } from '../lib/response';
 import { isSilentCard } from '../network/service';
 
-const MAX_REPOS = 20;
+// Okuma üst sınırı: tüm kurulumlar birleşik, en son itilen önce. 20 yetmedi (ilk gerçek kullanıcı:
+// kişisel hesap 20'yi doldurdu, org repoları hiç okunmadı).
+const MAX_REPOS = 40;
 
 /**
  * ### Genç servisi — döngü adımı: doğrula (02)
@@ -245,16 +247,20 @@ export function createTalentService(
         throw new AppError('github_login_missing', 'GitHub kullanıcı adı yok', 409);
 
       // Kurulum başına repo listesi; toplam üst sınır MAX_REPOS (en son itilenler önce gelir).
-      const repos: { installationId: string; fullName: string; org: boolean }[] = [];
+      const repos: { installationId: string; fullName: string; org: boolean; pushedAt: string }[] =
+        [];
       for (const k of kurulumlar) {
         for (const r of await github.listRepos(k.installationId))
           repos.push({
             installationId: k.installationId,
             fullName: r.fullName,
             org: k.accountType === 'org',
+            pushedAt: r.pushedAt ?? '',
           });
       }
+      repos.sort((a, b) => (a.pushedAt < b.pushedAt ? 1 : a.pushedAt > b.pushedAt ? -1 : 0));
       const secilen = repos.slice(0, MAX_REPOS);
+      const okunmayan = repos.length - secilen.length;
       const repoInputs: { ref: string; signals: Record<string, unknown> }[] = [];
       let atlanan = 0;
 
@@ -310,7 +316,7 @@ export function createTalentService(
         .update(githubInstallations)
         .set({ lastSyncedAt: new Date() })
         .where(eq(githubInstallations.talentId, talent.id));
-      return { ...(await this.card(userId)), skippedOrgRepos: atlanan };
+      return { ...(await this.card(userId)), skippedOrgRepos: atlanan, unreadRepos: okunmayan };
     },
 
     /** Kurulumu kaldır: o hesabın repolarından gelen kaynaklar ve onaysız iddiaları düşer. */
