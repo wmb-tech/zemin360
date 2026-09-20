@@ -66,10 +66,11 @@ describe('ağ + canlı tut', () => {
       bySchema: {
         card_draft: {
           headline: 'Ön yüz geliştirici',
-          story: 'Portfolyo sitesini dokuz aydır sürdürüyor.',
+          story:
+            'Kanıttan türeyen özet: bir projeyi aylarca sürdürdü, canlıya aldı ve ekip içinde ana geliştirici olarak çalıştı.',
           claims: [
             {
-              text: 'TypeScript ile portfolyo sitesi (Oca–Eyl 2026)',
+              text: 'TypeScript ile dokuz aydır sürdürülen portfolyo sitesi; tek başına, canlıda değil (Oca–Eyl 2026).',
               sourceRefs: ['ece/portfolyo'],
               periodStart: '2026-01-10',
               periodEnd: '2026-09-15',

@@ -136,8 +136,25 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
         .map((c) => c.commit.author?.date ?? c.commit.committer?.date)
         .filter((d): d is string => Boolean(d))
         .sort();
-      const ilkKendi = kendiTarihler[0];
+      let ilkKendi = kendiTarihler[0];
       const sonKendi = kendiTarihler[kendiTarihler.length - 1];
+      // 300'den çok commit'i olan repoda örneklem yalnız son dönemi görür; gerçek başlangıç için
+      // en eski commit'i arama API'sinden tek sonuçla al (closer: 799 commit → "Ağustos'ta başladı"
+      // yanılgısı). Arama düşerse örneklem tarihi kalır.
+      if (kendiCommitleri.length >= 300) {
+        try {
+          const { data } = await gh.request('GET /search/commits', {
+            q: `repo:${owner}/${repo} author:${githubLogin}`,
+            sort: 'author-date',
+            order: 'asc',
+            per_page: 1,
+          });
+          const enEski = data.items[0]?.commit.author?.date;
+          if (enEski) ilkKendi = enEski;
+        } catch {
+          /* arama izni yoksa örneklem tarihi */
+        }
+      }
 
       let contributors = 1;
       try {

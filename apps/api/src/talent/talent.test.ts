@@ -87,7 +87,7 @@ describe('genç kartı (doğrula)', () => {
               periodEnd: null,
             },
             {
-              text: 'Uydurma iddia',
+              text: 'Uydurma iddia: kaynağı olmayan bir repo için yazılmış, düşmesi gereken cümle.',
               sourceRefs: ['ayse/olmayan'],
               periodStart: null,
               periodEnd: null,
@@ -158,7 +158,19 @@ describe('genç kartı (doğrula)', () => {
     const { app } = testApp({
       llm: createFakeProvider({
         bySchema: {
-          card_draft: { headline: 'Geliştirici', story: 'Kalan kaynaklardan yazıldı.', claims: [] },
+          card_draft: {
+            headline: 'Geliştirici',
+            story:
+              'Kanıttan türeyen özet: bir projeyi aylarca sürdürdü, canlıya aldı ve ekip içinde ana geliştirici olarak çalıştı.',
+            claims: [
+              {
+                text: 'Kalan kaynaklardan yazılmış tek iddia: kafe sipariş uygulaması, Expo, canlıda.',
+                sourceRefs: ['ayse/kafe-siparis'],
+                periodStart: null,
+                periodEnd: null,
+              },
+            ],
+          },
         },
       }),
       github: sahteGithub,
@@ -255,10 +267,11 @@ describe('canlı URL kanıtı', () => {
       bySchema: {
         card_draft: {
           headline: 'Web geliştirici',
-          story: 'Bir kafe için sipariş sitesi yaptı; canlıda ve kullanılıyor.',
+          story:
+            'Kanıttan türeyen özet: bir projeyi aylarca sürdürdü, canlıya aldı ve ekip içinde ana geliştirici olarak çalıştı.',
           claims: [
             {
-              text: 'Canlıda çalışan kafe sipariş sitesi (Vite)',
+              text: 'Canlıda çalışan kafe sipariş sitesi; Vite ile geliştirildi, sahipliği alan adı etiketiyle doğrulandı.',
               sourceRefs: ['https://kafe.example/'],
               periodStart: null,
               periodEnd: null,
@@ -336,10 +349,11 @@ describe('belge kanıtı', () => {
       bySchema: {
         card_draft: {
           headline: 'Genç geliştirici',
-          story: 'TEKNOFEST 2025 finalisti; belgeyle destekli.',
+          story:
+            'Kanıttan türeyen özet: bir projeyi aylarca sürdürdü, canlıya aldı ve ekip içinde ana geliştirici olarak çalıştı.',
           claims: [
             {
-              text: 'TEKNOFEST 2025 finalisti (belge)',
+              text: 'TEKNOFEST 2025 Eğitim Teknolojileri kategorisinde ekip olarak finalist; belgeyle destekli.',
               sourceRefs: ['teknofest.pdf#deadbeefdead'],
               periodStart: '2025-09-01',
               periodEnd: '2025-09-05',

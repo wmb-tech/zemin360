@@ -10,7 +10,7 @@ import type { TalentService } from './service';
 import { DOCUMENT_MAX_BYTES } from '@evidex/evidence';
 
 const ClaimPatch = z.object({
-  text: z.string().min(8).max(240).optional(),
+  text: z.string().min(8).max(600).optional(),
   approved: z.boolean().optional(),
 });
 const ProfilePatch = z.object({
