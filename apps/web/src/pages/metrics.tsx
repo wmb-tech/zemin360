@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/skeleton';
+import { Skeleton } from '../components/ui';
 
 interface Metrics {
   cardAccuracy: { approvedClaims: number; unchangedClaims: number };

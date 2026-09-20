@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/skeleton';
+import { Skeleton } from '../components/ui';
 
 interface OrgProfile {
   id: string;

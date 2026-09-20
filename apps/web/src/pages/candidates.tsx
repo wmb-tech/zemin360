@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router';
 import type { MatchStrength } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/skeleton';
+import { Skeleton } from '../components/ui';
 
 interface Candidate {
   matchId: string;

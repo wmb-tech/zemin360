@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router';
-import { Shell } from './components/shell';
+import { Shell, type NavItem } from './components/shell';
 import { AuthProvider, useAuth } from './lib/auth';
 import { LoginPage } from './pages/login';
 import { NeedDetailPage, NeedsListPage } from './pages/needs';
@@ -20,23 +20,23 @@ import { OperatorNeedsPage } from './pages/operator-needs';
 
 const NAV = {
   talent: [
-    { to: '/durum', label: 'Durum' },
-    { to: '/kart', label: 'Kartım' },
-    { to: '/davetler', label: 'Meydan okumalar' },
+    { to: '/durum', label: 'Durum', icon: 'home' },
+    { to: '/kart', label: 'Kartım', icon: 'card' },
+    { to: '/davetler', label: 'Meydan okumalar', icon: 'flag' },
   ],
   organization: [
-    { to: '/ihtiyaclar', label: 'İhtiyaçlar' },
-    { to: '/kurum', label: 'Kurum' },
+    { to: '/ihtiyaclar', label: 'İhtiyaçlar', icon: 'needs' },
+    { to: '/kurum', label: 'Kurum', icon: 'org' },
   ],
   operator: [
-    { to: '/kuyruk', label: 'Onay kuyruğu' },
-    { to: '/ihtiyaclar', label: 'İhtiyaçlar' },
-    { to: '/ag', label: 'Ağ' },
-    { to: '/meydan', label: 'Meydan okumalar' },
-    { to: '/isbirlikleri', label: 'İş birlikleri' },
-    { to: '/olcum', label: 'Ölçüm' },
+    { to: '/kuyruk', label: 'Onay kuyruğu', icon: 'queue' },
+    { to: '/ihtiyaclar', label: 'İhtiyaçlar', icon: 'needs' },
+    { to: '/ag', label: 'Ağ', icon: 'network' },
+    { to: '/meydan', label: 'Meydan okumalar', icon: 'flag' },
+    { to: '/isbirlikleri', label: 'İş birlikleri', icon: 'collab' },
+    { to: '/olcum', label: 'Ölçüm', icon: 'metrics' },
   ],
-} as const;
+} as const satisfies Record<string, readonly NavItem[]>;
 
 function Routed() {
   const { me, loading } = useAuth();

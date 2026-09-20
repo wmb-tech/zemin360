@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/skeleton';
+import { Skeleton } from '../components/ui';
 import { NeedPicker } from '../components/need-picker';
 
 interface TalentRow {

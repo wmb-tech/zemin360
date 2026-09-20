@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@evidex/shared": "workspace:*",
+    "lucide-react": "^1.47.0",
     "react": "^19",
     "react-dom": "^19",
     "react-router": "^7"

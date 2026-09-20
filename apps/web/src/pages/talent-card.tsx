@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/skeleton';
+import { Skeleton } from '../components/ui';
 
 interface Claim {
   id: string;
@@ -122,7 +122,7 @@ export function TalentCardPage() {
     }
   }
 
-  if (!card) return <Skeleton lines={6} />;
+  if (!card) return <Skeleton rows={6} />;
   const onayli = card.claims.filter((c) => c.approved).length;
   const approved = card.talent.cardStatus === 'approved';
 

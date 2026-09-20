@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import type { CollaborationType, WorkMode } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/skeleton';
+import { Skeleton } from '../components/ui';
 
 /** API'nin döndürdüğü ihtiyaç kaydı (taslak kart alanları boş olabilir). */
 interface Need {

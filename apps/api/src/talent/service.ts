@@ -17,6 +17,7 @@ import { runCardDrafter, type LlmProvider } from '@evidex/ai';
 import type { DocumentEvidence, GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
 import { newRawToken } from '../auth/tokens';
 import { assertPublicUrl } from '@evidex/evidence';
+import { MatchReasoning } from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
 import { AppError } from '../lib/response';
 import { isSilentCard } from '../network/service';
@@ -219,6 +220,7 @@ export function createTalentService(
         .select({
           matchId: matches.id,
           strength: matches.strength,
+          reasoning: matches.reasoning,
           introducedAt: matches.introducedAt,
           needTitle: sql<string | null>`${needs.card}->>'title'`,
           collaborationType: sql<string | null>`${needs.card}->>'collaborationType'`,
@@ -249,18 +251,39 @@ export function createTalentService(
         },
         matches: eslesmeler
           .filter((m) => m.shortlistPublishedAt)
-          .map((m) => ({
-            matchId: m.matchId,
-            strength: m.strength,
-            needTitle: m.needTitle,
-            collaborationType: m.collaborationType,
-            // Tanıştırma öncesi kurum adı yok: "İstanbul'da bir kurum"
-            organization: m.introducedAt ? m.orgName : null,
-            city: m.orgCity,
-            introduced: Boolean(m.introducedAt),
-            collaborationStatus: m.status ?? null,
-          })),
+          .map((m) => {
+            // Gerekçe ajanın kaydettiği MatchReasoning'den; ilk "uyuyor" ve ilk "eksik" — uydurma yok.
+            const r = MatchReasoning.safeParse(m.reasoning);
+            return {
+              matchId: m.matchId,
+              strength: m.strength,
+              needTitle: m.needTitle,
+              collaborationType: m.collaborationType,
+              // Tanıştırma öncesi kurum adı yok: "İstanbul'da bir kurum"
+              organization: m.introducedAt ? m.orgName : null,
+              city: m.orgCity,
+              introduced: Boolean(m.introducedAt),
+              collaborationStatus: m.status ?? null,
+              fit: r.success ? (r.data.fits[0]?.text ?? null) : null,
+              gap: r.success ? (r.data.gaps[0] ?? null) : null,
+            };
+          }),
         openChallenges: acik?.n ?? 0,
+        // Son kaynaklar: gerçek zaman damgaları (bağlanma / son okuma) — sahte etkinlik akışı değil.
+        recentSources: await db
+          .select({
+            id: evidenceSources.id,
+            kind: evidenceSources.kind,
+            ref: evidenceSources.ref,
+            verified: evidenceSources.ownershipVerified,
+            createdAt: evidenceSources.createdAt,
+            lastScannedAt: evidenceSources.lastScannedAt,
+          })
+          .from(evidenceSources)
+          .where(eq(evidenceSources.talentId, talent.id))
+          .orderBy(desc(evidenceSources.createdAt))
+          .limit(5),
+        pendingClaims: (iddia?.n ?? 0) - (iddia?.onayli ?? 0),
       };
     },
 
