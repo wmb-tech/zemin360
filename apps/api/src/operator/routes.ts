@@ -13,6 +13,11 @@ const DecideBody = z.object({
   decision: z.enum(['approve', 'reject', 'edit']),
   editedPayload: z.record(z.string(), z.unknown()).optional(),
 });
+const InviteBody = z.object({
+  emails: z.array(z.string().email()).min(1).max(200),
+  source: z.string().min(2).max(120), // "Boğaziçi Yazılım Kulübü", "Hackathon X"
+  message: z.string().min(20).max(2000),
+});
 const IntroBody = z.object({
   subject: z.string().min(3).max(200),
   message: z.string().min(10).max(4000),
@@ -60,6 +65,11 @@ export function operatorRoutes(
       // İzle (06): iş birliği listesi + takip taraması (zamanlayıcı da aynı fonksiyonu çağırır)
       .get('/collaborations', async (c) => ok(c, await followUp.list()))
       .post('/follow-ups/scan', async (c) => ok(c, await followUp.scan()))
+      // Keşfet (01): kulüp kanalı — liste kuyruğa, onayla davet gider
+      .post('/invites', async (c) => {
+        const body = await parse(InviteBody, await c.req.json().catch(() => ({})));
+        return ok(c, await ops.proposeInvites(body), 201);
+      })
       .post('/matches/:id/introduce', async (c) => {
         const body = await parse(IntroBody, await c.req.json().catch(() => ({})));
         return ok(c, await ops.proposeIntroduction(c.req.param('id'), body), 201);

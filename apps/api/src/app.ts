@@ -21,7 +21,7 @@ import { createNetworkService } from './network/service';
 import { networkRoutes } from './network/routes';
 import { operatorChallengeRoutes, talentChallengeRoutes } from './challenges/routes';
 import { createChallengeService } from './challenges/service';
-import { talentRoutes } from './talent/routes';
+import { publicCardRoutes, talentRoutes } from './talent/routes';
 import { createTalentService } from './talent/service';
 import {
   createGithubEvidence,
@@ -89,7 +89,7 @@ export function createApp(deps: AppDeps) {
     '/api/operator',
     operatorRoutes(
       auth,
-      createOperatorService(deps.db, email, followUp),
+      createOperatorService(deps.db, email, followUp, deps.env.WEB_ORIGIN),
       matching,
       createMetricsService(deps.db),
       followUp,
@@ -110,6 +110,7 @@ export function createApp(deps: AppDeps) {
     }),
   );
   app.route('/api/me', talentRoutes(deps.env, auth, talent));
+  app.route('/api/cards', publicCardRoutes(talent));
 
   app.notFound((c) => fail(c, new AppError('not_found', 'Kaynak bulunamadı', 404)));
   app.onError((err, c) => {

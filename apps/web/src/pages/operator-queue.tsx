@@ -150,5 +150,25 @@ function QueuePayload({ item }: { item: QueueItem }) {
       </div>
     );
   }
+  if (item.action === 'invite') {
+    const emails = (p.emails ?? []) as string[];
+    return (
+      <div className="mt-1">
+        <div className="font-semibold">
+          {String(p.source ?? 'Liste')} · {emails.length} kişi
+          {Number(p.skipped ?? 0) > 0 && (
+            <span className="text-ink-soft font-normal"> · {String(p.skipped)} zaten ağda</span>
+          )}
+        </div>
+        <p className="text-ink-soft mt-1 max-w-xl text-sm whitespace-pre-wrap">
+          {String(p.message ?? '')}
+        </p>
+        <p className="text-ink-soft mt-1 font-mono text-xs">
+          {emails.slice(0, 8).join(', ')}
+          {emails.length > 8 ? ` … +${emails.length - 8}` : ''}
+        </p>
+      </div>
+    );
+  }
   return <pre className="text-ink-soft mt-2 text-xs">{JSON.stringify(p, null, 2)}</pre>;
 }

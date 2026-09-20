@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import { cardClaims, evidenceSignals, evidenceSources, talents, users } from '@evidex/db';
 import { runCardDrafter, type LlmProvider } from '@evidex/ai';
@@ -143,6 +143,7 @@ export function createTalentService(
           lastSignalAt: talent.lastSignalAt,
           // Canlı tut (04): kaynak var ama uzun süredir etkinlik yok → genç uyarı görür
           silent: sources.length > 0 && isSilentCard(talent.lastSignalAt),
+          publicSlug: talent.publicSlug,
         },
         user: { name: user.name, githubLogin: user.githubLogin },
         sources,
@@ -277,6 +278,60 @@ export function createTalentService(
         .set({ cardStatus: 'approved', cardApprovedAt: new Date(), updatedAt: new Date() })
         .where(eq(talents.id, talent.id));
       return this.card(userId);
+    },
+
+    /**
+     * Paylaşılabilir kart (keşfet 01): genç açar/kapatır. Slug rastgele, tahmin edilemez; kapatınca
+     * eski link ölür (slug silinir), tekrar açınca yeni slug. Yalnız onaylı kart paylaşılır.
+     */
+    async setShare(userId: string, enabled: boolean) {
+      const { talent } = await talentOf(userId);
+      if (enabled && talent.cardStatus !== 'approved')
+        throw new AppError('card_not_approved', 'Önce kartını onayla', 409);
+      const publicSlug = enabled ? (talent.publicSlug ?? newRawToken(9)) : null;
+      await db
+        .update(talents)
+        .set({ publicSlug, updatedAt: new Date() })
+        .where(eq(talents.id, talent.id));
+      return { publicSlug };
+    },
+
+    /** Herkese açık kart: oturum yok. Yalnız onaylı iddialar, e-posta/GitHub kimliği yok. */
+    async publicCard(slug: string) {
+      const [satir] = await db
+        .select({ talent: talents, user: users })
+        .from(talents)
+        .innerJoin(users, eq(users.id, talents.userId))
+        .where(and(eq(talents.publicSlug, slug), eq(talents.cardStatus, 'approved')))
+        .limit(1);
+      if (!satir) throw new AppError('not_found', 'Kart bulunamadı', 404);
+      const claims = await db
+        .select({
+          id: cardClaims.id,
+          text: cardClaims.text,
+          level: cardClaims.level,
+          periodStart: cardClaims.periodStart,
+          periodEnd: cardClaims.periodEnd,
+          sourceCount: sql<number>`cardinality(${cardClaims.sourceIds})`,
+        })
+        .from(cardClaims)
+        .where(and(eq(cardClaims.talentId, satir.talent.id), eq(cardClaims.approved, true)))
+        .orderBy(cardClaims.createdAt);
+      const sources = await db
+        .select({ kind: evidenceSources.kind, verified: evidenceSources.ownershipVerified })
+        .from(evidenceSources)
+        .where(eq(evidenceSources.talentId, satir.talent.id));
+      return {
+        name: satir.user.name,
+        headline: satir.talent.headline,
+        story: satir.talent.story,
+        city: satir.talent.city,
+        cardApprovedAt: satir.talent.cardApprovedAt,
+        lastSignalAt: satir.talent.lastSignalAt,
+        silent: isSilentCard(satir.talent.lastSignalAt),
+        claims,
+        sources,
+      };
     },
 
     /** Canlı URL ekle: kaynak taslak olarak açılır, sahiplik token'ı döner; doğrulanana kadar beyan. */

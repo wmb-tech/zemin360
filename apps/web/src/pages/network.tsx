@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
 
@@ -154,7 +154,10 @@ export function NetworkPage() {
         </section>
 
         <section>
-          <h2 className="text-ink-soft text-xs font-semibold tracking-wide uppercase">Kurumlar</h2>
+          <InviteForm onDone={(m) => setNote(m)} />
+          <h2 className="text-ink-soft mt-8 text-xs font-semibold tracking-wide uppercase">
+            Kurumlar
+          </h2>
           <p className="text-ink-soft mt-1 text-xs">
             Referans yetkisi: yalnız onaylı kurumun "tamamlandı" değerlendirmesi gencin kartına
             referans olarak düşer (KARAR-10).
@@ -186,5 +189,80 @@ export function NetworkPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+/**
+ * Kulüp kanalı (keşfet 01): bir liste yapıştır (üniversite kulübü, etkinlik), kuyruğa düşer,
+ * onayla davet gider. Ağdakiler elenir. Ajan burada yok; davet metni operatörün.
+ */
+function InviteForm({ onDone }: { onDone: (msg: string) => void }) {
+  const [source, setSource] = useState('');
+  const [emails, setEmails] = useState('');
+  const [message, setMessage] = useState(
+    "Merhaba, GİRVAK gençlik ağına davetlisiniz. Evidex'te kartınız beyanla değil kanıtla oluşur: GitHub reponuzu bağlarsınız, sistem sinyalleri çıkarır, siz onaylarsınız. Kurumlar gerekçeli eşleşmeyle sizi bulur.",
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const list = emails
+      .split(/[\s,;]+/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+    try {
+      const r = await api<{ payload: { emails: string[]; skipped: number } }>(
+        '/api/operator/invites',
+        { method: 'POST', body: JSON.stringify({ emails: list, source, message }) },
+      );
+      onDone(
+        `${r.payload.emails.length} davet kuyruğa düştü (${r.payload.skipped} zaten ağda). Onay kuyruğundan gönder.`,
+      );
+      setEmails('');
+      setSource('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Hata');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={(e) => void submit(e)} className="border-line rounded-2xl border p-4">
+      <h2 className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
+        Kulüp kanalı · toplu davet
+      </h2>
+      <input
+        value={source}
+        onChange={(e) => setSource(e.target.value)}
+        required
+        placeholder="Kaynak (ör. İTÜ Bilgisayar Kulübü)"
+        className="border-line focus:border-accent mt-3 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+      />
+      <textarea
+        value={emails}
+        onChange={(e) => setEmails(e.target.value)}
+        required
+        rows={3}
+        placeholder="e-postalar — satır, virgül ya da boşlukla ayır"
+        className="border-line focus:border-accent mt-2 w-full rounded-lg border px-3 py-1.5 font-mono text-xs outline-none"
+      />
+      <textarea
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        rows={3}
+        className="border-line focus:border-accent mt-2 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+      />
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      <button
+        disabled={busy}
+        className="bg-accent text-paper mt-3 rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+      >
+        Kuyruğa koy
+      </button>
+    </form>
   );
 }

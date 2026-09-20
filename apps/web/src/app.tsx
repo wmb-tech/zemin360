@@ -12,6 +12,7 @@ import { TalentChallengesPage } from './pages/talent-challenges';
 import { CollaborationsPage } from './pages/collaborations';
 import { CheckinPage } from './pages/checkin';
 import { NetworkPage } from './pages/network';
+import { PublicCardPage } from './pages/public-card';
 
 const NAV = {
   talent: [
@@ -75,6 +76,7 @@ export function App() {
       <Routes>
         {/* Oturumsuz sayfalar: e-postadaki linkle gelenler */}
         <Route path="/takip/:token" element={<CheckinPage />} />
+        <Route path="/k/:slug" element={<PublicCardPage />} />
         <Route path="*" element={<Routed />} />
       </Routes>
     </AuthProvider>

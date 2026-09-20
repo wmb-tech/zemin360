@@ -30,6 +30,7 @@ interface Card {
     githubConnected: boolean;
     lastSignalAt: string | null;
     silent: boolean;
+    publicSlug: string | null;
   };
   user: { name: string; githubLogin: string | null };
   sources: Source[];
@@ -247,6 +248,41 @@ export function TalentCardPage() {
           ))}
         </ul>
 
+        {approved && (
+          <div className="border-line mt-6 border-t pt-4 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-semibold">Paylaşılabilir kart</span>
+              <button
+                disabled={busy === 'share'}
+                onClick={() =>
+                  void run('share', () =>
+                    api('/api/me/card/share', {
+                      method: 'POST',
+                      body: JSON.stringify({ enabled: !card.talent.publicSlug }),
+                    }),
+                  )
+                }
+                className="border-line hover:bg-paper-2 rounded-lg border px-3 py-1 text-xs font-semibold disabled:opacity-50"
+              >
+                {card.talent.publicSlug ? 'Kapat' : 'Aç'}
+              </button>
+              {card.talent.publicSlug && (
+                <a
+                  href={`/k/${card.talent.publicSlug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent font-mono text-xs hover:underline"
+                >
+                  {window.location.origin}/k/{card.talent.publicSlug}
+                </a>
+              )}
+            </div>
+            <p className="text-ink-soft mt-1 text-xs">
+              Linki bilen görür: yalnız onaylı iddialar ve kanıt seviyeleri; e-posta ve GitHub adı
+              yok. Kapatınca link ölür.
+            </p>
+          </div>
+        )}
         {!approved && (
           <div className="border-line mt-6 border-t pt-4">
             <button

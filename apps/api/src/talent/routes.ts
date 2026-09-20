@@ -24,6 +24,11 @@ async function parse<T>(schema: z.ZodType<T>, raw: unknown): Promise<T> {
   return r.data;
 }
 
+/** Herkese açık kart (keşfet 01): `/api/cards/:slug`, oturum yok. */
+export function publicCardRoutes(svc: TalentService) {
+  return new Hono().get('/:slug', async (c) => ok(c, await svc.publicCard(c.req.param('slug'))));
+}
+
 /** Gencin kendi kartı (döngü adımı 02). Yalnız talent rolü. */
 export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
   return (
@@ -35,6 +40,13 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
         return ok(c, await svc.updateProfile(c.get('user').id, body));
       })
       .post('/card/approve', async (c) => ok(c, await svc.approveCard(c.get('user').id)))
+      .post('/card/share', async (c) => {
+        const body = await parse(
+          z.object({ enabled: z.boolean() }),
+          await c.req.json().catch(() => ({})),
+        );
+        return ok(c, await svc.setShare(c.get('user').id, body.enabled));
+      })
       .patch('/card/claims/:id', async (c) => {
         const body = await parse(ClaimPatch, await c.req.json().catch(() => ({})));
         return ok(c, await svc.updateClaim(c.get('user').id, c.req.param('id'), body));

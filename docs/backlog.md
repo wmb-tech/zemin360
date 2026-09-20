@@ -47,9 +47,9 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 ## Keşfet (01)
 - [x] Meydan okuma: ihtiyaçtan görev üretme, açma, teslim, rubrik değerlendirme, kanıta dönüşüm
 - [ ] Keşif ajanı: dış kaynak tarama + davet listesi (onay kuyruğu)
-- [ ] Kulüp kanalı: toplu davet
+- [x] Kulüp kanalı: toplu davet (liste → kuyruk → onay → e-posta; ağdakiler elenir)
 - [ ] Talepten çekim bildirimi
-- [ ] Paylaşılabilir kart sayfası
+- [x] Paylaşılabilir kart sayfası (`/k/:slug`, onaylı iddialar, kimlik yok, kapatınca link ölür)
 
 ## Ölçüm ve sunum
 - [x] Ölçüm paneli (beş metrik, paydalı)

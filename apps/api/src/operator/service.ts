@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import {
   approvalQueue,
@@ -22,7 +22,12 @@ import type { FollowUpPayload, FollowUpService } from '../followups/service';
  * yalnız o zaman yürütülür. Her karar denetim izine yazılır.
  * ⚠ Yürütme fonksiyonları yalnız bu servisten çağrılır; ajan doğrudan e-posta göndermez.
  */
-export function createOperatorService(db: Db, email: EmailSender, followUp: FollowUpService) {
+export function createOperatorService(
+  db: Db,
+  email: EmailSender,
+  followUp: FollowUpService,
+  webOrigin: string,
+) {
   async function audit(
     actorId: string,
     action: string,
@@ -109,8 +114,20 @@ export function createOperatorService(db: Db, email: EmailSender, followUp: Foll
         } satisfies FollowUpPayload);
         return;
       }
-      case 'invite':
-        throw new AppError('not_implemented', `${action} henüz yürütülmüyor`, 501);
+      case 'invite': {
+        // Kulüp kanalı / keşif (01): davet e-postası, kişi GitHub ile girer ve kanıt bağlar.
+        const emails = Array.isArray(payload.emails)
+          ? payload.emails.filter((e): e is string => typeof e === 'string')
+          : [];
+        const metin = String(payload.message ?? '');
+        for (const to of emails)
+          await email.send({
+            to,
+            subject: String(payload.subject ?? 'GİRVAK ağına davet · Evidex'),
+            text: `${metin}\n\nKatılmak için: ${webOrigin}\nGitHub ile giriş yap; hangi repoları göstereceğini sen seçersin, kod saklanmaz.`,
+          });
+        return;
+      }
     }
   }
 
@@ -175,6 +192,37 @@ export function createOperatorService(db: Db, email: EmailSender, followUp: Foll
         throw new AppError('not_found', 'İş birliği kaydı yok (tanıştırma yapılmamış)', 404);
       await audit(operatorId, 'collaboration.status', 'match', matchId, { status });
       return kayit;
+    },
+
+    /**
+     * Kulüp kanalı (keşfet 01): operatör bir listeyi (üniversite kulübü, etkinlik katılımcıları)
+     * davet için kuyruğa koyar. Tek kayıt, onayla hepsine gider. Zaten üye olanlar elenir.
+     */
+    async proposeInvites(input: { emails: string[]; source: string; message: string }) {
+      const uyeler = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(inArray(users.email, input.emails));
+      const uyeSet = new Set(uyeler.map((u) => u.email));
+      const yeni = [...new Set(input.emails)].filter((e) => !uyeSet.has(e));
+      if (yeni.length === 0)
+        throw new AppError('nothing_to_invite', 'Listedekilerin hepsi zaten ağda', 422);
+      const [kayit] = await db
+        .insert(approvalQueue)
+        .values({
+          action: 'invite',
+          subjectType: 'invite_list',
+          subjectId: crypto.randomUUID(),
+          payload: {
+            emails: yeni,
+            skipped: input.emails.length - yeni.length,
+            source: input.source,
+            subject: 'GİRVAK ağına davet · Evidex',
+            message: input.message,
+          },
+        })
+        .returning();
+      return kayit!;
     },
 
     /** Operatör bir eşleşme için tanıştırma önerir; e-posta taslağı kuyruğa düşer, onayla gider. */
