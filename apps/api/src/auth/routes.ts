@@ -31,7 +31,7 @@ export function authRoutes(deps: {
   email: EmailSender;
   fetchGithubProfile?: (code: string) => Promise<GithubProfile>;
   /** GitHub App kurulumundan dönüşte çağrılır (installation_id ile). */
-  onInstallation?: (userId: string, installationId: string) => Promise<void>;
+  onInstallation?: (userId: string, installationId: string, userToken?: string) => Promise<void>;
 }) {
   const { env, auth, email } = deps;
   const secure = env.API_ORIGIN.startsWith('https');
@@ -71,7 +71,7 @@ export function authRoutes(deps: {
       const birincil = Array.isArray(emails)
         ? emails.find((e) => e.primary && e.verified)
         : undefined;
-      return { ...user, email: birincil?.email ?? user.email };
+      return { ...user, email: birincil?.email ?? user.email, accessToken: tokenJson.access_token };
     });
 
   return (
@@ -170,7 +170,7 @@ export function authRoutes(deps: {
         // 403 alır ve çerezsiz döner; hata cevabına oturum yazılmaz.
         if (installationId && deps.onInstallation) {
           try {
-            await deps.onInstallation(user.id, installationId);
+            await deps.onInstallation(user.id, installationId, profile.accessToken);
           } catch (e) {
             // Tarayıcıya ham JSON değil, giriş sayfasında okunur mesaj; oturum yine açılmaz.
             // İlk gerçek koşuda yakalandı: kullanıcı App'i org'a kurdu → 403 JSON gördü.

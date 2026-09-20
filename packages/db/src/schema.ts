@@ -120,10 +120,32 @@ export const talents = pgTable('talents', {
   cardStatus: cardStatusEnum('card_status').default('draft').notNull(),
   cardApprovedAt: timestamp('card_approved_at', { withTimezone: true }),
   publicSlug: text('public_slug').unique(), // paylaşılabilir kart (keşfet)
-  githubInstallationId: text('github_installation_id'), // GitHub App kurulumu (doğrula)
+  githubInstallationId: text('github_installation_id'), // KİŞİSEL kurulum (eski alan; github_installations asıl)
   lastSignalAt: timestamp('last_signal_at', { withTimezone: true }), // canlı ağ: sessiz kart
   ...timestamps,
 });
+
+/**
+ * GitHub App kurulumları (doğrula 02). Bir genç birden fazla hesaba kurabilir: kişisel hesabı +
+ * üye olduğu org'lar (gerçek iş çoğu zaman org reposunda). Org kurulumu, kişinin GitHub'daki
+ * `/user/installations` listesinde görünüyorsa kabul edilir (IDOR kapısı); sahiplik iddiada
+ * commit oranıyla ölçülür.
+ */
+export const githubInstallations = pgTable(
+  'github_installations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    talentId: uuid('talent_id')
+      .notNull()
+      .references(() => talents.id, { onDelete: 'cascade' }),
+    installationId: text('installation_id').notNull().unique(),
+    accountLogin: text('account_login').notNull(),
+    accountType: text('account_type').notNull(), // user | org
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('github_installations_talent_idx').on(t.talentId)],
+);
 
 /* ---------- Kanıt katmanları (ADR-0003) ---------- */
 

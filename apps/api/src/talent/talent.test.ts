@@ -13,9 +13,13 @@ const json = (body: unknown, cookie?: string, method = 'POST') => ({
 const sahteGithub: GithubEvidence = {
   async installationOwner(installationId) {
     // 777 → Ayşe (github id 501); 999 → başkası
-    return installationId === '777'
-      ? { id: '501', login: 'ayse' }
-      : { id: '999', login: 'baskasi' };
+    // 777 → Ayşe (kişisel); 888 → org (Ayşe üye); 999 → başkasının org'u
+    if (installationId === '777') return { id: '501', login: 'ayse', type: 'user' as const };
+    if (installationId === '888') return { id: '900', login: 'kulup-org', type: 'org' as const };
+    return { id: '999', login: 'baskasi-org', type: 'org' as const };
+  },
+  async userInstallationIds() {
+    return ['777', '888'];
   },
   async listRepos() {
     return [
@@ -123,6 +127,56 @@ describe('genç kartı (doğrula)', () => {
     ).data;
     expect(tekrar.claims.filter((c: { approved: boolean }) => c.approved)).toHaveLength(1);
     expect(tekrar.sources).toHaveLength(2); // aynı kaynak iki kez bağlanmadı
+  });
+
+  it('org kurulumu: kullanıcının erişebildiği org kabul edilir, listede olmayan org 403', async () => {
+    const { app } = testApp({
+      llm: createFakeProvider({
+        bySchema: {
+          card_draft: { headline: 'Geliştirici', story: 'Kalan kaynaklardan yazıldı.', claims: [] },
+        },
+      }),
+      github: sahteGithub,
+      githubProfile: {
+        id: 501,
+        login: 'ayse',
+        name: 'Ayşe',
+        email: 'ayse-org@example.com',
+        accessToken: 'tok',
+      },
+    });
+    const org = await app.request(
+      '/api/auth/github/callback?code=abc&state=o1&installation_id=888&setup_action=install',
+      { headers: { cookie: 'evidex_install_state=o1' }, redirect: 'manual' },
+    );
+    expect(org.headers.get('location')).toContain('/kanit?installed=1');
+    const cookie = cookieOf(org, 'evidex_session');
+    // Ayşe'nin kişisel kurulumu (777) önceki testten duruyor; org kurulumu yanına eklenir.
+    const kart = (await (await app.request('/api/me/card', { headers: { cookie } })).json()).data;
+    const loginler = kart.talent.installations.map((i: { accountLogin: string }) => i.accountLogin);
+    expect(loginler).toContain('kulup-org');
+    expect(loginler).toContain('ayse');
+    expect(kart.talent.githubConnected).toBe(true);
+    // Org kurulumunu kaldırınca yalnız o hesabın kaynakları düşer.
+    const orgKurulum = kart.talent.installations.find(
+      (i: { accountType: string }) => i.accountType === 'org',
+    );
+    const sil = await app.request(`/api/me/evidence/github/installations/${orgKurulum.id}`, {
+      method: 'DELETE',
+      headers: { cookie },
+    });
+    expect(sil.status).toBe(200);
+    const sonra = (await sil.json()).data;
+    expect(
+      sonra.talent.installations.some((i: { accountType: string }) => i.accountType === 'org'),
+    ).toBe(false);
+    expect(sonra.sources.some((x: { ref: string }) => x.ref.startsWith('kulup-org/'))).toBe(false);
+    // Erişilemeyen org (999) hâlâ 403.
+    const yabanci = await app.request(
+      '/api/auth/github/callback?code=abc&state=o3&installation_id=999&setup_action=install',
+      { headers: { cookie: 'evidex_install_state=o3' }, redirect: 'manual' },
+    );
+    expect(yabanci.headers.get('location')).toContain('hata=installation_owner_mismatch');
   });
 
   it('başkasının kurulum numarası kabul edilmez (IDOR)', async () => {

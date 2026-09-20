@@ -20,6 +20,7 @@ export interface GithubProfile {
   login: string;
   name: string | null;
   email: string | null;
+  accessToken?: string; // kullanıcı OAuth token'ı; yalnız kurulum doğrulamasında, saklanmaz
 }
 
 /**

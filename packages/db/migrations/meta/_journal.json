@@ -71,6 +71,13 @@
       "when": 1789904708196,
       "tag": "0009_scout_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789933348887,
+      "tag": "0010_github_installations",
+      "breakpoints": true
     }
   ]
 }

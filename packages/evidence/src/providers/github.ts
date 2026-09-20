@@ -47,13 +47,29 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
      * Kurulumun sahibi hangi GitHub hesabı? ⚠ callback'teki installation_id kullanıcı
      * kontrolündedir; kaydetmeden önce sahibi oturumdaki GitHub kimliğiyle karşılaştırılır.
      */
-    async installationOwner(installationId: string): Promise<{ id: string; login: string } | null> {
+    async installationOwner(
+      installationId: string,
+    ): Promise<{ id: string; login: string; type: 'user' | 'org' } | null> {
       const { data } = await app.octokit.request('GET /app/installations/{installation_id}', {
         installation_id: Number(installationId),
       });
-      const hesap = data.account as { id?: number; login?: string } | null;
+      const hesap = data.account as { id?: number; login?: string; type?: string } | null;
       if (!hesap?.id) return null;
-      return { id: String(hesap.id), login: hesap.login ?? '' };
+      return {
+        id: String(hesap.id),
+        login: hesap.login ?? '',
+        type: hesap.type === 'Organization' ? 'org' : 'user',
+      };
+    },
+
+    /**
+     * Kişinin OAuth token'ıyla erişebildiği kurulumlar (GitHub'ın kendi listesi). Org kurulumu
+     * yalnız bu listede varsa bağlanır: başkasının installation_id'sini URL'e yazmak işe yaramaz.
+     */
+    async userInstallationIds(userToken: string): Promise<string[]> {
+      const gh = new Octokit({ auth: userToken, userAgent: 'evidex' });
+      const { data } = await gh.request('GET /user/installations', { per_page: 100 });
+      return data.installations.map((i) => String(i.id));
     },
 
     /** Kurulumdaki repolar: kişinin GitHub'da bizzat seçtikleri. */

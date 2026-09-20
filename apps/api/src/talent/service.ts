@@ -1,6 +1,13 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
-import { cardClaims, evidenceSignals, evidenceSources, talents, users } from '@evidex/db';
+import {
+  cardClaims,
+  evidenceSignals,
+  evidenceSources,
+  githubInstallations,
+  talents,
+  users,
+} from '@evidex/db';
 import { runCardDrafter, type LlmProvider } from '@evidex/ai';
 import type { DocumentEvidence, GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
 import { newRawToken } from '../auth/tokens';
@@ -129,6 +136,16 @@ export function createTalentService(
   return {
     async card(userId: string) {
       const { talent, user } = await talentOf(userId);
+      const installations = await db
+        .select({
+          id: githubInstallations.id,
+          accountLogin: githubInstallations.accountLogin,
+          accountType: githubInstallations.accountType,
+          lastSyncedAt: githubInstallations.lastSyncedAt,
+        })
+        .from(githubInstallations)
+        .where(eq(githubInstallations.talentId, talent.id))
+        .orderBy(githubInstallations.createdAt);
       const sources = await db
         .select()
         .from(evidenceSources)
@@ -144,7 +161,8 @@ export function createTalentService(
           headline: talent.headline,
           story: talent.story,
           cardStatus: talent.cardStatus,
-          githubConnected: Boolean(talent.githubInstallationId),
+          githubConnected: installations.length > 0,
+          installations,
           lastSignalAt: talent.lastSignalAt,
           // Canlı tut (04): kaynak var ama uzun süredir etkinlik yok → genç uyarı görür
           silent: sources.length > 0 && isSilentCard(talent.lastSignalAt),
@@ -160,36 +178,70 @@ export function createTalentService(
      * Kurulumu kaydetmeden önce sahibini doğrular: installation_id callback'te kullanıcı
      * kontrolündedir; başkasının kurulumunu kendi kartına bağlamak (IDOR) 403 ile düşer.
      */
-    async saveInstallation(userId: string, installationId: string) {
+    /**
+     * Kurulumu kaydetmeden önce sahibini doğrular. Kişisel hesap: sahip id == kullanıcının
+     * GitHub id'si. Org: kurulum, kullanıcının OAuth token'ıyla GitHub'dan çekilen
+     * `/user/installations` listesinde olmalı (başkasının installation_id'si → 403, IDOR).
+     * Org reposunda "sahiplik" repo sahipliği değil commit sahipliğidir; iddiada oran yazılır.
+     */
+    async saveInstallation(userId: string, installationId: string, userToken?: string) {
       if (!github) throw new AppError('not_configured', 'GitHub App yapılandırılmamış', 503);
       const { talent, user } = await talentOf(userId);
       const sahip = await github.installationOwner(installationId);
-      if (!sahip || !user.githubId || sahip.id !== user.githubId) {
-        throw new AppError(
-          'installation_owner_mismatch',
-          'Bu kurulum bu GitHub hesabına ait değil',
-          403,
-        );
+      if (!sahip || !user.githubId)
+        throw new AppError('installation_owner_mismatch', 'Kurulum bulunamadı', 403);
+      const kisisel = sahip.type === 'user' && sahip.id === user.githubId;
+      if (!kisisel) {
+        const erisilebilir = userToken ? await github.userInstallationIds(userToken) : [];
+        if (sahip.type !== 'org' || !erisilebilir.includes(installationId))
+          throw new AppError(
+            'installation_owner_mismatch',
+            'Bu kurulum bu GitHub hesabına ait değil',
+            403,
+          );
       }
       await db
-        .update(talents)
-        .set({ githubInstallationId: installationId, updatedAt: new Date() })
-        .where(eq(talents.id, talent.id));
+        .insert(githubInstallations)
+        .values({
+          talentId: talent.id,
+          installationId,
+          accountLogin: sahip.login,
+          accountType: sahip.type,
+        })
+        .onConflictDoUpdate({
+          target: githubInstallations.installationId,
+          set: { talentId: talent.id, accountLogin: sahip.login, accountType: sahip.type },
+        });
+      if (kisisel)
+        await db
+          .update(talents)
+          .set({ githubInstallationId: installationId, updatedAt: new Date() })
+          .where(eq(talents.id, talent.id));
     },
 
     /** Kurulumdaki repoları oku, sinyal çıkar, taslak iddiaları yenile. */
     async syncGithub(userId: string) {
       if (!github) throw new AppError('not_configured', 'GitHub App yapılandırılmamış', 503);
       const { talent, user } = await talentOf(userId);
-      if (!talent.githubInstallationId)
+      const kurulumlar = await db
+        .select()
+        .from(githubInstallations)
+        .where(eq(githubInstallations.talentId, talent.id));
+      if (kurulumlar.length === 0)
         throw new AppError('github_not_connected', 'Önce GitHub bağlantısı kur', 409);
       if (!user.githubLogin)
         throw new AppError('github_login_missing', 'GitHub kullanıcı adı yok', 409);
 
-      const repos = (await github.listRepos(talent.githubInstallationId)).slice(0, MAX_REPOS);
+      // Kurulum başına repo listesi; toplam üst sınır MAX_REPOS (en son itilenler önce gelir).
+      const repos: { installationId: string; fullName: string }[] = [];
+      for (const k of kurulumlar) {
+        for (const r of await github.listRepos(k.installationId))
+          repos.push({ installationId: k.installationId, fullName: r.fullName });
+      }
+      const secilen = repos.slice(0, MAX_REPOS);
       const repoInputs: { ref: string; signals: Record<string, unknown> }[] = [];
 
-      for (const r of repos) {
+      for (const r of secilen) {
         const [kaynak] = await db
           .insert(evidenceSources)
           .values({
@@ -214,11 +266,7 @@ export function createTalentService(
               .limit(1)
           )[0]!.id;
 
-        const signals = await github.extract(
-          talent.githubInstallationId,
-          r.fullName,
-          user.githubLogin,
-        );
+        const signals = await github.extract(r.installationId, r.fullName, user.githubLogin);
         await db
           .insert(evidenceSignals)
           .values({ sourceId, signals: signals as Record<string, unknown> });
@@ -230,6 +278,36 @@ export function createTalentService(
       }
 
       await redraft(talent.id, user.githubLogin);
+      await db
+        .update(githubInstallations)
+        .set({ lastSyncedAt: new Date() })
+        .where(eq(githubInstallations.talentId, talent.id));
+      return this.card(userId);
+    },
+
+    /** Kurulumu kaldır: o hesabın repolarından gelen kaynaklar ve onaysız iddiaları düşer. */
+    async removeInstallation(userId: string, id: string) {
+      const { talent, user } = await talentOf(userId);
+      const [k] = await db
+        .delete(githubInstallations)
+        .where(and(eq(githubInstallations.id, id), eq(githubInstallations.talentId, talent.id)))
+        .returning();
+      if (!k) throw new AppError('not_found', 'Kurulum bulunamadı', 404);
+      await db
+        .delete(evidenceSources)
+        .where(
+          and(
+            eq(evidenceSources.talentId, talent.id),
+            eq(evidenceSources.kind, 'github_repo'),
+            sql`${evidenceSources.ref} like ${k.accountLogin + '/%'}`,
+          ),
+        );
+      if (talent.githubInstallationId === k.installationId)
+        await db
+          .update(talents)
+          .set({ githubInstallationId: null, updatedAt: new Date() })
+          .where(eq(talents.id, talent.id));
+      await redraft(talent.id, user.githubLogin ?? user.name);
       return this.card(userId);
     },
 

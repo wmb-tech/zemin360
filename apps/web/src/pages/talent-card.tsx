@@ -28,6 +28,12 @@ interface Card {
     story: string | null;
     cardStatus: 'draft' | 'approved';
     githubConnected: boolean;
+    installations: {
+      id: string;
+      accountLogin: string;
+      accountType: 'user' | 'org';
+      lastSyncedAt: string | null;
+    }[];
     lastSignalAt: string | null;
     silent: boolean;
     publicSlug: string | null;
@@ -44,6 +50,13 @@ const LEVEL: Record<EvidenceLevel, { label: string; cls: string }> = {
   declared: { label: 'Beyan', cls: 'bg-[var(--color-declared)] text-white' },
 };
 
+const KIND_LABEL: Record<Source['kind'], string> = {
+  github_repo: 'GitHub deposu',
+  live_url: 'Canlı site',
+  document: 'Belge',
+  network_reference: 'Kurum referansı',
+  challenge_submission: 'Meydan okuma teslimi',
+};
 const ay = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : null;
 
@@ -63,6 +76,14 @@ export function TalentCardPage() {
   useEffect(() => {
     void load();
   }, []);
+  // Kurulumdan dönüşte okuma kendiliğinden başlar; "senkronla" ayrı bir adım değil.
+  // Sonraki okumalar haftalık zamanlayıcıda; kişi isterse "yeniden oku" der.
+  const otoBasladi = useRef(false);
+  useEffect(() => {
+    if (!card || !params.get('installed') || otoBasladi.current) return;
+    otoBasladi.current = true;
+    void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }));
+  }, [card, params]);
 
   async function run(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
@@ -91,7 +112,9 @@ export function TalentCardPage() {
         </p>
         {params.get('installed') && (
           <p className="text-verified mt-3 text-sm font-semibold">
-            GitHub bağlandı. Şimdi senkronla.
+            {busy === 'sync'
+              ? 'GitHub bağlandı; repolar okunuyor, ajan kartı yazıyor (yarım dakika sürebilir)…'
+              : 'GitHub bağlandı. Kart taslağı sağda; her iddiayı onayla ya da sil.'}
           </p>
         )}
         {card.talent.silent && (
@@ -121,9 +144,10 @@ export function TalentCardPage() {
                 onClick={() =>
                   void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }))
                 }
-                className="bg-ink text-paper rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+                className="border-line hover:bg-paper-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                title="Kanıt haftada bir kendiliğinden yenilenir; yeni repo ekledin ya da bekleyemiyorsan"
               >
-                {busy === 'sync' ? 'Okunuyor…' : 'Senkronla'}
+                {busy === 'sync' ? 'Okunuyor…' : 'Yeniden oku'}
               </button>
             ) : (
               <a
@@ -134,6 +158,38 @@ export function TalentCardPage() {
               </a>
             )}
           </div>
+          {card.talent.installations.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              {card.talent.installations.map((i) => (
+                <span
+                  key={i.id}
+                  className="border-line inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5"
+                >
+                  <span className="text-ink-soft">{i.accountType === 'org' ? 'org' : 'hesap'}</span>
+                  <span className="font-mono">{i.accountLogin}</span>
+                  <button
+                    onClick={() =>
+                      void run(i.id, () =>
+                        api(`/api/me/evidence/github/installations/${i.id}`, { method: 'DELETE' }),
+                      )
+                    }
+                    className="text-ink-soft hover:text-red-600"
+                    aria-label="Kaldır"
+                    title="Bu hesabın repolarını karttan çıkar"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <a
+                href="/api/me/evidence/github/install?target=org"
+                className="text-accent underline"
+                title="Üyesi olduğun bir organizasyonun repolarını da kanıt yap; sahiplik commit'lerinden ölçülür"
+              >
+                + org hesabı ekle
+              </a>
+            </div>
+          )}
           {card.sources.some((s) => s.kind === 'github_repo') && (
             <ul className="mt-3 space-y-1 text-sm">
               {card.sources
@@ -171,7 +227,9 @@ export function TalentCardPage() {
                     <span className="text-ink-soft text-xs">
                       {s.kind === 'network_reference' ? 'Kurum referansı' : 'Meydan okuma teslimi'}
                     </span>
-                    <span className="truncate font-mono text-xs">{s.ref}</span>
+                    <span className="truncate font-mono text-xs">
+                      {s.kind === 'challenge_submission' ? s.ref : 'iş birliği kaydı'}
+                    </span>
                   </li>
                 ))}
             </ul>
@@ -252,7 +310,27 @@ export function TalentCardPage() {
                         {ay(c.periodStart)} → {ay(c.periodEnd) ?? 'devam'}
                       </span>
                     )}
-                    <span>{c.sourceIds.length} kaynak</span>
+                    {c.sourceIds.map((id) => {
+                      const src = card.sources.find((x) => x.id === id);
+                      if (!src) return null;
+                      // Referans/teslim kaynaklarının ref'i iç id; kişiye tür adı gösterilir.
+                      const ad =
+                        src.kind === 'document'
+                          ? src.ref.split('#')[0]
+                          : src.kind === 'network_reference'
+                            ? 'kurum referansı'
+                            : src.ref.replace(/^https?:\/\//, '');
+                      return (
+                        <span
+                          key={id}
+                          className="bg-paper-2 rounded px-1.5 py-0.5 font-mono text-[11px]"
+                          title={KIND_LABEL[src.kind]}
+                        >
+                          {ad}
+                        </span>
+                      );
+                    })}
+                    {c.sourceIds.length === 0 && <span className="text-declared">kaynak yok</span>}
                   </div>
                 </div>
                 <button

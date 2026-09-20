@@ -1,9 +1,10 @@
-import { and, desc, eq, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import {
   auditLog,
   cardClaims,
   evidenceSources,
+  githubInstallations,
   needs,
   organizationMembers,
   organizations,
@@ -47,7 +48,7 @@ export function createNetworkService(db: Db, talent: TalentService) {
           githubLogin: users.githubLogin,
           cardStatus: talents.cardStatus,
           lastSignalAt: talents.lastSignalAt,
-          githubConnected: sql<boolean>`${talents.githubInstallationId} is not null`,
+          githubConnected: sql<boolean>`exists (select 1 from ${githubInstallations} where ${githubInstallations.talentId} = ${talents.id})`,
           createdAt: talents.createdAt,
         })
         .from(talents)
@@ -160,7 +161,7 @@ export function createNetworkService(db: Db, talent: TalentService) {
         .from(talents)
         .where(
           and(
-            isNotNull(talents.githubInstallationId),
+            sql`exists (select 1 from ${githubInstallations} where ${githubInstallations.talentId} = ${talents.id})`,
             sql`not exists (select 1 from ${evidenceSources} where ${evidenceSources.talentId} = ${talents.id} and ${evidenceSources.kind} = 'github_repo' and ${evidenceSources.lastScannedAt} >= ${esik})`,
           ),
         )

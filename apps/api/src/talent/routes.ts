@@ -70,12 +70,21 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
         // target_id = kişinin GitHub kullanıcı id'si: hesap seçme ekranı atlanır, kurulum
         // KİŞİSEL hesaba yapılır. Org'a kurulum callback'te 403 (sahiplik uyuşmaz) — ilk gerçek
         // koşuda yakalanan tuzak: kullanıcı wmb-tech'e kurdu, kart bağlanamadı.
-        const hedef = c.get('user').githubId ? `&target_id=${c.get('user').githubId}` : '';
+        // ?target=org → GitHub'ın hesap seçme ekranı (org'lar listelenir); varsayılan kişisel.
+        const hedef =
+          c.req.query('target') !== 'org' && c.get('user').githubId
+            ? `&target_id=${c.get('user').githubId}`
+            : '';
         return c.redirect(
-          `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new/permissions?state=${state}${hedef}`,
+          hedef
+            ? `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new/permissions?state=${state}${hedef}`
+            : `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new?state=${state}`,
         );
       })
       .post('/evidence/github/sync', async (c) => ok(c, await svc.syncGithub(c.get('user').id)))
+      .delete('/evidence/github/installations/:id', async (c) =>
+        ok(c, await svc.removeInstallation(c.get('user').id, c.req.param('id'))),
+      )
       .post('/evidence/url', async (c) => {
         const body = await parse(
           z.object({ url: z.string().url().max(500) }),

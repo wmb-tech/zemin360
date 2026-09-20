@@ -132,7 +132,8 @@ export function createApp(deps: AppDeps) {
       auth,
       email,
       ...(deps.fetchGithubProfile ? { fetchGithubProfile: deps.fetchGithubProfile } : {}),
-      onInstallation: (userId, installationId) => talent.saveInstallation(userId, installationId),
+      onInstallation: (userId, installationId, token) =>
+        talent.saveInstallation(userId, installationId, token),
     }),
   );
   app.route('/api/me', talentRoutes(deps.env, auth, talent));

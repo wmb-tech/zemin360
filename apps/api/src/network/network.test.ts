@@ -2,7 +2,15 @@ import { describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { createFakeProvider } from '@evidex/ai';
 import type { GithubEvidence } from '@evidex/evidence';
-import { cardClaims, evidenceSources, needs, organizations, talents, users } from '@evidex/db';
+import {
+  cardClaims,
+  evidenceSources,
+  githubInstallations,
+  needs,
+  organizations,
+  talents,
+  users,
+} from '@evidex/db';
 import { cookieOf, testApp } from '../test/setup';
 
 const json = (body: unknown, cookie?: string) => ({
@@ -25,7 +33,10 @@ async function oturum(
 let extractCalls = 0;
 const sahteGithub: GithubEvidence = {
   async installationOwner() {
-    return { id: '901', login: 'ece' };
+    return { id: '901', login: 'ece', type: 'user' as const };
+  },
+  async userInstallationIds() {
+    return [];
   },
   async listRepos() {
     return [{ fullName: 'ece/portfolyo', private: false, defaultBranch: 'main' }];
@@ -89,6 +100,12 @@ describe('ağ + canlı tut', () => {
       .insert(talents)
       .values({ userId: u!.id, githubInstallationId: '4242', lastSignalAt: gunOnce(120) })
       .returning();
+    await db.insert(githubInstallations).values({
+      talentId: t!.id,
+      installationId: '4242',
+      accountLogin: 'ece',
+      accountType: 'user',
+    });
     await db.insert(evidenceSources).values({
       talentId: t!.id,
       kind: 'github_repo',
