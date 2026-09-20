@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Clock, Send } from 'lucide-react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
+import { Enter, Live } from '../components/motion';
+import { Button, Empty, ErrorNote, Input, Panel, Skeleton } from '../components/ui';
 
 interface OpenChallenge {
   id: string;
@@ -13,8 +16,9 @@ interface OpenChallenge {
 }
 
 /**
- * Gencin "Davetler" ekranı: açık meydan okumalar ve teslim. Kanıtı olmayan genç buradan
- * kanıt kazanır; yapay zekâ araçları serbest, ölçülen şey teslimat.
+ * Meydan okumalar (keşfet 01): açık görevler ve teslim. Kanıtı olmayan genç buradan kanıt
+ * kazanır; yapay zekâ araçları serbest, ölçülen şey teslimat. Teslim yalnız sunucu onayından
+ * sonra "teslim edildi" olur; hata olursa girilen adres korunur.
  */
 export function TalentChallengesPage() {
   useTitle('Meydan okumalar');
@@ -24,12 +28,13 @@ export function TalentChallengesPage() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [live, setLive] = useState<string | null>(null);
 
   async function load() {
     setList(await api<OpenChallenge[]>('/api/me/challenges'));
   }
   useEffect(() => {
-    void load();
+    void load().catch((e: unknown) => setError(e instanceof Error ? e.message : 'Yüklenemedi'));
   }, []);
 
   async function submit(e: FormEvent, id: string) {
@@ -43,98 +48,129 @@ export function TalentChallengesPage() {
       });
       setRepoUrl('');
       setNote('');
+      setLive('Teslim alındı. Değerlendirme kapanışta yapılır; sonucu kartında görürsün.');
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hata');
+      setError(err instanceof Error ? err.message : 'Teslim edilemedi');
     } finally {
       setBusy(false);
     }
   }
 
+  if (!list && !error) return <Skeleton rows={4} />;
   return (
-    <div>
-      <h1 className="text-2xl font-bold tracking-tight">Meydan okumalar</h1>
-      <p className="text-ink-soft mt-2 max-w-prose text-sm">
-        Gerçek kurum ihtiyaçlarından türetilmiş 24–48 saatlik görevler. Teslim ettiğin her iş,
-        değerlendirmesiyle birlikte kartına doğrulanmış kanıt olarak girer. Yapay zekâ araçları
-        serbest; ölçülen şey çalışan teslimat.
-      </p>
-      <ul className="mt-6 space-y-4">
+    <div className="max-w-[880px]">
+      <Live message={live} />
+      <Enter i={0} as="header">
+        <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
+          Meydan okumalar
+        </h1>
+        <p className="text-ink-soft mt-2 max-w-[65ch]">
+          Gerçek kurum ihtiyaçlarından türetilmiş 24–48 saatlik görevler. Teslim ettiğin iş,
+          değerlendirmesiyle birlikte kartına doğrulanmış kanıt olarak girer. Yapay zekâ araçları
+          serbest; ölçülen şey çalışan teslimat.
+        </p>
+      </Enter>
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <Enter i={1} as="section" className="mt-6">
         {list?.length === 0 && (
-          <li className="border-line text-ink-soft rounded-xl border border-dashed p-6 text-sm">
-            Şu an açık meydan okuma yok.
-          </li>
+          <Empty title="Şu an açık meydan okuma yok">
+            GİRVAK bir ihtiyaçtan görev türetince burada görünür; e-postayla da haber veririz.
+          </Empty>
         )}
-        {list?.map((c) => (
-          <li key={c.id} className="border-line rounded-2xl border p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-semibold">{c.title}</h2>
-                <div className="text-ink-soft mt-0.5 text-xs">
-                  {c.durationHours} saat
-                  {c.closesAt && ` · son teslim ${new Date(c.closesAt).toLocaleString('tr-TR')}`}
-                </div>
-              </div>
-              {c.mySubmission ? (
-                <span className="text-verified text-xs font-semibold">Teslim edildi</span>
-              ) : (
-                <button
-                  onClick={() => setOpen(open === c.id ? null : c.id)}
-                  className="bg-ink text-paper rounded-lg px-3 py-1.5 text-sm font-semibold"
-                >
-                  {open === c.id ? 'Kapat' : 'Katıl'}
-                </button>
-              )}
-            </div>
-            {(open === c.id || c.mySubmission) && (
-              <div className="mt-4">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.brief}</p>
-                <div className="text-ink-soft mt-3 text-xs font-semibold tracking-wide uppercase">
-                  Nasıl değerlendirilecek
-                </div>
-                <ul className="mt-1 text-sm">
-                  {c.rubric.map((r) => (
-                    <li key={r.name}>
-                      <span className="font-semibold">{r.name}</span>{' '}
-                      <span className="text-ink-soft">— {r.description}</span>
-                    </li>
-                  ))}
-                </ul>
-                {c.mySubmission ? (
-                  <p className="text-ink-soft mt-3 text-xs">
-                    Teslimin: <span className="font-mono">{c.mySubmission.repoUrl}</span> ·{' '}
-                    {new Date(c.mySubmission.submittedAt).toLocaleString('tr-TR')}
-                  </p>
-                ) : (
-                  <form onSubmit={(e) => void submit(e, c.id)} className="mt-4 space-y-2">
-                    <input
-                      type="url"
-                      required
-                      value={repoUrl}
-                      onChange={(e) => setRepoUrl(e.target.value)}
-                      placeholder="https://github.com/kullanici/repo"
-                      className="border-line focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                    />
-                    <input
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      placeholder="Kısa not (nasıl çalıştırılır, ne eksik) — isteğe bağlı"
-                      className="border-line focus:border-accent w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                    />
-                    <button
-                      disabled={busy}
-                      className="bg-accent text-paper rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
-                    >
-                      Teslim et
-                    </button>
-                    {error && <p className="text-sm text-red-600">{error}</p>}
-                  </form>
-                )}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+        <ul className="space-y-4">
+          {list?.map((c) => {
+            const acik = open === c.id || Boolean(c.mySubmission);
+            return (
+              <li key={c.id}>
+                <Panel className="p-5 md:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-ink text-lg font-bold tracking-[-0.02em]">{c.title}</h2>
+                      <div className="text-ink-soft tnum mt-1 flex flex-wrap items-center gap-x-3 text-sm">
+                        <span className="inline-flex items-center gap-1">
+                          <Clock size={14} aria-hidden /> {c.durationHours} saat
+                        </span>
+                        {c.closesAt && (
+                          <span>son teslim {new Date(c.closesAt).toLocaleString('tr-TR')}</span>
+                        )}
+                      </div>
+                    </div>
+                    {c.mySubmission ? (
+                      <span className="bg-verified-soft text-verified rounded-md px-2 py-1 text-xs font-bold">
+                        Teslim edildi
+                      </span>
+                    ) : (
+                      <Button
+                        variant={acik ? 'secondary' : 'primary'}
+                        onClick={() => setOpen(acik ? null : c.id)}
+                      >
+                        {acik ? 'Kapat' : 'Görevi aç'}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="disclose" data-open={acik}>
+                    <div>
+                      <p className="text-ink mt-4 max-w-[70ch] text-base leading-relaxed whitespace-pre-wrap">
+                        {c.brief}
+                      </p>
+                      <h3 className="text-ink-soft mt-5 text-xs font-bold tracking-wide uppercase">
+                        Nasıl değerlendirilecek
+                      </h3>
+                      <ul className="mt-2 space-y-1 text-sm">
+                        {c.rubric.map((r) => (
+                          <li key={r.name}>
+                            <span className="text-ink font-semibold">{r.name}</span>
+                            <span className="text-ink-soft"> — {r.description}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      {c.mySubmission ? (
+                        <p className="text-ink-soft mt-4 text-sm">
+                          Teslimin: <span className="font-mono">{c.mySubmission.repoUrl}</span> ·{' '}
+                          {new Date(c.mySubmission.submittedAt).toLocaleString('tr-TR')}. Sonuç,
+                          görev kapanınca kartına düşer.
+                        </p>
+                      ) : (
+                        <form
+                          onSubmit={(e) => void submit(e, c.id)}
+                          className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]"
+                        >
+                          <div className="grid gap-3">
+                            <Input
+                              type="url"
+                              required
+                              value={repoUrl}
+                              onChange={(e) => setRepoUrl(e.target.value)}
+                              placeholder="https://github.com/kullanici/repo"
+                              aria-label="Teslim reposu"
+                            />
+                            <Input
+                              value={note}
+                              onChange={(e) => setNote(e.target.value)}
+                              placeholder="Kısa not — nasıl çalıştırılır, ne eksik (isteğe bağlı)"
+                              aria-label="Not"
+                            />
+                          </div>
+                          <Button
+                            type="submit"
+                            variant="primary"
+                            pending={busy}
+                            pendingText="Gönderiliyor…"
+                            className="sm:self-start"
+                          >
+                            <Send size={16} aria-hidden /> Teslim et
+                          </Button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                </Panel>
+              </li>
+            );
+          })}
+        </ul>
+      </Enter>
     </div>
   );
 }

@@ -1,9 +1,32 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  FileText,
+  GitBranch,
+  Globe,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { THRESHOLDS, type EvidenceLevel, type EvidenceSourceKind } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/ui';
+import { Enter, Live } from '../components/motion';
+import {
+  Button,
+  Empty,
+  ErrorNote,
+  Eyebrow,
+  Input,
+  LevelBadge,
+  LinkButton,
+  Panel,
+  Skeleton,
+  SourceChip,
+} from '../components/ui';
 
 interface Claim {
   id: string;
@@ -17,7 +40,7 @@ interface Claim {
 }
 interface Source {
   id: string;
-  kind: 'github_repo' | 'live_url' | 'document' | 'network_reference' | 'challenge_submission';
+  kind: EvidenceSourceKind;
   ref: string;
   ownershipVerified: boolean;
   verifyToken: string | null;
@@ -45,43 +68,45 @@ interface Card {
   claims: Claim[];
 }
 
-const LEVEL: Record<EvidenceLevel, { label: string; cls: string }> = {
-  verified: { label: 'Doğrulanmış', cls: 'bg-[var(--color-verified)] text-white' },
-  documented: { label: 'Belgeli', cls: 'bg-[var(--color-documented)] text-white' },
-  referenced: { label: 'Referanslı', cls: 'bg-[var(--color-referenced)] text-white' },
-  declared: { label: 'Beyan', cls: 'bg-[var(--color-declared)] text-white' },
-};
-
-const KIND_LABEL: Record<Source['kind'], string> = {
-  github_repo: 'GitHub deposu',
-  live_url: 'Canlı site',
-  document: 'Belge',
-  network_reference: 'Kurum referansı',
-  challenge_submission: 'Meydan okuma teslimi',
-};
 const ay = (d: string | null) =>
   d ? new Date(d).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : null;
 
+type Zone = 'kaynaklar' | 'iddialar' | 'kart' | 'paylas';
+type Run = (key: string, fn: () => Promise<unknown>) => Promise<boolean>;
+
 /**
- * Gencin kartı (döngü adımı 02). Kanıt bağla → taslak iddialar → tek tek onayla → kartı onayla.
- * Onaysız hiçbir şey ağa girmez; bu ekranın tek amacı kişiye kendi kartının kontrolünü vermek.
+ * Gencin kartı (doğrula 02). Dört bölge: Kaynaklar · İddiaları incele · Kart · Paylaşım.
+ * Onaysız hiçbir şey ağa girmez. Sunucu onaylamadan hiçbir satır "onaylı" görünmez; hata
+ * durumunda satır yerinde kalır ve hata yanında yazar (docs/redesign/03 §transition matrix).
  */
 export function TalentCardPage() {
   useTitle('Kartım');
   const nav = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [card, setCard] = useState<Card | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [params] = useSearchParams();
+  const [error, setError] = useState<{ key: string; message: string } | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [secili, setSecili] = useState<Set<string>>(new Set());
+  const [settled, setSettled] = useState<Set<string>>(new Set()); // sunucu onayı sonrası vurgu
+  const zone = (params.get('bolum') as Zone | null) ?? 'iddialar';
+  const setZone = (z: Zone) => {
+    const p = new URLSearchParams(params);
+    if (z === 'iddialar') p.delete('bolum');
+    else p.set('bolum', z);
+    setParams(p, { replace: true });
+  };
 
   async function load() {
     setCard(await api<Card>('/api/me/card'));
   }
   useEffect(() => {
-    void load();
+    void load().catch((e: unknown) =>
+      setError({ key: 'load', message: e instanceof Error ? e.message : 'Kart yüklenemedi' }),
+    );
   }, []);
-  // Kurulumdan dönüşte okuma kendiliğinden başlar; "senkronla" ayrı bir adım değil.
-  // Sonraki okumalar haftalık zamanlayıcıda; kişi isterse "yeniden oku" der.
+
+  // Kurulumdan dönüşte okuma kendiliğinden başlar; sonraki okumalar haftalık zamanlayıcıda.
   const otoBasladi = useRef(false);
   useEffect(() => {
     if (!card || !params.get('installed') || otoBasladi.current) return;
@@ -89,16 +114,6 @@ export function TalentCardPage() {
     void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }));
   }, [card, params]);
 
-  const [note, setNote] = useState<string | null>(null);
-  const [secili, setSecili] = useState<Set<string>>(new Set());
-  async function toplu(action: 'approve' | 'unapprove' | 'delete') {
-    const ids = [...secili];
-    if (action === 'delete' && !window.confirm(`${ids.length} iddia silinsin mi?`)) return;
-    await run('bulk', () =>
-      api('/api/me/card/claims/bulk', { method: 'POST', body: JSON.stringify({ ids, action }) }),
-    );
-    setSecili(new Set());
-  }
   async function run(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
     setError(null);
@@ -110,537 +125,418 @@ export function TalentCardPage() {
           `${r.skippedOrgRepos} org reposu atlandı: commit'in olmayan repo kanıt sayılmaz.`,
         );
       if (r?.unreadRepos)
-        notlar.push(
-          `En son itilen 40 repo okundu; ${r.unreadRepos} eski repo okunmadı (GitHub'daki repo seçiminden daraltabilirsin).`,
-        );
+        notlar.push(`En son itilen 40 repo okundu; ${r.unreadRepos} eski repo okunmadı.`);
       if (notlar.length) setNote(notlar.join(' '));
       await load();
+      return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hata');
+      setError({ key, message: err instanceof Error ? err.message : 'İşlem tamamlanamadı' });
+      return false;
     } finally {
       setBusy(null);
     }
   }
-
-  if (!card) return <Skeleton rows={6} />;
-  const onayli = card.claims.filter((c) => c.approved).length;
-  const approved = card.talent.cardStatus === 'approved';
-
-  return (
-    <div className="grid gap-10 md:grid-cols-[1fr_1.4fr]">
-      {/* Sol: kanıt kaynakları */}
-      <section>
-        <h1 className="text-2xl font-bold tracking-tight">Kanıtlarım</h1>
-        <p className="text-ink-soft mt-2 text-sm">
-          Kendini anlatma; kanıtını bağla. Kod saklanmaz, yalnız sinyal çıkarılır.
-        </p>
-        {params.get('installed') && (
-          <p className="text-verified mt-3 text-sm font-semibold">
-            {busy === 'sync'
-              ? 'GitHub bağlandı; repolar okunuyor, ajan kartı yazıyor (yarım dakika sürebilir)…'
-              : 'GitHub bağlandı. Kart taslağı sağda; her iddiayı onayla ya da sil.'}
-          </p>
-        )}
-        {card.talent.silent && (
-          <p className="border-declared text-ink-soft mt-3 rounded-lg border px-3 py-2 text-sm">
-            Kartın <b>sessiz</b>: kanıtlarında {THRESHOLDS.silentCardAfterDays} günden uzun süredir
-            etkinlik yok. Yeni bir kaynak bağla ya da{' '}
-            <Link to="/davetler" className="text-accent underline">
-              bir meydan okumaya katıl
-            </Link>
-            ; eşleşmelerde güncel kartlar öne çıkar.
-          </p>
-        )}
-
-        <div className="border-line mt-5 rounded-xl border p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-semibold">GitHub</div>
-              <div className="text-ink-soft text-xs">
-                {card.talent.githubConnected
-                  ? `Bağlı · ${card.sources.filter((s) => s.kind === 'github_repo').length} repo`
-                  : 'Hangi repoları göstereceğini sen seçersin'}
-              </div>
-            </div>
-            {card.talent.githubConnected ? (
-              <button
-                disabled={busy === 'sync'}
-                onClick={() =>
-                  void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }))
-                }
-                className="border-line hover:bg-paper-2 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-                title="Kanıt haftada bir kendiliğinden yenilenir; yeni repo ekledin ya da bekleyemiyorsan"
-              >
-                {busy === 'sync' ? 'Okunuyor…' : 'Yeniden oku'}
-              </button>
-            ) : (
-              <a
-                href="/api/me/evidence/github/install"
-                className="bg-ink text-paper rounded-lg px-3 py-1.5 text-sm font-semibold"
-              >
-                Bağla
-              </a>
-            )}
-          </div>
-          {card.talent.installations.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              {card.talent.installations.map((i) => (
-                <span
-                  key={i.id}
-                  className="border-line inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5"
-                >
-                  <span className="text-ink-soft">{i.accountType === 'org' ? 'org' : 'hesap'}</span>
-                  <span className="font-mono">{i.accountLogin}</span>
-                  <button
-                    onClick={() =>
-                      void run(i.id, () =>
-                        api(`/api/me/evidence/github/installations/${i.id}`, { method: 'DELETE' }),
-                      )
-                    }
-                    className="text-ink-soft hover:text-red-600"
-                    aria-label="Kaldır"
-                    title="Bu hesabın repolarını karttan çıkar"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              <a
-                href="/api/me/evidence/github/install?target=org"
-                className="text-accent underline"
-                title="Üyesi olduğun bir organizasyonun repolarını da kanıt yap; sahiplik commit'lerinden ölçülür"
-              >
-                + org hesabı ekle
-              </a>
-            </div>
-          )}
-          {card.sources.some((s) => s.kind === 'github_repo') && (
-            <ul className="mt-3 space-y-1 text-sm">
-              {card.sources
-                .filter((s) => s.kind === 'github_repo')
-                .map((s) => (
-                  <li key={s.id} className="flex items-center gap-2">
-                    <span className="text-verified">●</span>
-                    <span className="font-mono text-xs">{s.ref}</span>
-                  </li>
-                ))}
-            </ul>
-          )}
-        </div>
-
-        <LiveUrlBlock
-          sources={card.sources.filter((s) => s.kind === 'live_url')}
-          busy={busy}
-          run={run}
-        />
-        <DocumentBlock
-          sources={card.sources.filter((s) => s.kind === 'document')}
-          busy={busy}
-          run={run}
-        />
-        {card.sources.some(
-          (s) => s.kind === 'network_reference' || s.kind === 'challenge_submission',
-        ) && (
-          <div className="border-line mt-3 rounded-xl border p-4">
-            <div className="font-semibold">Platform içi kanıt</div>
-            <ul className="mt-2 space-y-1 text-sm">
-              {card.sources
-                .filter((s) => s.kind === 'network_reference' || s.kind === 'challenge_submission')
-                .map((s) => (
-                  <li key={s.id} className="flex items-center gap-2">
-                    <span className="text-ink-soft text-xs">
-                      {s.kind === 'network_reference' ? 'Kurum referansı' : 'Meydan okuma teslimi'}
-                    </span>
-                    <span className="truncate font-mono text-xs">
-                      {s.kind === 'challenge_submission' ? s.ref : 'iş birliği kaydı'}
-                    </span>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        )}
-        {note && <p className="text-ink-soft mt-3 text-sm">{note}</p>}
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-      </section>
-
-      {/* Sağ: kart */}
-      <section className="border-line h-fit rounded-2xl border p-6">
-        <div className="text-ink-soft flex items-center justify-between text-xs font-semibold tracking-wide uppercase">
-          <span>Yetkinlik kartı</span>
-          <span className={approved ? 'text-verified' : ''}>
-            {approved ? 'Onaylı · ağda' : 'Taslak'}
-          </span>
-        </div>
-        <h2 className="mt-2 text-xl font-bold tracking-tight">{card.user.name}</h2>
-        <EditableLine
-          value={card.talent.headline}
-          placeholder="Başlık (ör. Mobil ve web geliştirici)"
-          onSave={(v) =>
-            run('headline', () =>
-              api('/api/me/card', { method: 'PATCH', body: JSON.stringify({ headline: v }) }),
-            )
-          }
-        />
-        <EditableLine
-          value={card.talent.story}
-          placeholder="Hikâye — kanıttan otomatik yazılır, sen düzeltirsin"
-          multiline
-          onSave={(v) =>
-            run('story', () =>
-              api('/api/me/card', { method: 'PATCH', body: JSON.stringify({ story: v }) }),
-            )
-          }
-        />
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
-            İddialar · {onayli}/{card.claims.length} onaylı
-          </div>
-          {card.claims.length > 1 && (
-            <div className="ml-auto flex flex-wrap gap-2 text-xs">
-              {secili.size > 0 ? (
-                <>
-                  <span className="text-ink-soft self-center">{secili.size} seçili</span>
-                  <BulkBtn label="Onayla" onClick={() => void toplu('approve')} />
-                  <BulkBtn label="Onayı kaldır" onClick={() => void toplu('unapprove')} />
-                  <BulkBtn label="Sil" danger onClick={() => void toplu('delete')} />
-                  <BulkBtn label="Seçimi bırak" onClick={() => setSecili(new Set())} />
-                </>
-              ) : (
-                <>
-                  <BulkBtn
-                    label="Tümünü seç"
-                    onClick={() => setSecili(new Set(card.claims.map((c) => c.id)))}
-                  />
-                  <BulkBtn
-                    label="Taslakları seç"
-                    onClick={() =>
-                      setSecili(new Set(card.claims.filter((c) => !c.approved).map((c) => c.id)))
-                    }
-                  />
-                </>
-              )}
-            </div>
-          )}
-        </div>
-        {card.claims.length === 0 && (
-          <p className="text-ink-soft mt-2 text-sm">
-            Henüz iddia yok. GitHub'ı bağlayıp senkronla.
-          </p>
-        )}
-        <ul className="mt-2 space-y-2">
-          {card.claims.map((c) => (
-            <li
-              key={c.id}
-              onClick={(e) => {
-                // Metne tıklayınca seçime al/çıkar (checkbox ve düğmeler kendi işini yapar)
-                if ((e.target as HTMLElement).closest('input,button,a')) return;
-                setSecili((s) => {
-                  const n = new Set(s);
-                  if (n.has(c.id)) n.delete(c.id);
-                  else n.add(c.id);
-                  return n;
-                });
-              }}
-              className={`cursor-pointer rounded-xl border p-3 ${
-                secili.has(c.id)
-                  ? 'border-accent bg-accent-soft'
-                  : c.approved
-                    ? 'border-[var(--color-verified)]'
-                    : 'border-line'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={c.approved}
-                  disabled={busy === c.id}
-                  onChange={(e) =>
-                    void run(c.id, () =>
-                      api(`/api/me/card/claims/${c.id}`, {
-                        method: 'PATCH',
-                        body: JSON.stringify({ approved: e.target.checked }),
-                      }),
-                    )
-                  }
-                  className="mt-1"
-                  aria-label="Onayla"
-                />
-                <div className="flex-1">
-                  <div className="text-sm">{c.text}</div>
-                  <div className="text-ink-soft mt-1 flex flex-wrap items-center gap-2 text-xs">
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${LEVEL[c.level].cls}`}
-                    >
-                      {LEVEL[c.level].label}
-                    </span>
-                    {c.periodStart && (
-                      <span>
-                        {ay(c.periodStart)} → {ay(c.periodEnd) ?? 'devam'}
-                      </span>
-                    )}
-                    {c.sourceIds.map((id) => {
-                      const src = card.sources.find((x) => x.id === id);
-                      if (!src) return null;
-                      // Referans/teslim kaynaklarının ref'i iç id; kişiye tür adı gösterilir.
-                      const ad =
-                        src.kind === 'document'
-                          ? src.ref.split('#')[0]
-                          : src.kind === 'network_reference'
-                            ? 'kurum referansı'
-                            : src.ref.replace(/^https?:\/\//, '');
-                      return (
-                        <span
-                          key={id}
-                          className="bg-paper-2 rounded px-1.5 py-0.5 font-mono text-[11px]"
-                          title={KIND_LABEL[src.kind]}
-                        >
-                          {ad}
-                        </span>
-                      );
-                    })}
-                    {c.sourceIds.length === 0 && <span className="text-declared">kaynak yok</span>}
-                  </div>
-                </div>
-                <button
-                  onClick={() =>
-                    void run(c.id, () => api(`/api/me/card/claims/${c.id}`, { method: 'DELETE' }))
-                  }
-                  className="text-ink-soft text-xs hover:text-red-600"
-                  aria-label="Sil"
-                >
-                  Sil
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {approved && (
-          <div className="border-line mt-6 border-t pt-4 text-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="font-semibold">Paylaşılabilir kart</span>
-              <button
-                disabled={busy === 'share'}
-                onClick={() =>
-                  void run('share', () =>
-                    api('/api/me/card/share', {
-                      method: 'POST',
-                      body: JSON.stringify({ enabled: !card.talent.publicSlug }),
-                    }),
-                  )
-                }
-                className="border-line hover:bg-paper-2 rounded-lg border px-3 py-1 text-xs font-semibold disabled:opacity-50"
-              >
-                {card.talent.publicSlug ? 'Kapat' : 'Aç'}
-              </button>
-              {card.talent.publicSlug && (
-                <>
-                  <a
-                    href={`/k/${card.talent.publicSlug}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-accent font-mono text-xs hover:underline"
-                  >
-                    {window.location.origin}/k/{card.talent.publicSlug}
-                  </a>
-                  <button
-                    onClick={() =>
-                      void navigator.clipboard
-                        .writeText(`${window.location.origin}/k/${card.talent.publicSlug}`)
-                        .then(() => setNote('Link kopyalandı.'))
-                    }
-                    className="border-line hover:bg-paper-2 rounded-lg border px-2 py-1 text-xs"
-                  >
-                    Kopyala
-                  </button>
-                </>
-              )}
-            </div>
-            <p className="text-ink-soft mt-1 text-xs">
-              Linki bilen görür: yalnız onaylı iddialar ve kanıt seviyeleri; e-posta ve GitHub adı
-              yok. Kapatınca link ölür.
-            </p>
-          </div>
-        )}
-        {!approved && (
-          <div className="border-line mt-6 border-t pt-4">
-            <button
-              disabled={onayli === 0 || busy === 'approve'}
-              onClick={() =>
-                void run('approve', () => api('/api/me/card/approve', { method: 'POST' })).then(
-                  () => nav('/durum?onay=1'),
-                )
-              }
-              className="bg-accent text-paper rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
-            >
-              Kartı onayla ve ağa gir
-            </button>
-            {onayli === 0 && (
-              <p className="text-ink-soft mt-2 text-xs">En az bir iddiayı onaylaman gerekiyor.</p>
-            )}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function EditableLine({
-  value,
-  placeholder,
-  multiline,
-  onSave,
-}: {
-  value: string | null;
-  placeholder: string;
-  multiline?: boolean;
-  onSave: (v: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value ?? '');
-  useEffect(() => setDraft(value ?? ''), [value]);
-
-  if (!editing) {
-    return (
-      <button
-        onClick={() => setEditing(true)}
-        className={`mt-1 block w-full text-left ${value ? 'text-sm' : 'text-declared text-sm'} hover:underline`}
-      >
-        {value ?? placeholder}
-      </button>
-    );
+  /** Onay/sil sonrası satır vurgusu: yalnız sunucu "tamam" dedikten sonra. */
+  function vurgula(ids: string[]) {
+    setSettled(new Set(ids));
+    window.setTimeout(() => setSettled(new Set()), 400);
   }
-  const Tag = multiline ? 'textarea' : 'input';
+  async function toplu(action: 'approve' | 'unapprove' | 'delete') {
+    const ids = [...secili];
+    if (action === 'delete' && !window.confirm(`${ids.length} iddia silinsin mi? Geri alınamaz.`))
+      return;
+    const ok = await run('bulk', () =>
+      api('/api/me/card/claims/bulk', { method: 'POST', body: JSON.stringify({ ids, action }) }),
+    );
+    if (ok) {
+      setSecili(new Set());
+      if (action !== 'delete') vurgula(ids);
+      setNote(
+        action === 'delete'
+          ? `${ids.length} iddia silindi.`
+          : `${ids.length} iddia ${action === 'approve' ? 'onaylandı' : 'taslağa alındı'}.`,
+      );
+    }
+  }
+  async function iddiaOnay(c: Claim) {
+    const ok = await run(c.id, () =>
+      api(`/api/me/card/claims/${c.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ approved: !c.approved }),
+      }),
+    );
+    if (ok) vurgula([c.id]);
+  }
+
+  if (error?.key === 'load') return <ErrorNote>{error.message} — sayfayı yenile.</ErrorNote>;
+  if (!card) return <Skeleton rows={6} />;
+
+  const onayli = card.claims.filter((c) => c.approved);
+  const taslak = card.claims.filter((c) => !c.approved);
+  const agda = card.talent.cardStatus === 'approved';
+  const github = card.sources.filter((s) => s.kind === 'github_repo');
+  const zones: { key: Zone; label: string; badge?: string | undefined }[] = [
+    { key: 'kaynaklar', label: 'Kaynaklar', badge: String(card.sources.length) },
+    {
+      key: 'iddialar',
+      label: 'İddiaları incele',
+      badge: taslak.length ? `${taslak.length} taslak` : undefined,
+    },
+    { key: 'kart', label: agda ? 'Yayındaki kart' : 'Kart' },
+    { key: 'paylas', label: 'Paylaşım' },
+  ];
+
   return (
-    <div className="mt-1 flex gap-2">
-      <Tag
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={multiline ? 3 : undefined}
-        className="border-line focus:border-accent flex-1 rounded-lg border px-2 py-1 text-sm outline-none"
-      />
-      <button
-        onClick={() => {
-          setEditing(false);
-          if (draft.trim() && draft !== value) onSave(draft.trim());
-        }}
-        className="bg-ink text-paper rounded-lg px-3 text-xs font-semibold"
-      >
-        Kaydet
-      </button>
+    <div>
+      <Live message={note} />
+      <Enter i={0} as="header" className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
+            Kartım
+          </h1>
+          <p className="text-ink-soft tnum mt-1">
+            {agda ? 'Ağda' : 'Taslak'} · {onayli.length} onaylı iddia · {card.sources.length} kaynak
+            {card.talent.silent && (
+              <span className="text-declared">
+                {' '}
+                · {THRESHOLDS.silentCardAfterDays} gündür sessiz
+              </span>
+            )}
+          </p>
+        </div>
+        {!agda && (
+          <Button
+            variant="primary"
+            disabled={onayli.length === 0}
+            pending={busy === 'approve'}
+            pendingText="Onaylanıyor…"
+            onClick={() =>
+              void run('approve', () => api('/api/me/card/approve', { method: 'POST' })).then(
+                (ok) => ok && nav('/durum?onay=1'),
+              )
+            }
+            title={onayli.length === 0 ? 'Önce en az bir iddiayı onayla' : undefined}
+          >
+            Kartı onayla ve ağa gir
+          </Button>
+        )}
+      </Enter>
+
+      {params.get('installed') && (
+        <p
+          className="bg-verified-soft text-verified mt-4 rounded-[var(--radius-control)] px-4 py-3 text-sm font-semibold"
+          aria-live="polite"
+        >
+          {busy === 'sync'
+            ? 'GitHub bağlandı. Repolar okunuyor, ajan kartını yazıyor — yarım dakika sürebilir.'
+            : 'GitHub bağlandı. Taslak iddialar aşağıda; doğru olanı onayla, olmayanı sil.'}
+        </p>
+      )}
+      {note && !params.get('installed') && <p className="text-ink-soft mt-3 text-sm">{note}</p>}
+      {error && error.key !== 'load' && <ErrorNote>{error.message}</ErrorNote>}
+
+      <Enter i={1} as="div" className="border-line mt-6 flex gap-1 overflow-x-auto border-b">
+        {zones.map((z) => (
+          <button
+            key={z.key}
+            onClick={() => setZone(z.key)}
+            aria-current={zone === z.key ? 'page' : undefined}
+            className={`pressable -mb-px flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm font-semibold whitespace-nowrap ${
+              zone === z.key
+                ? 'border-accent text-accent-strong'
+                : 'text-ink-soft hover:text-ink border-transparent'
+            }`}
+          >
+            {z.label}
+            {z.badge && (
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-xs ${zone === z.key ? 'bg-accent-soft' : 'bg-paper-2'}`}
+              >
+                {z.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </Enter>
+
+      <Enter i={2} as="section" className="mt-6">
+        {zone === 'kaynaklar' && <Kaynaklar card={card} github={github} busy={busy} run={run} />}
+        {zone === 'iddialar' && (
+          <Iddialar
+            card={card}
+            taslak={taslak}
+            onayli={onayli}
+            secili={secili}
+            setSecili={setSecili}
+            settled={settled}
+            busy={busy}
+            onToggle={iddiaOnay}
+            onDelete={(c) =>
+              void run(c.id, () => api(`/api/me/card/claims/${c.id}`, { method: 'DELETE' }))
+            }
+            onEdit={(c, text) =>
+              run(c.id, () =>
+                api(`/api/me/card/claims/${c.id}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ text }),
+                }),
+              )
+            }
+            onBulk={toplu}
+          />
+        )}
+        {zone === 'kart' && <Kart card={card} onayli={onayli} busy={busy} run={run} />}
+        {zone === 'paylas' && (
+          <Paylas card={card} busy={busy} run={run} agda={agda} setNote={setNote} />
+        )}
+      </Enter>
     </div>
   );
 }
 
-/**
- * Canlı ürün kaynağı: adres ekle → token al → siteye meta etiketi ya da well-known dosyası
- * koy → doğrula. Doğrulanana kadar kaynak "beyan" seviyesindedir.
- */
-function LiveUrlBlock({
-  sources,
+/* ---------------- Kaynaklar ---------------- */
+function Kaynaklar({
+  card,
+  github,
   busy,
   run,
 }: {
-  sources: Source[];
+  card: Card;
+  github: Source[];
   busy: string | null;
-  run: (key: string, fn: () => Promise<unknown>) => Promise<void>;
+  run: Run;
 }) {
+  const [acik, setAcik] = useState<string | null>(null);
+  const grup = (login: string) => github.filter((s) => s.ref.startsWith(`${login}/`));
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Panel className="p-5 lg:col-span-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="bg-paper-2 flex h-10 w-10 items-center justify-center rounded-xl">
+            <GitBranch size={20} aria-hidden />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-ink font-bold">GitHub</div>
+            <div className="text-ink-soft text-sm">
+              {card.talent.githubConnected
+                ? `${github.length} repo okundu · kod saklanmaz, sinyal çıkarılır`
+                : 'Hangi repoları göstereceğini sen seçersin; kod saklanmaz'}
+            </div>
+          </div>
+          {card.talent.githubConnected ? (
+            <Button
+              size="sm"
+              pending={busy === 'sync'}
+              pendingText="Okunuyor…"
+              onClick={() =>
+                void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }))
+              }
+              title="Kanıt haftada bir kendiliğinden yenilenir"
+            >
+              Yeniden oku
+            </Button>
+          ) : (
+            <LinkButton variant="primary" href="/api/me/evidence/github/install">
+              GitHub'ı bağla
+            </LinkButton>
+          )}
+        </div>
+        {card.talent.installations.length > 0 && (
+          <ul className="border-line mt-4 divide-y divide-[var(--color-line)] border-t">
+            {card.talent.installations.map((i) => {
+              const repolar = grup(i.accountLogin);
+              const open = acik === i.id;
+              return (
+                <li key={i.id} className="py-2">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setAcik(open ? null : i.id)}
+                      aria-expanded={open}
+                      className="text-ink flex min-h-11 flex-1 items-center gap-2 text-left text-sm font-semibold"
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform duration-[var(--duration-quick)] ${open ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
+                      <span className="font-mono">{i.accountLogin}</span>
+                      <span className="text-ink-soft font-normal">
+                        · {i.accountType === 'org' ? 'organizasyon' : 'kişisel hesap'} ·{' '}
+                        {repolar.length} repo
+                      </span>
+                    </button>
+                    <button
+                      onClick={() =>
+                        window.confirm(
+                          `${i.accountLogin} kurulumu kaldırılsın mı? Bu hesabın repoları karttan çıkar.`,
+                        ) &&
+                        void run(i.id, () =>
+                          api(`/api/me/evidence/github/installations/${i.id}`, {
+                            method: 'DELETE',
+                          }),
+                        )
+                      }
+                      className="text-ink-soft hover:text-negative flex h-9 w-9 items-center justify-center rounded-lg"
+                      aria-label={`${i.accountLogin} kurulumunu kaldır`}
+                    >
+                      <X size={16} aria-hidden />
+                    </button>
+                  </div>
+                  <div className="disclose" data-open={open}>
+                    <div>
+                      <ul className="grid gap-x-6 pb-2 pl-6 sm:grid-cols-2">
+                        {repolar.map((s) => (
+                          <li
+                            key={s.id}
+                            className="text-ink-soft truncate py-0.5 font-mono text-xs"
+                          >
+                            {s.ref.split('/')[1]}
+                          </li>
+                        ))}
+                        {repolar.length === 0 && (
+                          <li className="text-ink-soft py-0.5 text-xs">
+                            Bu hesaptan okunmuş repo yok.
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+            <li className="pt-3">
+              <a
+                href="/api/me/evidence/github/install?target=org"
+                className="text-accent inline-flex items-center gap-1 text-sm font-semibold hover:underline"
+              >
+                <Plus size={14} aria-hidden /> Organizasyon hesabı ekle
+              </a>
+              <span className="text-ink-soft ml-2 text-xs">
+                Üyesi olduğun org'un repoları; sahiplik commit'lerinden ölçülür.
+              </span>
+            </li>
+          </ul>
+        )}
+      </Panel>
+
+      <CanliUrun
+        sources={card.sources.filter((s) => s.kind === 'live_url')}
+        busy={busy}
+        run={run}
+      />
+      <Belge sources={card.sources.filter((s) => s.kind === 'document')} busy={busy} run={run} />
+      {card.sources.some(
+        (s) => s.kind === 'network_reference' || s.kind === 'challenge_submission',
+      ) && (
+        <Panel className="p-5 lg:col-span-2">
+          <div className="text-ink font-bold">Platform içi kanıt</div>
+          <p className="text-ink-soft mt-1 text-sm">
+            Kurum referansları ve meydan okuma teslimleri; platformda oluştu, kaldırılamaz.
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {card.sources
+              .filter((s) => s.kind === 'network_reference' || s.kind === 'challenge_submission')
+              .map((s) => (
+                <li key={s.id}>
+                  <SourceChip kind={s.kind} ref={s.ref} />
+                </li>
+              ))}
+          </ul>
+        </Panel>
+      )}
+    </div>
+  );
+}
+
+function CanliUrun({ sources, busy, run }: { sources: Source[]; busy: string | null; run: Run }) {
   const [url, setUrl] = useState('');
   return (
-    <div className="border-line mt-3 rounded-xl border p-4">
-      <div className="font-semibold">Canlı ürün</div>
-      <div className="text-ink-soft text-xs">
-        Yayında olan bir site ya da uygulama. Sahipliğini bir etiketle kanıtlarsın.
+    <Panel className="p-5">
+      <div className="flex items-center gap-3">
+        <div className="bg-paper-2 flex h-10 w-10 items-center justify-center rounded-xl">
+          <Globe size={20} aria-hidden />
+        </div>
+        <div>
+          <div className="text-ink font-bold">Canlı ürün</div>
+          <div className="text-ink-soft text-sm">
+            Yayında olan site ya da uygulama; sahipliğini bir etiketle kanıtlarsın.
+          </div>
+        </div>
       </div>
       <form
-        onSubmit={(e) => {
+        onSubmit={(e: FormEvent) => {
           e.preventDefault();
           void run('url', () =>
             api('/api/me/evidence/url', { method: 'POST', body: JSON.stringify({ url }) }),
-          ).then(() => setUrl(''));
+          ).then((ok) => ok && setUrl(''));
         }}
-        className="mt-3 flex gap-2"
+        className="mt-4 flex gap-2"
       >
-        <input
+        <Input
           type="url"
           required
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://…"
-          className="border-line focus:border-accent flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none"
+          aria-label="Site adresi"
         />
-        <button
-          disabled={busy === 'url'}
-          className="bg-ink text-paper rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
-        >
+        <Button type="submit" pending={busy === 'url'} pendingText="Ekleniyor…">
           Ekle
-        </button>
+        </Button>
       </form>
-      <ul className="mt-3 space-y-3 text-sm">
+      <ul className="mt-3 space-y-3">
         {sources.map((s) => (
-          <li key={s.id} className="border-line rounded-lg border p-3">
-            <div className="flex items-center justify-between gap-2">
+          <li key={s.id} className="border-line rounded-[var(--radius-control)] border p-3 text-sm">
+            <div className="flex items-center gap-2">
               <span className="truncate font-mono text-xs">{s.ref}</span>
               <span
-                className={`text-xs font-semibold ${s.ownershipVerified ? 'text-verified' : 'text-declared'}`}
+                className={`ml-auto text-xs font-bold ${s.ownershipVerified ? 'text-verified' : 'text-declared'}`}
               >
                 {s.ownershipVerified ? 'Doğrulandı' : 'Doğrulanmadı'}
               </span>
             </div>
             {!s.ownershipVerified && s.verifyToken && (
-              <div className="mt-2 text-xs">
-                <div className="text-ink-soft">Sitenin &lt;head&gt; kısmına ekle:</div>
+              <div className="text-ink-soft mt-2 text-xs">
+                Sitenin <code>&lt;head&gt;</code> kısmına ekle:
                 <code className="bg-paper-2 mt-1 block overflow-x-auto rounded p-2">{`<meta name="evidex-verify" content="${s.verifyToken}">`}</code>
-                <div className="text-ink-soft mt-1">
-                  ya da <code>/.well-known/evidex.txt</code> dosyasına <code>{s.verifyToken}</code>{' '}
-                  yaz.
-                </div>
+                ya da <code>/.well-known/evidex.txt</code> dosyasına <code>{s.verifyToken}</code>{' '}
+                yaz.
                 <div className="mt-2 flex gap-2">
-                  <button
-                    disabled={busy === s.id}
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    pending={busy === `v-${s.id}`}
+                    pendingText="Kontrol ediliyor…"
                     onClick={() =>
-                      void run(s.id, () =>
+                      void run(`v-${s.id}`, () =>
                         api(`/api/me/evidence/url/${s.id}/verify`, { method: 'POST' }),
                       )
                     }
-                    className="bg-accent text-paper rounded-lg px-3 py-1 text-xs font-semibold disabled:opacity-50"
                   >
                     Doğrula
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="tertiary"
                     onClick={() =>
                       void run(s.id, () =>
                         api(`/api/me/evidence/sources/${s.id}`, { method: 'DELETE' }),
                       )
                     }
-                    className="text-ink-soft text-xs hover:text-red-600"
                   >
                     Kaldır
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
           </li>
         ))}
       </ul>
-    </div>
+    </Panel>
   );
 }
 
-/**
- * Belge (PDF) kanıtı: sertifika, yarışma belgesi, staj yazısı. Dosya saklanmaz; sinyal çıkar,
- * iddia "belgeli" seviyesinde gelir. 5 MB, 30 sayfa sınırı sunucuda.
- */
-function DocumentBlock({
-  sources,
-  busy,
-  run,
-}: {
-  sources: Source[];
-  busy: string | null;
-  run: (key: string, fn: () => Promise<unknown>) => Promise<void>;
-}) {
+function Belge({ sources, busy, run }: { sources: Source[]; busy: string | null; run: Run }) {
   const inputRef = useRef<HTMLInputElement>(null);
   async function upload(file: File) {
     const fd = new FormData();
@@ -656,64 +552,540 @@ function DocumentBlock({
     if (inputRef.current) inputRef.current.value = '';
   }
   return (
-    <div className="border-line mt-3 rounded-xl border p-4">
-      <div className="font-semibold">Belge</div>
-      <div className="text-ink-soft text-xs">
-        Sertifika, yarışma belgesi, staj yazısı (PDF). Dosya saklanmaz; ne olduğu okunur, iddia
-        "belgeli" seviyesinde gelir.
+    <Panel className="p-5">
+      <div className="flex items-center gap-3">
+        <div className="bg-paper-2 flex h-10 w-10 items-center justify-center rounded-xl">
+          <FileText size={20} aria-hidden />
+        </div>
+        <div>
+          <div className="text-ink font-bold">Belge</div>
+          <div className="text-ink-soft text-sm">
+            Sertifika, yarışma belgesi, staj yazısı (PDF). Dosya saklanmaz; iddia "belgeli"
+            seviyesinde gelir.
+          </div>
+        </div>
       </div>
-      <ul className="mt-2 space-y-1">
+      <ul className="mt-3 space-y-1">
         {sources.map((s) => (
           <li key={s.id} className="flex items-center gap-2 text-sm">
             <span className="truncate font-mono text-xs">{s.ref.split('#')[0]}</span>
-            <span className="text-documented text-xs">belgeli</span>
+            <LevelBadge level="documented" />
             <button
               onClick={() =>
                 void run(s.id, () => api(`/api/me/evidence/sources/${s.id}`, { method: 'DELETE' }))
               }
-              className="text-ink-soft ml-auto text-xs hover:text-red-600"
+              className="text-ink-soft hover:text-negative ml-auto text-xs"
             >
               Kaldır
             </button>
           </li>
         ))}
       </ul>
-      <label className="mt-3 inline-block">
+      <label className="mt-4 inline-block">
         <input
           ref={inputRef}
           type="file"
           accept="application/pdf"
-          className="hidden"
+          className="sr-only"
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void upload(f);
           }}
         />
         <span
-          className={`border-line hover:bg-paper-2 inline-block cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-semibold ${busy === 'doc' ? 'opacity-50' : ''}`}
+          className={`pressable border-line bg-surface hover:bg-paper-2 inline-flex min-h-11 cursor-pointer items-center rounded-[var(--radius-control)] border px-4 text-sm font-semibold ${busy === 'doc' ? 'opacity-50' : ''}`}
         >
           {busy === 'doc' ? 'Okunuyor…' : 'PDF yükle'}
         </span>
       </label>
+    </Panel>
+  );
+}
+
+/* ---------------- İddialar ---------------- */
+function Iddialar({
+  card,
+  taslak,
+  onayli,
+  secili,
+  setSecili,
+  settled,
+  busy,
+  onToggle,
+  onDelete,
+  onEdit,
+  onBulk,
+}: {
+  card: Card;
+  taslak: Claim[];
+  onayli: Claim[];
+  secili: Set<string>;
+  setSecili: (s: Set<string>) => void;
+  settled: Set<string>;
+  busy: string | null;
+  onToggle: (c: Claim) => void;
+  onDelete: (c: Claim) => void;
+  onEdit: (c: Claim, text: string) => Promise<boolean>;
+  onBulk: (a: 'approve' | 'unapprove' | 'delete') => void;
+}) {
+  const toggleSel = (id: string) => {
+    const n = new Set(secili);
+    if (n.has(id)) n.delete(id);
+    else n.add(id);
+    setSecili(n);
+  };
+  if (card.claims.length === 0)
+    return (
+      <Empty
+        title="Henüz iddia yok"
+        action={
+          <Link to="?bolum=kaynaklar" className="text-accent text-sm font-semibold hover:underline">
+            Kaynak bağla →
+          </Link>
+        }
+      >
+        GitHub, canlı ürün ya da belge bağlayınca ajan kartının taslağını yazar; her iddiayı sen
+        onaylarsın.
+      </Empty>
+    );
+  const grup = (baslik: string, liste: Claim[]) =>
+    liste.length === 0 ? null : (
+      <div>
+        <div className="flex items-center justify-between">
+          <h2 className="text-ink text-lg font-bold tracking-[-0.02em]">
+            {baslik}{' '}
+            <span className="text-ink-soft tnum text-base font-semibold">· {liste.length}</span>
+          </h2>
+          {liste.length > 1 && (
+            <button
+              onClick={() =>
+                setSecili(
+                  new Set(liste.every((c) => secili.has(c.id)) ? [] : liste.map((c) => c.id)),
+                )
+              }
+              className="text-accent text-sm font-semibold hover:underline"
+            >
+              {liste.every((c) => secili.has(c.id)) ? 'Seçimi bırak' : 'Tümünü seç'}
+            </button>
+          )}
+        </div>
+        <ul className="mt-3 space-y-3">
+          {liste.map((c) => (
+            <IddiaSatiri
+              key={c.id}
+              c={c}
+              card={card}
+              selected={secili.has(c.id)}
+              settled={settled.has(c.id)}
+              busy={busy === c.id}
+              onSelect={() => toggleSel(c.id)}
+              onToggle={() => onToggle(c)}
+              onDelete={() => window.confirm('Bu iddia silinsin mi? Geri alınamaz.') && onDelete(c)}
+              onEdit={(t) => onEdit(c, t)}
+            />
+          ))}
+        </ul>
+      </div>
+    );
+  return (
+    <div className="relative space-y-10">
+      {grup('Gözden geçir', taslak)}
+      {grup('Onaylı', onayli)}
+      {secili.size > 0 && (
+        <div
+          className="bg-ink text-surface sticky bottom-20 z-10 flex flex-wrap items-center gap-2 rounded-[var(--radius-panel)] px-4 py-3 shadow-lg md:bottom-4"
+          role="toolbar"
+          aria-label="Toplu işlem"
+        >
+          <span className="tnum text-sm font-semibold">{secili.size} seçili</span>
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={() => onBulk('approve')}
+              className="pressable bg-surface text-ink rounded-[var(--radius-control)] px-3 py-1.5 text-sm font-semibold"
+            >
+              Onayla
+            </button>
+            <button
+              onClick={() => onBulk('unapprove')}
+              className="pressable rounded-[var(--radius-control)] border border-white/30 px-3 py-1.5 text-sm font-semibold"
+            >
+              Taslağa al
+            </button>
+            <button
+              onClick={() => onBulk('delete')}
+              className="pressable rounded-[var(--radius-control)] border border-white/30 px-3 py-1.5 text-sm font-semibold"
+            >
+              Sil
+            </button>
+            <button
+              onClick={() => setSecili(new Set())}
+              className="text-surface/80 px-2 text-sm"
+              aria-label="Seçimi bırak"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function BulkBtn({
-  label,
-  onClick,
-  danger,
+function IddiaSatiri({
+  c,
+  card,
+  selected,
+  settled,
+  busy,
+  onSelect,
+  onToggle,
+  onDelete,
+  onEdit,
 }: {
-  label: string;
-  onClick: () => void;
-  danger?: boolean;
+  c: Claim;
+  card: Card;
+  selected: boolean;
+  settled: boolean;
+  busy: boolean;
+  onSelect: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+  onEdit: (t: string) => Promise<boolean>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(c.text);
+  return (
+    <li
+      className={`bg-surface rounded-[var(--radius-panel)] border p-4 ${settled ? 'settle' : ''} ${selected ? 'border-accent' : 'border-line'}`}
+    >
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onSelect}
+          aria-label="Seç"
+          className="accent-accent mt-1 h-5 w-5 shrink-0"
+        />
+        <div className="min-w-0 flex-1">
+          {editing ? (
+            <div>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={3}
+                maxLength={600}
+                className="border-line focus:border-accent w-full rounded-[var(--radius-control)] border px-3 py-2 text-base outline-none"
+              />
+              <div className="mt-2 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  pending={busy}
+                  pendingText="Kaydediliyor…"
+                  onClick={() => void onEdit(draft.trim()).then((ok) => ok && setEditing(false))}
+                >
+                  Kaydet
+                </Button>
+                <Button
+                  size="sm"
+                  variant="tertiary"
+                  onClick={() => {
+                    setDraft(c.text);
+                    setEditing(false);
+                  }}
+                >
+                  Vazgeç
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-ink text-base leading-relaxed">{c.text}</p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <LevelBadge level={c.level} />
+            {c.periodStart && (
+              <span className="text-ink-soft tnum text-sm">
+                {ay(c.periodStart)} → {ay(c.periodEnd) ?? 'devam'}
+              </span>
+            )}
+            {c.sourceIds.map((id) => {
+              const s = card.sources.find((x) => x.id === id);
+              return s ? <SourceChip key={id} kind={s.kind} ref={s.ref} /> : null;
+            })}
+            {c.sourceIds.length === 0 && <span className="text-declared text-xs">kaynak yok</span>}
+          </div>
+          {c.draftText && c.draftText !== c.text && (
+            <p className="text-ink-soft mt-1 text-xs">Ajan taslağı düzenlendi.</p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {!c.approved ? (
+            <Button
+              size="sm"
+              variant="primary"
+              pending={busy}
+              pendingText="…"
+              onClick={onToggle}
+              aria-label="Onayla"
+            >
+              <Check size={16} aria-hidden /> Onayla
+            </Button>
+          ) : (
+            <button
+              onClick={onToggle}
+              disabled={busy}
+              className="text-verified inline-flex min-h-9 items-center gap-1 text-sm font-bold"
+              title="Taslağa geri al"
+            >
+              <Check size={16} aria-hidden /> Onaylı
+            </button>
+          )}
+          {!editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-ink-soft hover:text-ink hover:bg-paper-2 h-9 rounded-lg px-2 text-sm"
+            >
+              Düzenle
+            </button>
+          )}
+          <button
+            onClick={onDelete}
+            disabled={busy}
+            className="text-ink-soft hover:text-negative hover:bg-negative-soft flex h-9 w-9 items-center justify-center rounded-lg"
+            aria-label="Sil"
+          >
+            <Trash2 size={16} aria-hidden />
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/* ---------------- Kart (önizleme) ---------------- */
+function Kart({
+  card,
+  onayli,
+  busy,
+  run,
+}: {
+  card: Card;
+  onayli: Claim[];
+  busy: string | null;
+  run: Run;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`border-line hover:bg-paper-2 rounded-lg border px-2 py-1 font-semibold ${danger ? 'text-red-600' : ''}`}
-    >
-      {label}
-    </button>
+    <Panel className="p-6 md:p-8">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Eyebrow>Yetkinlik kartı</Eyebrow>
+          <h2 className="text-ink mt-1 text-2xl font-extrabold tracking-[-0.02em]">
+            {card.user.name}
+          </h2>
+        </div>
+        <span
+          className={`rounded-md px-2 py-0.5 text-xs font-bold ${card.talent.cardStatus === 'approved' ? 'bg-verified-soft text-verified' : 'bg-declared-soft text-declared'}`}
+        >
+          {card.talent.cardStatus === 'approved' ? 'Ağda' : 'Taslak'}
+        </span>
+      </div>
+      <Duzenlenebilir
+        value={card.talent.headline}
+        placeholder="Başlık — ör. Full-stack web ve mobil geliştirici"
+        busy={busy === 'headline'}
+        onSave={(v) =>
+          void run('headline', () =>
+            api('/api/me/card', { method: 'PATCH', body: JSON.stringify({ headline: v }) }),
+          )
+        }
+        className="mt-3 text-lg font-semibold"
+      />
+      <Duzenlenebilir
+        value={card.talent.story}
+        placeholder="Hikâye — kanıttan otomatik yazılır, sen düzeltirsin"
+        busy={busy === 'story'}
+        multiline
+        onSave={(v) =>
+          void run('story', () =>
+            api('/api/me/card', { method: 'PATCH', body: JSON.stringify({ story: v }) }),
+          )
+        }
+        className="text-ink-soft mt-2 max-w-[70ch] leading-relaxed"
+      />
+      <h3 className="text-ink-soft mt-8 text-xs font-bold tracking-wide uppercase">
+        Onaylı iddialar · {onayli.length}
+      </h3>
+      {onayli.length === 0 ? (
+        <p className="text-ink-soft mt-2 text-sm">
+          Henüz onaylı iddia yok; "İddiaları incele" bölümünden onayla.
+        </p>
+      ) : (
+        <ol className="mt-3 divide-y divide-[var(--color-line)]">
+          {onayli.map((c, i) => (
+            <li key={c.id} className="flex gap-4 py-4">
+              <span className="text-ink-soft tnum w-6 shrink-0 pt-0.5 text-sm font-semibold">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <div className="min-w-0">
+                <p className="text-ink leading-relaxed">{c.text}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <LevelBadge level={c.level} />
+                  {c.periodStart && (
+                    <span className="text-ink-soft tnum text-sm">
+                      {ay(c.periodStart)} → {ay(c.periodEnd) ?? 'devam'}
+                    </span>
+                  )}
+                  {c.sourceIds.map((id) => {
+                    const s = card.sources.find((x) => x.id === id);
+                    return s ? <SourceChip key={id} kind={s.kind} ref={s.ref} /> : null;
+                  })}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className="text-ink-soft mt-6 text-xs">
+        Kurumlar tanıştırmaya kadar yalnız ilk adını ve gerekçeyi görür; tam kart tanıştırma sonrası
+        açılır.
+      </p>
+    </Panel>
+  );
+}
+
+function Duzenlenebilir({
+  value,
+  placeholder,
+  busy,
+  multiline,
+  onSave,
+  className = '',
+}: {
+  value: string | null;
+  placeholder: string;
+  busy: boolean;
+  multiline?: boolean;
+  onSave: (v: string) => void;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? '');
+  useEffect(() => setDraft(value ?? ''), [value]);
+  if (!editing)
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className={`hover:bg-paper-2 -mx-2 block w-full rounded-lg px-2 py-1 text-left ${value ? '' : 'text-declared'} ${className}`}
+        title="Düzenlemek için tıkla"
+      >
+        {value ?? placeholder}
+      </button>
+    );
+  const Tag = multiline ? 'textarea' : 'input';
+  return (
+    <div className={`mt-1 flex flex-col gap-2 ${multiline ? '' : 'sm:flex-row'}`}>
+      <Tag
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={multiline ? 4 : undefined}
+        className="border-line focus:border-accent w-full rounded-[var(--radius-control)] border px-3 py-2 text-base outline-none"
+      />
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="primary"
+          pending={busy}
+          pendingText="…"
+          onClick={() => {
+            if (draft.trim() && draft !== value) onSave(draft.trim());
+            setEditing(false);
+          }}
+        >
+          Kaydet
+        </Button>
+        <Button
+          size="sm"
+          variant="tertiary"
+          onClick={() => {
+            setDraft(value ?? '');
+            setEditing(false);
+          }}
+        >
+          Vazgeç
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Paylaşım ---------------- */
+function Paylas({
+  card,
+  busy,
+  run,
+  agda,
+  setNote,
+}: {
+  card: Card;
+  busy: string | null;
+  run: Run;
+  agda: boolean;
+  setNote: (s: string) => void;
+}) {
+  const link = card.talent.publicSlug
+    ? `${window.location.origin}/k/${card.talent.publicSlug}`
+    : null;
+  return (
+    <Panel className="p-6">
+      <h2 className="text-ink text-lg font-bold tracking-[-0.02em]">Paylaşılabilir kart</h2>
+      <p className="text-ink-soft mt-1 max-w-prose text-sm">
+        Linki bilen görür: yalnız onaylı iddialar ve kanıt seviyeleri; e-posta ve GitHub adı yok.
+        Kapatınca link ölür, yeniden açınca yeni link üretilir.
+      </p>
+      {!agda ? (
+        <p className="text-ink-soft mt-4 text-sm">Paylaşım için önce kartını onayla.</p>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button
+            variant={link ? 'secondary' : 'primary'}
+            pending={busy === 'share'}
+            pendingText="…"
+            onClick={() =>
+              void run('share', () =>
+                api('/api/me/card/share', {
+                  method: 'POST',
+                  body: JSON.stringify({ enabled: !card.talent.publicSlug }),
+                }),
+              )
+            }
+          >
+            {link ? 'Paylaşımı kapat' : 'Paylaşımı aç'}
+          </Button>
+          {link && (
+            <>
+              <code className="bg-paper-2 rounded-[var(--radius-control)] px-3 py-2 text-sm">
+                {link}
+              </code>
+              <Button
+                size="sm"
+                onClick={() =>
+                  void navigator.clipboard.writeText(link).then(() => setNote('Link kopyalandı.'))
+                }
+              >
+                Kopyala
+              </Button>
+              <a
+                href={link}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent inline-flex items-center gap-1 text-sm font-semibold hover:underline"
+              >
+                Aç <ExternalLink size={14} aria-hidden />
+              </a>
+            </>
+          )}
+        </div>
+      )}
+    </Panel>
   );
 }
