@@ -39,7 +39,8 @@ discover (01) → verify (02) → define need (05) → match (03) → track (06)
   time to introduction, top-five conversion, and the fate of every agent proposal.
 
 Product definition (Turkish, canonical): [`docs/01-urun-kimligi.md`](docs/01-urun-kimligi.md) ·
-decision log: [`docs/02-acik-kararlar.md`](docs/02-acik-kararlar.md) · backlog:
+decision log: [`docs/02-acik-kararlar.md`](docs/02-acik-kararlar.md) · handover, 4-month
+roadmap and training plan: [`docs/04-devir-yol-haritasi-egitim.md`](docs/04-devir-yol-haritasi-egitim.md) · backlog:
 [`docs/backlog.md`](docs/backlog.md) · architecture decisions: [`docs/adr/`](docs/adr/).
 
 ## Agents

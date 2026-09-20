@@ -54,5 +54,5 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 ## Ölçüm ve sunum
 - [x] Ölçüm paneli (beş metrik, paydalı)
 - [x] Açılış sayfası (oturumsuz `/`; giriş `/giris`)
-- [ ] Devir belgesi, 4 aylık yol haritası, eğitim planı
+- [x] Devir belgesi, 4 aylık yol haritası, eğitim planı (`docs/04`)
 - [ ] Demo senaryosu, üç prova
