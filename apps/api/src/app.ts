@@ -15,13 +15,17 @@ import { createMatchingService } from './matching/service';
 import { operatorRoutes } from './operator/routes';
 import { createOperatorService } from './operator/service';
 import { createMetricsService } from './metrics/service';
+import { operatorChallengeRoutes, talentChallengeRoutes } from './challenges/routes';
+import { createChallengeService } from './challenges/service';
 import { talentRoutes } from './talent/routes';
 import { createTalentService } from './talent/service';
 import {
   createGithubEvidence,
   createLiveUrlEvidence,
+  createPublicRepoEvidence,
   type GithubEvidence,
   type LiveUrlEvidence,
+  type PublicRepoEvidence,
 } from '@evidex/evidence';
 import type { LlmProvider } from '@evidex/ai';
 
@@ -33,6 +37,7 @@ export interface AppDeps {
   llm?: LlmProvider;
   github?: GithubEvidence | null;
   liveUrl?: LiveUrlEvidence;
+  publicRepo?: PublicRepoEvidence;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -61,7 +66,20 @@ export function createApp(deps: AppDeps) {
 
   app.route('/api/health', health);
   const matching = createMatchingService(deps.db, llm);
-  app.route('/api/needs', needRoutes(auth, createNeedService(deps.db, llm, matching), matching));
+  const challenge = createChallengeService(
+    deps.db,
+    llm,
+    deps.publicRepo ??
+      createPublicRepoEvidence(
+        deps.env.GITHUB_SERVER_TOKEN ? { token: deps.env.GITHUB_SERVER_TOKEN } : {},
+      ),
+  );
+  app.route('/api/operator/challenges', operatorChallengeRoutes(auth, challenge));
+  app.route('/api/me/challenges', talentChallengeRoutes(auth, challenge));
+  app.route(
+    '/api/needs',
+    needRoutes(auth, createNeedService(deps.db, llm, matching), matching, challenge),
+  );
   app.route(
     '/api/operator',
     operatorRoutes(

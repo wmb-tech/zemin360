@@ -111,3 +111,41 @@ export const ApprovalAction = z.enum([
   'invite',
 ]);
 export type ApprovalAction = z.infer<typeof ApprovalAction>;
+
+/** Meydan okuma tasarımı (ajan çıktısı): ihtiyaçtan 24–48 saatlik görev + rubrik. */
+export const ChallengeDesign = z.object({
+  title: z.string().min(5).max(120),
+  brief: z.string().min(80).max(4000),
+  durationHours: z.union([z.literal(24), z.literal(48)]),
+  rubric: z
+    .array(
+      z.object({
+        name: z.string().min(3).max(60),
+        weight: z.number().int().min(1).max(5),
+        description: z.string().min(10).max(300),
+      }),
+    )
+    .min(3)
+    .max(6),
+});
+export type ChallengeDesign = z.infer<typeof ChallengeDesign>;
+
+export const EvaluationBand = z.enum(['strong', 'solid', 'partial', 'incomplete']);
+export type EvaluationBand = z.infer<typeof EvaluationBand>;
+
+/** Teslim değerlendirmesi (ajan çıktısı). Puan rubrik ölçütü başına 0–5; bant özet. */
+export const SubmissionEvaluation = z.object({
+  band: EvaluationBand,
+  scores: z.array(
+    z.object({
+      name: z.string(),
+      score: z.number().int().min(0).max(5),
+      comment: z.string().max(300),
+    }),
+  ),
+  strengths: z.array(z.string()).max(5),
+  gaps: z.array(z.string()).max(5),
+  summary: z.string().max(600),
+  evidenceClaim: z.string().min(10).max(240), // kişinin kartına girecek tek cümle
+});
+export type SubmissionEvaluation = z.infer<typeof SubmissionEvaluation>;

@@ -65,6 +65,12 @@ export const approvalStatusEnum = pgEnum('approval_status', [
 ]);
 export const workModeEnum = pgEnum('work_mode', ['remote', 'onsite', 'hybrid']);
 export const cardStatusEnum = pgEnum('card_status', ['draft', 'approved']);
+export const challengeStatusEnum = pgEnum('challenge_status', [
+  'draft',
+  'open',
+  'closed',
+  'evaluated',
+]);
 
 /* ---------- Kimlik ---------- */
 
@@ -308,3 +314,51 @@ export const auditLog = pgTable('audit_log', {
   detail: jsonb('detail').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+/* ---------- Meydan okuma (döngü adımı: keşfet 01) ---------- */
+
+export const challenges = pgTable(
+  'challenges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    needId: uuid('need_id').references(() => needs.id, { onDelete: 'set null' }),
+    organizationId: uuid('organization_id').references(() => organizations.id, {
+      onDelete: 'set null',
+    }),
+    title: text('title').notNull(),
+    brief: text('brief').notNull(), // görev metni (markdown)
+    // Rubrik: [{ name, weight, description }] — değerlendirme ajanı buna göre puanlar
+    rubric: jsonb('rubric')
+      .$type<{ name: string; weight: number; description: string }[]>()
+      .notNull(),
+    durationHours: integer('duration_hours').notNull(),
+    status: challengeStatusEnum('status').default('draft').notNull(),
+    opensAt: timestamp('opens_at', { withTimezone: true }),
+    closesAt: timestamp('closes_at', { withTimezone: true }),
+    evaluatedAt: timestamp('evaluated_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [index('challenges_status_idx').on(t.status)],
+);
+
+export const challengeSubmissions = pgTable(
+  'challenge_submissions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    challengeId: uuid('challenge_id')
+      .notNull()
+      .references(() => challenges.id, { onDelete: 'cascade' }),
+    talentId: uuid('talent_id')
+      .notNull()
+      .references(() => talents.id, { onDelete: 'cascade' }),
+    repoUrl: text('repo_url').notNull(),
+    note: text('note'),
+    // Değerlendirme: { band, scores: [{name, score, comment}], strengths, gaps, summary } — ham kod yok
+    evaluation: jsonb('evaluation').$type<Record<string, unknown>>(),
+    rank: integer('rank'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
+    evaluatedAt: timestamp('evaluated_at', { withTimezone: true }),
+  },
+  (t) => [uniqueIndex('challenge_submissions_uq').on(t.challengeId, t.talentId)],
+);

@@ -254,6 +254,7 @@ export function NeedDetailPage() {
           </Field>
           <Field label="Kiminle çalışacak">{card.worksWith}</Field>
         </dl>
+        {approved && <ChallengeResults needId={need.id} />}
         {approved && (
           <div className="border-line mt-6 border-t pt-4">
             <Link
@@ -342,6 +343,67 @@ function Tags({ items, muted }: { items: string[]; muted?: boolean }) {
         >
           {t}
         </span>
+      ))}
+    </div>
+  );
+}
+
+interface ChallengeResult {
+  challenge: { id: string; title: string; status: 'draft' | 'open' | 'closed' | 'evaluated' };
+  submissions: {
+    submissionId: string;
+    rank: number | null;
+    name: string;
+    evaluation: { band: 'strong' | 'solid' | 'partial' | 'incomplete'; summary: string } | null;
+  }[];
+}
+const BAND_TR = {
+  strong: 'Güçlü',
+  solid: 'Sağlam',
+  partial: 'Kısmi',
+  incomplete: 'Eksik',
+} as const;
+
+/** Kurum, ihtiyacından türetilen meydan okumanın ilk üçünü görür (ilk adla). */
+function ChallengeResults({ needId }: { needId: string }) {
+  const [list, setList] = useState<ChallengeResult[] | null>(null);
+  useEffect(() => {
+    void api<ChallengeResult[]>(`/api/needs/${needId}/challenges`).then(setList);
+  }, [needId]);
+  if (!list || list.length === 0) return null;
+  return (
+    <div className="border-line mt-6 border-t pt-4">
+      <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
+        Meydan okuma
+      </div>
+      {list.map((r) => (
+        <div key={r.challenge.id} className="mt-2 text-sm">
+          <div className="font-semibold">{r.challenge.title}</div>
+          {r.challenge.status !== 'evaluated' && (
+            <div className="text-ink-soft text-xs">
+              {r.challenge.status === 'open'
+                ? 'Açık — gençler teslim ediyor'
+                : r.challenge.status === 'closed'
+                  ? 'Kapandı — değerlendirme bekliyor'
+                  : 'Taslak'}
+            </div>
+          )}
+          {r.submissions.length > 0 && (
+            <ol className="mt-1 space-y-1">
+              {r.submissions.map((s) => (
+                <li key={s.submissionId} className="flex items-center gap-2">
+                  <span className="text-ink-soft font-mono text-xs">#{s.rank}</span>
+                  <span className="font-semibold">{s.name}</span>
+                  {s.evaluation && (
+                    <span className="text-ink-soft text-xs">
+                      {BAND_TR[s.evaluation.band]} · {s.evaluation.summary}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
       ))}
     </div>
   );

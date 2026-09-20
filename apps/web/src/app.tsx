@@ -8,16 +8,19 @@ import { CandidatesPage } from './pages/candidates';
 import { OperatorQueuePage } from './pages/operator-queue';
 import { TalentCardPage } from './pages/talent-card';
 import { MetricsPage } from './pages/metrics';
+import { OperatorChallengesPage } from './pages/operator-challenges';
+import { TalentChallengesPage } from './pages/talent-challenges';
 
 const NAV = {
   talent: [
     { to: '/kart', label: 'Kartım' },
-    { to: '/davetler', label: 'Davetler' },
+    { to: '/davetler', label: 'Meydan okumalar' },
   ],
   organization: [{ to: '/ihtiyaclar', label: 'İhtiyaçlar' }],
   operator: [
     { to: '/kuyruk', label: 'Onay kuyruğu' },
     { to: '/ag', label: 'Ağ' },
+    { to: '/meydan', label: 'Meydan okumalar' },
     { to: '/isbirlikleri', label: 'İş birlikleri' },
     { to: '/olcum', label: 'Ölçüm' },
   ],
@@ -39,10 +42,7 @@ function Routed() {
           <>
             <Route path="/kart" element={<TalentCardPage />} />
             <Route path="/kanit" element={<TalentCardPage />} />
-            <Route
-              path="/davetler"
-              element={<Placeholder title="Davetler" note="Tanıştırmalar ve meydan okumalar." />}
-            />
+            <Route path="/davetler" element={<TalentChallengesPage />} />
           </>
         )}
         {me.role === 'organization' && (
@@ -55,6 +55,7 @@ function Routed() {
         {me.role === 'operator' && (
           <>
             <Route path="/kuyruk" element={<OperatorQueuePage />} />
+            <Route path="/meydan" element={<OperatorChallengesPage />} />
             <Route
               path="/ag"
               element={<Placeholder title="Ağ" note="Gençler ve kurumlar; kart durumları." />}

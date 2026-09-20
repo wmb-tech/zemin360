@@ -44,7 +44,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [ ] Sessiz kart işareti
 
 ## Keşfet (01)
-- [ ] Meydan okuma: ihtiyaçtan görev üretme, açma, teslim, rubrik değerlendirme, kanıta dönüşüm
+- [x] Meydan okuma: ihtiyaçtan görev üretme, açma, teslim, rubrik değerlendirme, kanıta dönüşüm
 - [ ] Keşif ajanı: dış kaynak tarama + davet listesi (onay kuyruğu)
 - [ ] Kulüp kanalı: toplu davet
 - [ ] Talepten çekim bildirimi

@@ -15,6 +15,7 @@ const Env = z.object({
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
+  GITHUB_SERVER_TOKEN: z.string().optional(), // herkese açık repo okuma hız sınırı için (isteğe bağlı)
   SMTP_URL: z.string().optional(),
   EMAIL_FROM: z.string().default('Evidex <no-reply@evidex.local>'),
   LLM_PROVIDER: z.enum(['anthropic', 'google', 'openai', 'fake']).default('fake'),
