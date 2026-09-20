@@ -96,7 +96,7 @@ packages/evidence  Evidence providers: GitHub App, live URL (SSRF-guarded), publ
 
 ```bash
 cp .env.example .env         # fill what you have; LLM_PROVIDER=fake works without keys
-docker compose up -d db      # PostgreSQL 16 on :5433 (or use your own on :5432)
+docker compose up -d db      # PostgreSQL 17 on :5433 (or use your own on :5432)
 bun install
 bun run db:migrate
 bun run db:seed              # operator@evidex.dev · kurum@evidex.dev · ayse@evidex.dev · mehmet@evidex.dev
