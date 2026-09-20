@@ -1,4 +1,9 @@
-import { createAnthropicProvider, createFakeProvider, type LlmProvider } from '@evidex/ai';
+import {
+  createAnthropicProvider,
+  createFakeProvider,
+  createGoogleProvider,
+  type LlmProvider,
+} from '@evidex/ai';
 import type { Env } from './env';
 
 /** Sağlayıcı env'den seçilir (ADR-0002). Anahtar yoksa sahte sağlayıcıya sessizce düşülmez. */
@@ -7,7 +12,24 @@ export function createLlmFromEnv(env: Env): LlmProvider {
     case 'anthropic':
       if (!env.ANTHROPIC_API_KEY)
         throw new Error('LLM_PROVIDER=anthropic ama ANTHROPIC_API_KEY yok');
-      return createAnthropicProvider({ apiKey: env.ANTHROPIC_API_KEY });
+      return createAnthropicProvider({
+        apiKey: env.ANTHROPIC_API_KEY,
+        ...(env.LLM_MODEL ? { model: env.LLM_MODEL } : {}),
+      });
+    case 'google':
+      // Vertex önce: kullanım proje kredisinden yenir. Anahtar yolu yalnız proje yoksa.
+      if (env.GOOGLE_CLOUD_PROJECT) {
+        return createGoogleProvider({
+          vertex: { project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION },
+          ...(env.LLM_MODEL ? { model: env.LLM_MODEL } : {}),
+        });
+      }
+      if (!env.GEMINI_API_KEY)
+        throw new Error('LLM_PROVIDER=google ama GOOGLE_CLOUD_PROJECT ya da GEMINI_API_KEY yok');
+      return createGoogleProvider({
+        apiKey: env.GEMINI_API_KEY,
+        ...(env.LLM_MODEL ? { model: env.LLM_MODEL } : {}),
+      });
     case 'openai':
       throw new Error('openai sağlayıcısı henüz uygulanmadı (ADR-0002 ikinci uygulama)');
     case 'fake':

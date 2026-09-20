@@ -1,6 +1,6 @@
 # ADR-0002 · LLM: sağlayıcı soyutlaması, varsayılan Claude
 
-**Durum:** Kabul · 20 Eyl 2026
+**Durum:** Kabul · 20 Eyl 2026 · **Güncelleme 20 Eyl:** varsayılan sağlayıcı Google Gemini (Vertex AI); Claude ikinci uygulama olarak duruyor
 
 ## Bağlam
 Platform açık kaynak ve GİRVAK'a devredilecek; ajanlar (kart taslağı, ihtiyaç yapılandırma,
@@ -11,8 +11,11 @@ Jüri "AI'ın yerinde, anlamlı ve ölçülebilir kullanımı"nı puanlıyor.
 ## Karar
 - Tüm LLM çağrıları tek bir `packages/ai` arayüzünden geçer: `complete()`, `structured()`
   (Zod şemalı çıktı), `embed()`. Sağlayıcı env ile seçilir.
-- Varsayılan sağlayıcı **Claude (Anthropic)**; ikinci uygulama OpenAI-uyumlu uç (yerel/açık
-  modeller dahil) — devir için.
+- Sağlayıcılar: **Google Gemini** (Vertex AI: proje + ADC/servis hesabı; ya da AI Studio
+  anahtarı) ve **Claude (Anthropic)**. Varsayılan Gemini 2.5 Pro / Vertex — hackathon
+  döneminde kullanım ekibin Google Cloud kredisinden yenir; kalite ihtiyaç yapılandırmada
+  ölçüldü (21 Eyl). ⚠ Vertex ile AI Studio ayrı faturalama kovaları: kredi yalnız Vertex'te
+  geçer. OpenAI-uyumlu uç (yerel/açık modeller) yol haritasında — devir için.
 - Her ajanın istemi (prompt) repoda, sürümlü, testli: `packages/ai/agents/<ad>/`.
 - Her ajan çıktısı **şemalı** (Zod). Serbest metin yalnız gerekçe alanlarında.
 - Ölçüm: her ajan çağrısı `agent_runs` tablosuna girdi/çıktı özeti, süre, maliyet, ve sonraki

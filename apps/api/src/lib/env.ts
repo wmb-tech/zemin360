@@ -17,9 +17,14 @@ const Env = z.object({
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
   SMTP_URL: z.string().optional(),
   EMAIL_FROM: z.string().default('Evidex <no-reply@evidex.local>'),
-  LLM_PROVIDER: z.enum(['anthropic', 'openai', 'fake']).default('fake'),
+  LLM_PROVIDER: z.enum(['anthropic', 'google', 'openai', 'fake']).default('fake'),
+  LLM_MODEL: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  // Google: Vertex (proje + ADC) tercih; GEMINI_API_KEY yalnız açıkça istenirse
+  GOOGLE_CLOUD_PROJECT: z.string().optional(),
+  GOOGLE_CLOUD_LOCATION: z.string().default('global'),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof Env>;
