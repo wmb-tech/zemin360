@@ -1,5 +1,5 @@
 import { App } from '@octokit/app';
-import type { Octokit } from '@octokit/rest';
+import { Octokit } from '@octokit/rest';
 import type { ExtractedSignals } from '../provider';
 
 /**
@@ -26,16 +26,20 @@ export interface RepoRef {
 }
 
 export function createGithubEvidence(cfg: GithubAppConfig) {
+  // ⚠ @octokit/app'in varsayılan istemcisinde paginate/rest eklentileri YOK — ilk gerçek
+  // senkronda "paginate is not a function" ile patladı (sahte GitHub'lı testler görmez).
+  // @octokit/rest'in Octokit'i verilir; getInstallationOctokit onunla üretir.
   const app = new App({
     appId: cfg.appId,
     privateKey: cfg.privateKey,
+    Octokit,
     ...(cfg.clientId && cfg.clientSecret
       ? { oauth: { clientId: cfg.clientId, clientSecret: cfg.clientSecret } }
       : {}),
   });
 
   async function client(installationId: string): Promise<Octokit> {
-    return (await app.getInstallationOctokit(Number(installationId))) as unknown as Octokit;
+    return app.getInstallationOctokit(Number(installationId));
   }
 
   return {
