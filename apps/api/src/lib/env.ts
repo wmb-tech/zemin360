@@ -28,6 +28,7 @@ const Env = z.object({
   GEMINI_API_KEY: z.string().optional(),
   // Zamanlanmış işler (takip taraması). 0 = kapalı (testler, tek seferlik komutlar)
   SCHEDULER_INTERVAL_MIN: z.coerce.number().int().min(0).default(60),
+  WEB_DIST: z.string().optional(), // üretimde web derlemesinin yolu (tek süreç)
 });
 
 export type Env = z.infer<typeof Env>;

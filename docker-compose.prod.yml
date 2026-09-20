@@ -1,0 +1,50 @@
+# Üretim (tek VM): Postgres + API(+web) + Caddy (HTTPS otomatik). Kullanım: docs/06-canli-ortam.md
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evidex
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: evidex
+    volumes:
+      - evidex_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U evidex']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: ghcr.io/wmb-tech/zemin360:${EVIDEX_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://evidex:${POSTGRES_PASSWORD:?}@db:5432/evidex
+      WEB_DIST: /app/apps/web/dist
+      API_PORT: '3100'
+      # Vertex: servis hesabı anahtarı dosya olarak bağlanır (aşağıdaki volume)
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp.json
+    volumes:
+      - ./secrets/gcp.json:/run/secrets/gcp.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      EVIDEX_HOST: ${EVIDEX_HOST:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - api
+
+volumes:
+  evidex_pg:
+  caddy_data:

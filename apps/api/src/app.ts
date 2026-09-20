@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { serveStatic } from 'hono/bun';
+import { existsSync } from 'node:fs';
 import { logger } from 'hono/logger';
 import type { Db } from '@evidex/db';
 import { authRoutes } from './auth/routes';
@@ -49,6 +51,8 @@ export interface AppDeps {
   publicRepo?: PublicRepoEvidence;
   githubScout?: GithubScout;
   document?: DocumentEvidence;
+  /** Web derlemesinin kökü; varsa API aynı porttan servis eder (üretimde tek süreç). */
+  webDist?: string;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -133,6 +137,19 @@ export function createApp(deps: AppDeps) {
   );
   app.route('/api/me', talentRoutes(deps.env, auth, talent));
   app.route('/api/cards', publicCardRoutes(talent));
+
+  // Üretim: web derlemesi aynı süreçten. /api/* dışındaki her yol SPA'ya düşer (derin linkler:
+  // /takip/:token, /k/:slug). Geliştirmede Vite ayrı portta; bu blok devreye girmez.
+  const webDist = deps.webDist;
+  if (webDist && existsSync(webDist)) {
+    app.use('/*', serveStatic({ root: webDist }));
+    const indexHtml = serveStatic({ root: webDist, path: 'index.html' });
+    app.get('*', async (c, next) => {
+      if (c.req.path.startsWith('/api/'))
+        return fail(c, new AppError('not_found', 'Kaynak bulunamadı', 404));
+      return (await indexHtml(c, next)) ?? c.notFound();
+    });
+  }
 
   app.notFound((c) => fail(c, new AppError('not_found', 'Kaynak bulunamadı', 404)));
   app.onError((err, c) => {
