@@ -14,15 +14,23 @@ import { CheckinPage } from './pages/checkin';
 import { NetworkPage } from './pages/network';
 import { PublicCardPage } from './pages/public-card';
 import { LandingPage } from './pages/landing';
+import { TalentHomePage } from './pages/talent-home';
+import { OrgSettingsPage } from './pages/org-settings';
+import { OperatorNeedsPage } from './pages/operator-needs';
 
 const NAV = {
   talent: [
+    { to: '/durum', label: 'Durum' },
     { to: '/kart', label: 'Kartım' },
     { to: '/davetler', label: 'Meydan okumalar' },
   ],
-  organization: [{ to: '/ihtiyaclar', label: 'İhtiyaçlar' }],
+  organization: [
+    { to: '/ihtiyaclar', label: 'İhtiyaçlar' },
+    { to: '/kurum', label: 'Kurum' },
+  ],
   operator: [
     { to: '/kuyruk', label: 'Onay kuyruğu' },
+    { to: '/ihtiyaclar', label: 'İhtiyaçlar' },
     { to: '/ag', label: 'Ağ' },
     { to: '/meydan', label: 'Meydan okumalar' },
     { to: '/isbirlikleri', label: 'İş birlikleri' },
@@ -44,14 +52,18 @@ function Routed() {
     );
 
   const nav = [...NAV[me.role]];
-  const home = nav[0]!.to;
+  // Kurumun adı yoksa önce onu yazsın: ihtiyaç açmadan, e-postalara "adı bekleniyor" girmeden.
+  const home =
+    me.role === 'organization' && me.organization?.needsName ? '/kurum?ilk=1' : nav[0]!.to;
 
   return (
     <Routes>
       <Route element={<Shell nav={nav} />}>
         <Route index element={<Navigate to={home} replace />} />
+        <Route path="/nasil-calisir" element={<LandingPage />} />
         {me.role === 'talent' && (
           <>
+            <Route path="/durum" element={<TalentHomePage />} />
             <Route path="/kart" element={<TalentCardPage />} />
             <Route path="/kanit" element={<TalentCardPage />} />
             <Route path="/davetler" element={<TalentChallengesPage />} />
@@ -62,11 +74,13 @@ function Routed() {
             <Route path="/ihtiyaclar" element={<NeedsListPage />} />
             <Route path="/ihtiyaclar/:id" element={<NeedDetailPage />} />
             <Route path="/ihtiyaclar/:id/adaylar" element={<CandidatesPage />} />
+            <Route path="/kurum" element={<OrgSettingsPage />} />
           </>
         )}
         {me.role === 'operator' && (
           <>
             <Route path="/kuyruk" element={<OperatorQueuePage />} />
+            <Route path="/ihtiyaclar" element={<OperatorNeedsPage />} />
             <Route path="/meydan" element={<OperatorChallengesPage />} />
             <Route path="/ag" element={<NetworkPage />} />
             <Route path="/isbirlikleri" element={<CollaborationsPage />} />

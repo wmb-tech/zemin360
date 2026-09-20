@@ -1,6 +1,6 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
-import { needs, organizationMembers } from '@evidex/db';
+import { matches, needs, organizationMembers } from '@evidex/db';
 import {
   finalizeNeedCard,
   runNeedStructurer,
@@ -71,11 +71,36 @@ export function createNeedService(db: Db, llm: LlmProvider, matching: MatchingSe
   return {
     async list(userId: string) {
       const orgId = await organizationOf(userId);
-      return db
+      const satirlar = await db
         .select()
         .from(needs)
         .where(eq(needs.organizationId, orgId))
         .orderBy(desc(needs.createdAt));
+      // Listede "kaç aday, kaç tanıştırma" görünsün; kısa liste açılmadan sayı verilmez (KARAR-09).
+      const sayimlar = satirlar.length
+        ? await db
+            .select({
+              needId: matches.needId,
+              n: sql<number>`count(*)::int`,
+              introduced: sql<number>`count(${matches.introducedAt})::int`,
+            })
+            .from(matches)
+            .where(
+              inArray(
+                matches.needId,
+                satirlar.map((n) => n.id),
+              ),
+            )
+            .groupBy(matches.needId)
+        : [];
+      return satirlar.map((n) => {
+        const m = sayimlar.find((x) => x.needId === n.id);
+        return {
+          ...n,
+          candidates: n.shortlistPublishedAt ? (m?.n ?? 0) : null,
+          introduced: m?.introduced ?? 0,
+        };
+      });
     },
 
     async get(userId: string, needId: string) {

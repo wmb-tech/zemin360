@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
 
 /** KARAR-07: genç GitHub ile, kurum/operatör e-posta bağlantısıyla girer. */
 const HATA: Record<string, string> = {
@@ -10,6 +11,7 @@ const HATA: Record<string, string> = {
 };
 
 export function LoginPage() {
+  useTitle('Giriş');
   const [params] = useSearchParams();
   const hata = params.get('hata');
   const [email, setEmail] = useState('');

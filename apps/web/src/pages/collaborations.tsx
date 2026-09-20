@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CheckinInsight, CollaborationStatus } from '@evidex/shared';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
 
 interface Round {
   side: 'talent' | 'organization';
@@ -52,6 +53,7 @@ const tarih = (s: string | null) => (s ? new Date(s).toLocaleDateString('tr-TR')
  * cevaplar, operatör yalnız bayraklı/çelişkili/sessiz olana bakar. Durumu elle de değiştirebilir.
  */
 export function CollaborationsPage() {
+  useTitle('İş birlikleri');
   const [list, setList] = useState<Collaboration[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);

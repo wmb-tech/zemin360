@@ -32,6 +32,7 @@ export function authRoutes(deps: {
   fetchGithubProfile?: (code: string) => Promise<GithubProfile>;
   /** GitHub App kurulumundan dönüşte çağrılır (installation_id ile). */
   onInstallation?: (userId: string, installationId: string, userToken?: string) => Promise<void>;
+  orgOf?: (userId: string) => Promise<{ name: string; needsName: boolean } | null>;
 }) {
   const { env, auth, email } = deps;
   const secure = env.API_ORIGIN.startsWith('https');
@@ -199,12 +200,15 @@ export function authRoutes(deps: {
       .get('/me', async (c) => {
         const user = await auth.resolveSession(sessionTokenOf(c));
         if (!user) throw new AppError('unauthenticated', 'Oturum yok', 401);
+        // Kurum kullanıcısı için kurum adı da döner; "adı bekleniyor" ise web ayar sayfasına yönlendirir.
+        const kurum = user.role === 'organization' && deps.orgOf ? await deps.orgOf(user.id) : null;
         return ok(c, {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
           githubLogin: user.githubLogin,
+          organization: kurum,
         });
       })
       .post('/logout', async (c) => {

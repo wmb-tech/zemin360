@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
+import { Skeleton } from '../components/skeleton';
 import { NeedPicker } from '../components/need-picker';
 
 interface TalentRow {
@@ -43,6 +45,7 @@ const tarih = (s: string | null) => (s ? new Date(s).toLocaleDateString('tr-TR')
  * karta referans düşmez.
  */
 export function NetworkPage() {
+  useTitle('Ağ');
   const [data, setData] = useState<Overview | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -83,7 +86,7 @@ export function NetworkPage() {
     }
   }
 
-  if (!data) return null;
+  if (!data) return <Skeleton />;
 
   return (
     <div>

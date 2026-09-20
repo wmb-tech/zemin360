@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
+import { Skeleton } from '../components/skeleton';
 
 interface Metrics {
   cardAccuracy: { approvedClaims: number; unchangedClaims: number };
@@ -34,11 +36,12 @@ const num = (n: number | null, digits = 1) => (n === null ? '—' : n.toFixed(di
  * "%100 (40/40)" aynı şey değildir, panel bunu gizlemez.
  */
 export function MetricsPage() {
+  useTitle('Ölçüm');
   const [m, setM] = useState<Metrics | null>(null);
   useEffect(() => {
     void api<Metrics>('/api/operator/metrics').then(setM);
   }, []);
-  if (!m) return null;
+  if (!m) return <Skeleton />;
 
   const onerilen = m.agentProposals.approved + m.agentProposals.edited + m.agentProposals.rejected;
 

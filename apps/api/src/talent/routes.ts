@@ -35,6 +35,7 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
   return (
     new Hono()
       .use('*', withRole(auth, 'talent'))
+      .get('/overview', async (c) => ok(c, await svc.overview(c.get('user').id)))
       .get('/card', async (c) => ok(c, await svc.card(c.get('user').id)))
       .patch('/card', async (c) => {
         const body = await parse(ProfilePatch, await c.req.json().catch(() => ({})));

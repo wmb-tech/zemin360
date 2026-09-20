@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { CollaborationType, WorkMode } from '@evidex/shared';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
+import { Skeleton } from '../components/skeleton';
 
 /** API'nin döndürdüğü ihtiyaç kaydı (taslak kart alanları boş olabilir). */
 interface Need {
@@ -25,6 +27,9 @@ interface Need {
   pendingQuestion: { text: string; why: string } | null;
   missingFields: string[];
   createdAt: string;
+  shortlistPublishedAt?: string | null;
+  candidates?: number | null; // kısa liste açılmadan null
+  introduced?: number;
 }
 
 const TYPE_LABEL: Record<CollaborationType, string> = {
@@ -51,6 +56,7 @@ const FIELD_LABEL: Record<string, string> = {
 };
 
 export function NeedsListPage() {
+  useTitle('İhtiyaçlar');
   const [needs, setNeeds] = useState<Need[] | null>(null);
   const [rawText, setRawText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -119,10 +125,26 @@ export function NeedsListPage() {
               <Link to={`/ihtiyaclar/${n.id}`} className="font-semibold hover:underline">
                 {n.card?.title ?? n.rawText.slice(0, 60)}
               </Link>
-              <div className="text-ink-soft mt-0.5 text-xs">
-                {n.cardStatus === 'approved'
-                  ? 'Onaylı'
-                  : `Taslak · ${n.missingFields.length} alan eksik`}
+              <div className="text-ink-soft mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+                {n.cardStatus === 'approved' ? (
+                  <>
+                    <span className="text-verified font-semibold">Onaylı</span>
+                    {n.candidates === null || n.candidates === undefined ? (
+                      <span>· GİRVAK eşleştiriyor, kısa liste henüz açılmadı</span>
+                    ) : (
+                      <>
+                        <span>
+                          · {n.candidates} aday · {n.introduced ?? 0} tanıştırma
+                        </span>
+                        <Link to={`/ihtiyaclar/${n.id}/adaylar`} className="text-accent underline">
+                          adaylar
+                        </Link>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <span>Taslak · {n.missingFields.length} alan eksik</span>
+                )}
               </div>
             </li>
           ))}
@@ -133,6 +155,7 @@ export function NeedsListPage() {
 }
 
 export function NeedDetailPage() {
+  useTitle('İhtiyaç');
   const { id } = useParams();
   const [need, setNeed] = useState<Need | null>(null);
   const [answer, setAnswer] = useState('');
@@ -181,7 +204,7 @@ export function NeedDetailPage() {
     }
   }
 
-  if (!need) return null;
+  if (!need) return <Skeleton />;
   const card = need.card ?? {};
   const approved = need.cardStatus === 'approved';
 

@@ -22,6 +22,8 @@ import { checkinRoutes } from './followups/routes';
 import { createNetworkService } from './network/service';
 import { networkRoutes } from './network/routes';
 import { createScoutingService } from './scouting/service';
+import { createOrgService } from './org/service';
+import { orgRoutes } from './org/routes';
 import { operatorChallengeRoutes, talentChallengeRoutes } from './challenges/routes';
 import { createChallengeService } from './challenges/service';
 import { publicCardRoutes, talentRoutes } from './talent/routes';
@@ -125,6 +127,7 @@ export function createApp(deps: AppDeps) {
   app.route('/api/checkin', checkinRoutes(followUp));
   const network = createNetworkService(deps.db, talent);
   app.route('/api/operator/network', networkRoutes(auth, network));
+  const org = createOrgService(deps.db);
   app.route(
     '/api/auth',
     authRoutes({
@@ -134,10 +137,15 @@ export function createApp(deps: AppDeps) {
       ...(deps.fetchGithubProfile ? { fetchGithubProfile: deps.fetchGithubProfile } : {}),
       onInstallation: (userId, installationId, token) =>
         talent.saveInstallation(userId, installationId, token),
+      orgOf: async (userId) => {
+        const p = await org.profile(userId).catch(() => null);
+        return p ? { name: p.name, needsName: p.needsName } : null;
+      },
     }),
   );
   app.route('/api/me', talentRoutes(deps.env, auth, talent));
   app.route('/api/cards', publicCardRoutes(talent));
+  app.route('/api/org', orgRoutes(auth, org));
 
   // Üretim: web derlemesi aynı süreçten. /api/* dışındaki her yol SPA'ya düşer (derin linkler:
   // /takip/:token, /k/:slug). Geliştirmede Vite ayrı portta; bu blok devreye girmez.

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
+import { Skeleton } from '../components/skeleton';
 
 interface Claim {
   id: string;
@@ -65,6 +67,8 @@ const ay = (d: string | null) =>
  * Onaysız hiçbir şey ağa girmez; bu ekranın tek amacı kişiye kendi kartının kontrolünü vermek.
  */
 export function TalentCardPage() {
+  useTitle('Kartım');
+  const nav = useNavigate();
   const [card, setCard] = useState<Card | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +122,7 @@ export function TalentCardPage() {
     }
   }
 
-  if (!card) return null;
+  if (!card) return <Skeleton lines={6} />;
   const onayli = card.claims.filter((c) => c.approved).length;
   const approved = card.talent.cardStatus === 'approved';
 
@@ -431,14 +435,26 @@ export function TalentCardPage() {
                 {card.talent.publicSlug ? 'Kapat' : 'Aç'}
               </button>
               {card.talent.publicSlug && (
-                <a
-                  href={`/k/${card.talent.publicSlug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent font-mono text-xs hover:underline"
-                >
-                  {window.location.origin}/k/{card.talent.publicSlug}
-                </a>
+                <>
+                  <a
+                    href={`/k/${card.talent.publicSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-accent font-mono text-xs hover:underline"
+                  >
+                    {window.location.origin}/k/{card.talent.publicSlug}
+                  </a>
+                  <button
+                    onClick={() =>
+                      void navigator.clipboard
+                        .writeText(`${window.location.origin}/k/${card.talent.publicSlug}`)
+                        .then(() => setNote('Link kopyalandı.'))
+                    }
+                    className="border-line hover:bg-paper-2 rounded-lg border px-2 py-1 text-xs"
+                  >
+                    Kopyala
+                  </button>
+                </>
               )}
             </div>
             <p className="text-ink-soft mt-1 text-xs">
@@ -452,7 +468,9 @@ export function TalentCardPage() {
             <button
               disabled={onayli === 0 || busy === 'approve'}
               onClick={() =>
-                void run('approve', () => api('/api/me/card/approve', { method: 'POST' }))
+                void run('approve', () => api('/api/me/card/approve', { method: 'POST' })).then(
+                  () => nav('/durum?onay=1'),
+                )
               }
               className="bg-accent text-paper rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
             >

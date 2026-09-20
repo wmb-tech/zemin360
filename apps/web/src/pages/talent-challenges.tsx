@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
 
 interface OpenChallenge {
   id: string;
@@ -16,6 +17,7 @@ interface OpenChallenge {
  * kanıt kazanır; yapay zekâ araçları serbest, ölçülen şey teslimat.
  */
 export function TalentChallengesPage() {
+  useTitle('Meydan okumalar');
   const [list, setList] = useState<OpenChallenge[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [repoUrl, setRepoUrl] = useState('');

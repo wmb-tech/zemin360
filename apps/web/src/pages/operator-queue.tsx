@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
 
 interface QueueItem {
   id: string;
@@ -22,6 +23,7 @@ const ACTION_LABEL: Record<QueueItem['action'], string> = {
  * Onay = yürüt. Ret = hiçbir şey olmaz. Düzenle = içeriği değiştirip yürüt.
  */
 export function OperatorQueuePage() {
+  useTitle('Onay kuyruğu');
   const [items, setItems] = useState<QueueItem[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

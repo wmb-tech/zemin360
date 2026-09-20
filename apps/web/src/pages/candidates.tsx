@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { MatchStrength } from '@evidex/shared';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
+import { Skeleton } from '../components/skeleton';
 
 interface Candidate {
   matchId: string;
@@ -35,6 +37,7 @@ const STRENGTH: Record<MatchStrength, { label: string; cls: string }> = {
 
 /** Kurumun aday listesi (KARAR-09): operatör açana kadar boş; sonra gerekçe + özet. */
 export function CandidatesPage() {
+  useTitle('Adaylar');
   const { id } = useParams();
   const [need, setNeed] = useState<NeedLite | null>(null);
   const [data, setData] = useState<CandidatesResponse | null>(null);
@@ -62,7 +65,7 @@ export function CandidatesPage() {
     }
   }
 
-  if (!need || !data) return null;
+  if (!need || !data) return <Skeleton />;
 
   return (
     <div>

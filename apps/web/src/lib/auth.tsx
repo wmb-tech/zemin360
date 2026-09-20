@@ -8,6 +8,7 @@ export interface Me {
   name: string;
   role: Role;
   githubLogin: string | null;
+  organization: { name: string; needsName: boolean } | null;
 }
 
 interface AuthState {

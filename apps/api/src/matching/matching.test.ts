@@ -3,8 +3,8 @@ import { createFakeProvider } from '@evidex/ai';
 import { cardClaims, talents, users } from '@evidex/db';
 import { cookieOf, testApp } from '../test/setup';
 
-const json = (body: unknown, cookie?: string) => ({
-  method: 'POST',
+const json = (body: unknown, cookie?: string, method = 'POST') => ({
+  method,
   headers: { 'Content-Type': 'application/json', ...(cookie ? { cookie } : {}) },
   body: JSON.stringify(body),
 });
@@ -215,6 +215,21 @@ describe('eşleştir + onay kuyruğu', () => {
     ).data;
     expect(adaylar.candidates[0].introduced).toBe(true);
     expect(adaylar.candidates[0].name).toBe('Ayşe Yılmaz');
+
+    // Kurum profili: ad zorunlu, /me kurum adını taşır; genç ana sayfası eşleşmeyi tanıştırma sonrası kurum adıyla görür.
+    expect(
+      (
+        await app.request(
+          '/api/org',
+          json({ name: 'Firma A.Ş.', city: 'İzmir' }, orgCookie, 'PATCH'),
+        )
+      ).status,
+    ).toBe(200);
+    const meKurum = (
+      await (await app.request('/api/auth/me', { headers: { cookie: orgCookie } })).json()
+    ).data;
+    expect(meKurum.organization.name).toBe('Firma A.Ş.');
+    expect(meKurum.organization.needsName).toBe(false);
 
     // İzle (06): operatör görüşme oldu der; ölçüm paneli paydalarıyla döner.
     const durum = await app.request(

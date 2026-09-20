@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { useAuth } from '../lib/auth';
 import { THRESHOLDS } from '@evidex/shared';
 
 /**
@@ -46,33 +47,38 @@ const LEVELS = [
 ];
 
 export function LandingPage() {
+  const { me } = useAuth();
+  // Giriş yapmış kullanıcı "Nasıl çalışır" olarak görür: kabuk zaten var, ikinci başlık yok.
+  const giris = me ? '/' : '/giris';
   return (
-    <div className="min-h-screen">
-      <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <span className="text-lg font-extrabold tracking-tight">Evidex</span>
-        <nav className="flex items-center gap-5 text-sm">
-          <a href="#dongu" className="text-ink-soft hover:text-ink">
-            Döngü
-          </a>
-          <a href="#ai" className="text-ink-soft hover:text-ink">
-            Yapay zekânın yeri
-          </a>
-          <a
-            href="https://github.com/wmb-tech/zemin360"
-            target="_blank"
-            rel="noreferrer"
-            className="text-ink-soft hover:text-ink"
-          >
-            Kaynak kod
-          </a>
-          <Link
-            to="/giris"
-            className="bg-ink text-paper rounded-lg px-3 py-1.5 font-semibold hover:opacity-90"
-          >
-            Giriş
-          </Link>
-        </nav>
-      </header>
+    <div className={me ? '' : 'min-h-screen'}>
+      {!me && (
+        <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+          <span className="text-lg font-extrabold tracking-tight">Evidex</span>
+          <nav className="flex items-center gap-5 text-sm">
+            <a href="#dongu" className="text-ink-soft hover:text-ink">
+              Döngü
+            </a>
+            <a href="#ai" className="text-ink-soft hover:text-ink">
+              Yapay zekânın yeri
+            </a>
+            <a
+              href="https://github.com/wmb-tech/zemin360"
+              target="_blank"
+              rel="noreferrer"
+              className="text-ink-soft hover:text-ink"
+            >
+              Kaynak kod
+            </a>
+            <Link
+              to="/giris"
+              className="bg-ink text-paper rounded-lg px-3 py-1.5 font-semibold hover:opacity-90"
+            >
+              Giriş
+            </Link>
+          </nav>
+        </header>
+      )}
 
       <section className="mx-auto max-w-6xl px-4 pt-16 pb-20">
         <div className="text-accent text-xs font-semibold tracking-wide uppercase">
@@ -89,10 +95,10 @@ export function LandingPage() {
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            to="/giris"
+            to={giris}
             className="bg-accent text-paper rounded-lg px-5 py-2.5 text-sm font-semibold hover:opacity-90"
           >
-            Kartını aç
+            {me ? 'Uygulamaya dön' : 'Kartını aç'}
           </Link>
           <a
             href="#dongu"
@@ -199,15 +205,17 @@ export function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-line border-t">
-        <div className="text-ink-soft mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-8 text-xs">
-          <span>
-            Evidex · Zemin360 Hackathon 2026 · GİRVAK · İstanbul Kalkınma Ajansı · İstanbul Bilgi
-            Üniversitesi
-          </span>
-          <span>WMB · açık kaynak, MIT</span>
-        </div>
-      </footer>
+      {!me && (
+        <footer className="border-line border-t">
+          <div className="text-ink-soft mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-8 text-xs">
+            <span>
+              Evidex · Zemin360 Hackathon 2026 · GİRVAK · İstanbul Kalkınma Ajansı · İstanbul Bilgi
+              Üniversitesi
+            </span>
+            <span>WMB · açık kaynak, MIT</span>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

@@ -2,9 +2,14 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import {
   cardClaims,
+  challenges,
+  collaborations,
   evidenceSignals,
   evidenceSources,
   githubInstallations,
+  matches,
+  needs,
+  organizations,
   talents,
   users,
 } from '@evidex/db';
@@ -192,6 +197,73 @@ export function createTalentService(
      * Kurulumu kaydetmeden önce sahibini doğrular: installation_id callback'te kullanıcı
      * kontrolündedir; başkasının kurulumunu kendi kartına bağlamak (IDOR) 403 ile düşer.
      */
+    /**
+     * Gencin ana sayfası (canlı tut 04): "şimdi ne olacak". Eşleşmeler kısa liste yayınlandıktan
+     * sonra görünür; kurum adı tanıştırmaya kadar gizli (KARAR-09'un simetriği), ihtiyaç başlığı
+     * ve güç görünür. İş birlikleri durumuyla; açık meydan okuma sayısı.
+     */
+    async overview(userId: string) {
+      const { talent } = await talentOf(userId);
+      const [kaynakSayisi] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(evidenceSources)
+        .where(eq(evidenceSources.talentId, talent.id));
+      const [iddia] = await db
+        .select({
+          n: sql<number>`count(*)::int`,
+          onayli: sql<number>`count(*) filter (where ${cardClaims.approved})::int`,
+        })
+        .from(cardClaims)
+        .where(eq(cardClaims.talentId, talent.id));
+      const eslesmeler = await db
+        .select({
+          matchId: matches.id,
+          strength: matches.strength,
+          introducedAt: matches.introducedAt,
+          needTitle: sql<string | null>`${needs.card}->>'title'`,
+          collaborationType: sql<string | null>`${needs.card}->>'collaborationType'`,
+          orgName: organizations.name,
+          orgCity: organizations.city,
+          status: collaborations.status,
+          shortlistPublishedAt: needs.shortlistPublishedAt,
+        })
+        .from(matches)
+        .innerJoin(needs, eq(needs.id, matches.needId))
+        .innerJoin(organizations, eq(organizations.id, needs.organizationId))
+        .leftJoin(collaborations, eq(collaborations.matchId, matches.id))
+        .where(eq(matches.talentId, talent.id))
+        .orderBy(desc(matches.createdAt));
+      const [acik] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(challenges)
+        .where(eq(challenges.status, 'open'));
+      return {
+        card: {
+          status: talent.cardStatus,
+          silent: (kaynakSayisi?.n ?? 0) > 0 && isSilentCard(talent.lastSignalAt),
+          sources: kaynakSayisi?.n ?? 0,
+          claims: iddia?.n ?? 0,
+          approvedClaims: iddia?.onayli ?? 0,
+          publicSlug: talent.publicSlug,
+          lastSignalAt: talent.lastSignalAt,
+        },
+        matches: eslesmeler
+          .filter((m) => m.shortlistPublishedAt)
+          .map((m) => ({
+            matchId: m.matchId,
+            strength: m.strength,
+            needTitle: m.needTitle,
+            collaborationType: m.collaborationType,
+            // Tanıştırma öncesi kurum adı yok: "İstanbul'da bir kurum"
+            organization: m.introducedAt ? m.orgName : null,
+            city: m.orgCity,
+            introduced: Boolean(m.introducedAt),
+            collaborationStatus: m.status ?? null,
+          })),
+        openChallenges: acik?.n ?? 0,
+      };
+    },
+
     /**
      * Kurulumu kaydetmeden önce sahibini doğrular. Kişisel hesap: sahip id == kullanıcının
      * GitHub id'si. Org: kurulum, kullanıcının OAuth token'ıyla GitHub'dan çekilen

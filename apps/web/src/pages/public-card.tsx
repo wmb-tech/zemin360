@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import type { EvidenceLevel, EvidenceSourceKind } from '@evidex/shared';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
 
 interface PublicCard {
   name: string;
@@ -52,6 +53,7 @@ const ay = (d: string | null) =>
  * yazılır — okuyan kurum "doğrulanmış" ile "beyan" farkını tahmin etmez.
  */
 export function PublicCardPage() {
+  useTitle('Kart');
   const { slug = '' } = useParams();
   const [card, setCard] = useState<PublicCard | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { useTitle } from '../lib/title';
 import { NeedPicker } from '../components/need-picker';
 
 interface Challenge {
@@ -48,6 +49,7 @@ const BAND: Record<NonNullable<Submission['evaluation']>['band'], { label: strin
  * değerlendir → sıralama. Açmak/kapatmak/değerlendirmek insan eylemi; ajan taslak ve puan üretir.
  */
 export function OperatorChallengesPage() {
+  useTitle('Meydan okumalar');
   const [list, setList] = useState<Challenge[] | null>(null);
   const [needId, setNeedId] = useState('');
   const [selected, setSelected] = useState<{
