@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from 'react-router';
 import { Shell } from './components/shell';
 import { AuthProvider, useAuth } from './lib/auth';
 import { LoginPage } from './pages/login';
-import { Placeholder } from './pages/placeholder';
 import { NeedDetailPage, NeedsListPage } from './pages/needs';
 import { CandidatesPage } from './pages/candidates';
 import { OperatorQueuePage } from './pages/operator-queue';
@@ -12,6 +11,7 @@ import { OperatorChallengesPage } from './pages/operator-challenges';
 import { TalentChallengesPage } from './pages/talent-challenges';
 import { CollaborationsPage } from './pages/collaborations';
 import { CheckinPage } from './pages/checkin';
+import { NetworkPage } from './pages/network';
 
 const NAV = {
   talent: [
@@ -58,10 +58,7 @@ function Routed() {
           <>
             <Route path="/kuyruk" element={<OperatorQueuePage />} />
             <Route path="/meydan" element={<OperatorChallengesPage />} />
-            <Route
-              path="/ag"
-              element={<Placeholder title="Ağ" note="Gençler ve kurumlar; kart durumları." />}
-            />
+            <Route path="/ag" element={<NetworkPage />} />
             <Route path="/isbirlikleri" element={<CollaborationsPage />} />
             <Route path="/olcum" element={<MetricsPage />} />
           </>

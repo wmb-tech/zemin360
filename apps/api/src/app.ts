@@ -17,6 +17,8 @@ import { createOperatorService } from './operator/service';
 import { createMetricsService } from './metrics/service';
 import { createFollowUpService } from './followups/service';
 import { checkinRoutes } from './followups/routes';
+import { createNetworkService } from './network/service';
+import { networkRoutes } from './network/routes';
 import { operatorChallengeRoutes, talentChallengeRoutes } from './challenges/routes';
 import { createChallengeService } from './challenges/service';
 import { talentRoutes } from './talent/routes';
@@ -95,6 +97,8 @@ export function createApp(deps: AppDeps) {
   );
   // Takip cevabı: giriş yok, e-postadaki tek kullanımlık token yetkidir.
   app.route('/api/checkin', checkinRoutes(followUp));
+  const network = createNetworkService(deps.db, talent);
+  app.route('/api/operator/network', networkRoutes(auth, network));
   app.route(
     '/api/auth',
     authRoutes({
@@ -114,5 +118,5 @@ export function createApp(deps: AppDeps) {
     return fail(c, new AppError('internal', 'Beklenmeyen hata', 500));
   });
 
-  return { app, followUp };
+  return { app, followUp, network };
 }

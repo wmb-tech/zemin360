@@ -24,7 +24,7 @@ export function testApp(
       gonderilen.push({ to: msg.to, text: msg.text });
     },
   };
-  const { app, followUp } = createApp({
+  const { app, followUp, network } = createApp({
     env,
     db,
     email,
@@ -35,7 +35,7 @@ export function testApp(
     fetchGithubProfile: async () =>
       opts.githubProfile ?? { id: 1, login: 'ayse', name: 'Ayşe', email: 'ayse@example.com' },
   });
-  return { app, db, gonderilen, followUp };
+  return { app, db, gonderilen, followUp, network };
 }
 
 /** Set-Cookie başlığından çerezi çıkarır; yoksa boş dize. */

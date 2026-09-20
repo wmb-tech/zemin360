@@ -137,6 +137,11 @@ describe('eşleştir + onay kuyruğu', () => {
         )
       ).status,
     ).toBe(200);
+    // Canlı tut (04): güçlü aday "kartın eşleşti" haberini alır; kurum adı yok.
+    const firsat = gonderilen.at(-1)!;
+    expect(firsat.to).toBe('ayse@example.com');
+    expect(firsat.text).not.toContain('firma');
+
     // İkinci karar 409: aynı kayıt iki kez yürütülmez.
     expect(
       (

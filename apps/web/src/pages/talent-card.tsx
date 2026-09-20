@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
-import type { EvidenceLevel } from '@evidex/shared';
+import { Link, useSearchParams } from 'react-router';
+import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
 
 interface Claim {
@@ -29,6 +29,7 @@ interface Card {
     cardStatus: 'draft' | 'approved';
     githubConnected: boolean;
     lastSignalAt: string | null;
+    silent: boolean;
   };
   user: { name: string; githubLogin: string | null };
   sources: Source[];
@@ -90,6 +91,16 @@ export function TalentCardPage() {
         {params.get('installed') && (
           <p className="text-verified mt-3 text-sm font-semibold">
             GitHub bağlandı. Şimdi senkronla.
+          </p>
+        )}
+        {card.talent.silent && (
+          <p className="border-declared text-ink-soft mt-3 rounded-lg border px-3 py-2 text-sm">
+            Kartın <b>sessiz</b>: kanıtlarında {THRESHOLDS.silentCardAfterDays} günden uzun süredir
+            etkinlik yok. Yeni bir kaynak bağla ya da{' '}
+            <Link to="/davetler" className="text-accent underline">
+              bir meydan okumaya katıl
+            </Link>
+            ; eşleşmelerde güncel kartlar öne çıkar.
           </p>
         )}
 

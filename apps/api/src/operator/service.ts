@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import {
   approvalQueue,
@@ -46,6 +46,20 @@ export function createOperatorService(db: Db, email: EmailSender, followUp: Foll
           .update(needs)
           .set({ shortlistPublishedAt: new Date() })
           .where(eq(needs.id, item.subjectId));
+        // Canlı tut (04): güçlü adaylar "kartın bir ihtiyaçla eşleşti" haberini alır. Kurum adı
+        // ve ihtiyaç metni verilmez (KARAR-09: tanıştırmaya kadar taraflar birbirini görmez).
+        const gucluler = await db
+          .select({ email: users.email, name: users.name })
+          .from(matches)
+          .innerJoin(talents, eq(talents.id, matches.talentId))
+          .innerJoin(users, eq(users.id, talents.userId))
+          .where(and(eq(matches.needId, item.subjectId), eq(matches.strength, 'strong')));
+        for (const g of gucluler)
+          await email.send({
+            to: g.email,
+            subject: 'Evidex: kartın bir kurum ihtiyacıyla eşleşti',
+            text: `Selam ${g.name.split(' ')[0]},\n\nKartındaki kanıtlar bir kurumun ihtiyacıyla güçlü eşleşti; kurum seni gerekçesiyle görüyor. Tanıştırma olursa e-postayla haber vereceğiz. Kartını güncel tutmak için yeni kanıt bağlayabilirsin.\n\nEvidex · GİRVAK`,
+          });
         return;
       }
       case 'introduce': {

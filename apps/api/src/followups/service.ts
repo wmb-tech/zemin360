@@ -16,15 +16,21 @@ import {
   users,
 } from '@evidex/db';
 import { runCheckinInterpreter, runFollowUpDrafter, type LlmProvider } from '@evidex/ai';
-import type { CheckinInsight, CheckinSide, CollaborationStatus, NeedCard } from '@evidex/shared';
+import {
+  THRESHOLDS,
+  type CheckinInsight,
+  type CheckinSide,
+  type CollaborationStatus,
+  type NeedCard,
+} from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
 import { hashToken, newRawToken } from '../auth/tokens';
 import type { EmailSender } from '../lib/email';
 import { AppError } from '../lib/response';
 
 /** Takip eşikleri (gün). Ürün kimliği §izle: "3 gün sonra soru"; cevap yoksa sessiz. */
-export const FOLLOW_UP_AFTER_DAYS = 3;
-export const SILENT_AFTER_DAYS = 5;
+const FOLLOW_UP_AFTER_DAYS = THRESHOLDS.followUpAfterDays;
+const SILENT_AFTER_DAYS = THRESHOLDS.silentCollaborationAfterDays;
 
 const ACIK_DURUMLAR: CollaborationStatus[] = ['introduced', 'meeting', 'started', 'ongoing'];
 const gun = (ms: number) => ms / 86_400_000;

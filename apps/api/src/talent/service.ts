@@ -7,6 +7,7 @@ import { newRawToken } from '../auth/tokens';
 import { assertPublicUrl } from '@evidex/evidence';
 import { recordAgentRun } from '../agents/runs';
 import { AppError } from '../lib/response';
+import { isSilentCard } from '../network/service';
 
 const MAX_REPOS = 20;
 
@@ -17,6 +18,20 @@ const MAX_REPOS = 20;
  * senkronda korunur; yalnız onaysız taslaklar yenilenir.
  * ⚠ Ham kod hiçbir yerde tutulmaz; evidence_signals yalnız makine sinyali (ADR-0003).
  */
+/** Kaynak sinyallerindeki en yeni etkinlik tarihi (GitHub lastActivityAt, teslim lastCommitAt). Canlı URL tarih taşımaz. */
+function sonEtkinlik(inputs: { signals: Record<string, unknown> }[]): Date | null {
+  let en: Date | null = null;
+  for (const i of inputs) {
+    for (const k of ['lastActivityAt', 'lastCommitAt']) {
+      const v = i.signals[k];
+      if (typeof v !== 'string') continue;
+      const d = new Date(v);
+      if (!Number.isNaN(d.getTime()) && (!en || d > en)) en = d;
+    }
+  }
+  return en;
+}
+
 export function createTalentService(
   db: Db,
   llm: LlmProvider,
@@ -99,7 +114,8 @@ export function createTalentService(
       .set({
         headline: t?.headline ?? draft.headline,
         story: t?.story ?? draft.story,
-        lastSignalAt: new Date(),
+        // Sessiz kart ölçütü (canlı tut 04): taslağın yazıldığı an değil, kanıttaki son etkinlik.
+        lastSignalAt: sonEtkinlik(inputs) ?? t?.lastSignalAt ?? new Date(),
         updatedAt: new Date(),
       })
       .where(eq(talents.id, talentId));
@@ -125,6 +141,8 @@ export function createTalentService(
           cardStatus: talent.cardStatus,
           githubConnected: Boolean(talent.githubInstallationId),
           lastSignalAt: talent.lastSignalAt,
+          // Canlı tut (04): kaynak var ama uzun süredir etkinlik yok → genç uyarı görür
+          silent: sources.length > 0 && isSilentCard(talent.lastSignalAt),
         },
         user: { name: user.name, githubLogin: user.githubLogin },
         sources,

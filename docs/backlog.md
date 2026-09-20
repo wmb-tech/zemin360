@@ -39,9 +39,10 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Bitiş değerlendirmesi → referanslı kanıt (KARAR-10)
 
 ## Canlı tut (04)
-- [ ] Kanıt yeniden okuma (zamanlanmış), kart taslağını yenile
-- [ ] Yeni eşleşme fırsatı bildirimi
-- [ ] Sessiz kart işareti
+- [x] Kanıt yeniden okuma (zamanlanmış, 7 gün), kart taslağını yenile
+- [x] Yeni eşleşme fırsatı bildirimi (kısa liste yayınlanınca güçlü adaya, kurum adı yok)
+- [x] Sessiz kart işareti (90 gün; operatör Ağ ekranı + gencin kartında uyarı)
+- [x] Operatör Ağ ekranı + kurum onayı (KARAR-10 yetkisi)
 
 ## Keşfet (01)
 - [x] Meydan okuma: ihtiyaçtan görev üretme, açma, teslim, rubrik değerlendirme, kanıta dönüşüm

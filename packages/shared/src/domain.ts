@@ -182,3 +182,14 @@ export const CheckinInsight = z.object({
   referenceClaim: z.string().min(20).max(300).nullable(),
 });
 export type CheckinInsight = z.infer<typeof CheckinInsight>;
+
+/**
+ * Döngünün zaman eşikleri (gün). Ürün kuralıdır, kod sabiti değil: web de gösterir
+ * ("3 gün sonra sorarız", "90 gündür sessiz"). Değişince tek yerden.
+ */
+export const THRESHOLDS = {
+  followUpAfterDays: 3, // tanıştırma/son hareketten sonra takip sorusu
+  silentCollaborationAfterDays: 5, // soru gitti, cevap yok → sessiz iş birliği
+  silentCardAfterDays: 90, // kanıtta etkinlik yok → sessiz kart
+  evidenceRefreshAfterDays: 7, // GitHub kaynakları yeniden okunur
+} as const;
