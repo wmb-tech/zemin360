@@ -15,7 +15,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 ## Doğrula (02)
 - [x] GitHub App: kurulum, repo seçimi, sahiplik doğrulama
 - [x] GitHub sinyal çıkarma (diller, süre, sahiplik oranı, katkıcı, README/test, canlı)
-- [ ] Canlı URL sağlayıcısı (meta etiketi doğrulama + tarama)
+- [x] Canlı URL sağlayıcısı (meta etiketi/well-known doğrulama + tarama, SSRF korumalı)
 - [ ] Belge sağlayıcısı (PDF yükleme, özet sinyal)
 - [x] Kart taslağı ajanı (`card_drafter`): sinyal → iddia (seviye + zaman)
 - [x] Kart onay akışı (web) · [ ] mobil; taslak vs onay farkı kaydı

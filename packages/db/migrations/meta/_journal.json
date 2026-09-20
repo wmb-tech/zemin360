@@ -43,6 +43,13 @@
       "when": 1789900819030,
       "tag": "0005_evidence_source_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789901267190,
+      "tag": "0006_verify_token",
+      "breakpoints": true
     }
   ]
 }

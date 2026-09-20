@@ -1,8 +1,10 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import { cardClaims, evidenceSignals, evidenceSources, talents, users } from '@evidex/db';
 import { runCardDrafter, type LlmProvider } from '@evidex/ai';
-import type { GithubEvidence } from '@evidex/evidence';
+import type { GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
+import { newRawToken } from '../auth/tokens';
+import { assertPublicUrl } from '@evidex/evidence';
 import { recordAgentRun } from '../agents/runs';
 import { AppError } from '../lib/response';
 
@@ -15,7 +17,12 @@ const MAX_REPOS = 20;
  * senkronda korunur; yalnız onaysız taslaklar yenilenir.
  * ⚠ Ham kod hiçbir yerde tutulmaz; evidence_signals yalnız makine sinyali (ADR-0003).
  */
-export function createTalentService(db: Db, llm: LlmProvider, github: GithubEvidence | null) {
+export function createTalentService(
+  db: Db,
+  llm: LlmProvider,
+  github: GithubEvidence | null,
+  liveUrl: LiveUrlEvidence,
+) {
   async function talentOf(userId: string) {
     const [satir] = await db
       .select({ talent: talents, user: users })
@@ -25,6 +32,77 @@ export function createTalentService(db: Db, llm: LlmProvider, github: GithubEvid
       .limit(1);
     if (!satir) throw new AppError('no_talent', 'Bu hesabın kişi kartı yok', 403);
     return satir;
+  }
+
+  /**
+   * Tüm doğrulanmış kaynakların son sinyallerinden kartı yeniden taslakla. Onaylı iddialar
+   * korunur; yalnız onaysız taslaklar yenilenir. İddia seviyesi: tüm kaynakları doğrulanmışsa
+   * verified, değilse declared.
+   */
+  async function redraft(talentId: string, login: string) {
+    const kaynaklar = await db
+      .select()
+      .from(evidenceSources)
+      .where(eq(evidenceSources.talentId, talentId));
+    const inputs: { ref: string; signals: Record<string, unknown> }[] = [];
+    for (const k of kaynaklar) {
+      const [son] = await db
+        .select({ signals: evidenceSignals.signals })
+        .from(evidenceSignals)
+        .where(eq(evidenceSignals.sourceId, k.id))
+        .orderBy(desc(evidenceSignals.extractedAt))
+        .limit(1);
+      if (son)
+        inputs.push({
+          ref: k.ref,
+          signals: { kind: k.kind, ownershipVerified: k.ownershipVerified, ...son.signals },
+        });
+    }
+    if (inputs.length === 0) return;
+    const { draft, usage } = await runCardDrafter(llm, login, inputs);
+    await recordAgentRun(db, {
+      agent: 'card_drafter',
+      subjectType: 'talent',
+      subjectId: talentId,
+      inputSummary: { sources: inputs.length },
+      outputSummary: { claims: draft.claims.length },
+      usage,
+    });
+    await db
+      .delete(cardClaims)
+      .where(and(eq(cardClaims.talentId, talentId), eq(cardClaims.approved, false)));
+    const refToSource = new Map(kaynaklar.map((k) => [k.ref, k]));
+    if (draft.claims.length) {
+      await db.insert(cardClaims).values(
+        draft.claims.map((c) => {
+          const srcs = c.sourceRefs
+            .map((r) => refToSource.get(r))
+            .filter((x): x is NonNullable<typeof x> => Boolean(x));
+          return {
+            talentId,
+            text: c.text,
+            draftText: c.text,
+            level: srcs.every((x) => x.ownershipVerified)
+              ? ('verified' as const)
+              : ('declared' as const),
+            sourceIds: srcs.map((x) => x.id),
+            periodStart: c.periodStart,
+            periodEnd: c.periodEnd,
+            approved: false,
+          };
+        }),
+      );
+    }
+    const [t] = await db.select().from(talents).where(eq(talents.id, talentId)).limit(1);
+    await db
+      .update(talents)
+      .set({
+        headline: t?.headline ?? draft.headline,
+        story: t?.story ?? draft.story,
+        lastSignalAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(talents.id, talentId));
   }
 
   return {
@@ -127,50 +205,7 @@ export function createTalentService(db: Db, llm: LlmProvider, github: GithubEvid
         repoInputs.push({ ref: r.fullName, signals: signals as Record<string, unknown> });
       }
 
-      const { draft, usage } = await runCardDrafter(llm, user.githubLogin, repoInputs);
-      await recordAgentRun(db, {
-        agent: 'card_drafter',
-        subjectType: 'talent',
-        subjectId: talent.id,
-        inputSummary: { repos: repoInputs.length },
-        outputSummary: { claims: draft.claims.length },
-        usage,
-      });
-
-      // Onaysız taslaklar yenilenir; kişinin onayladıkları korunur.
-      await db
-        .delete(cardClaims)
-        .where(and(eq(cardClaims.talentId, talent.id), eq(cardClaims.approved, false)));
-      const kaynaklar = await db
-        .select({ id: evidenceSources.id, ref: evidenceSources.ref })
-        .from(evidenceSources)
-        .where(eq(evidenceSources.talentId, talent.id));
-      const refToId = new Map(kaynaklar.map((k) => [k.ref, k.id]));
-      if (draft.claims.length) {
-        await db.insert(cardClaims).values(
-          draft.claims.map((c) => ({
-            talentId: talent.id,
-            text: c.text,
-            draftText: c.text,
-            level: 'verified' as const, // GitHub App kaynağı: sahiplik doğrulanmış
-            sourceIds: c.sourceRefs
-              .map((s) => refToId.get(s))
-              .filter((x): x is string => Boolean(x)),
-            periodStart: c.periodStart,
-            periodEnd: c.periodEnd,
-            approved: false,
-          })),
-        );
-      }
-      await db
-        .update(talents)
-        .set({
-          headline: talent.headline ?? draft.headline,
-          story: talent.story ?? draft.story,
-          lastSignalAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(talents.id, talent.id));
+      await redraft(talent.id, user.githubLogin);
       return this.card(userId);
     },
 
@@ -224,6 +259,80 @@ export function createTalentService(db: Db, llm: LlmProvider, github: GithubEvid
         .set({ cardStatus: 'approved', cardApprovedAt: new Date(), updatedAt: new Date() })
         .where(eq(talents.id, talent.id));
       return this.card(userId);
+    },
+
+    /** Canlı URL ekle: kaynak taslak olarak açılır, sahiplik token'ı döner; doğrulanana kadar beyan. */
+    async addLiveUrl(userId: string, rawUrl: string) {
+      const { talent } = await talentOf(userId);
+      let url: string;
+      try {
+        url = assertPublicUrl(rawUrl).toString();
+      } catch (e) {
+        throw new AppError('invalid_url', e instanceof Error ? e.message : 'Geçersiz URL', 422);
+      }
+      const token = `evidex-${newRawToken(9)}`;
+      const [kaynak] = await db
+        .insert(evidenceSources)
+        .values({
+          talentId: talent.id,
+          kind: 'live_url',
+          ref: url,
+          ownershipVerified: false,
+          verifyToken: token,
+        })
+        .onConflictDoNothing()
+        .returning();
+      if (!kaynak) throw new AppError('already_added', 'Bu adres zaten ekli', 409);
+      return kaynak;
+    },
+
+    async verifyLiveUrl(userId: string, sourceId: string) {
+      const { talent, user } = await talentOf(userId);
+      const [kaynak] = await db
+        .select()
+        .from(evidenceSources)
+        .where(
+          and(
+            eq(evidenceSources.id, sourceId),
+            eq(evidenceSources.talentId, talent.id),
+            eq(evidenceSources.kind, 'live_url'),
+          ),
+        )
+        .limit(1);
+      if (!kaynak || !kaynak.verifyToken) throw new AppError('not_found', 'Kaynak bulunamadı', 404);
+      const sonuc = await liveUrl.verifyOwnership(kaynak.ref, kaynak.verifyToken);
+      if (!sonuc.verified) {
+        throw new AppError(
+          'not_verified',
+          'Sahiplik doğrulanamadı: meta etiketi ya da well-known dosyası bulunamadı',
+          422,
+          sonuc,
+        );
+      }
+      const signals = await liveUrl.extract(kaynak.ref);
+      await db
+        .insert(evidenceSignals)
+        .values({ sourceId: kaynak.id, signals: signals as Record<string, unknown> });
+      await db
+        .update(evidenceSources)
+        .set({
+          ownershipVerified: true,
+          ownershipMethod: sonuc.method,
+          lastScannedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(evidenceSources.id, kaynak.id));
+      await redraft(talent.id, user.githubLogin ?? user.name);
+      return this.card(userId);
+    },
+
+    async removeSource(userId: string, sourceId: string) {
+      const { talent } = await talentOf(userId);
+      const silinen = await db
+        .delete(evidenceSources)
+        .where(and(eq(evidenceSources.id, sourceId), eq(evidenceSources.talentId, talent.id)))
+        .returning({ id: evidenceSources.id });
+      if (!silinen.length) throw new AppError('not_found', 'Kaynak bulunamadı', 404);
     },
 
     async sourceSignals(userId: string, sourceIds: string[]) {

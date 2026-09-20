@@ -133,6 +133,7 @@ export const evidenceSources = pgTable(
     ref: text('ref').notNull(),
     ownershipVerified: boolean('ownership_verified').default(false).notNull(),
     ownershipMethod: text('ownership_method'), // github_app | dns_meta | upload | org_account | platform
+    verifyToken: text('verify_token'), // canlı URL: meta etiketi / well-known ile kanıtlanacak token
     lastScannedAt: timestamp('last_scanned_at', { withTimezone: true }),
     ...timestamps,
   },

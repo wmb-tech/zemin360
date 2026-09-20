@@ -4,11 +4,16 @@ import { loadEnv } from '../lib/env';
 import type { EmailSender } from '../lib/email';
 import type { GithubProfile } from '../auth/service';
 import { createFakeProvider, type LlmProvider } from '@evidex/ai';
-import type { GithubEvidence } from '@evidex/evidence';
+import type { GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
 
 /** Testler gerçek (test) Postgres üzerinde koşar; e-posta ve GitHub sahte. */
 export function testApp(
-  opts: { github?: GithubEvidence | null; githubProfile?: GithubProfile; llm?: LlmProvider } = {},
+  opts: {
+    github?: GithubEvidence | null;
+    githubProfile?: GithubProfile;
+    llm?: LlmProvider;
+    liveUrl?: LiveUrlEvidence;
+  } = {},
 ) {
   const env = loadEnv();
   const db = createDb(env.DATABASE_URL);
@@ -24,6 +29,7 @@ export function testApp(
     email,
     llm: opts.llm ?? createFakeProvider(),
     github: opts.github ?? null,
+    ...(opts.liveUrl ? { liveUrl: opts.liveUrl } : {}),
     fetchGithubProfile: async () =>
       opts.githubProfile ?? { id: 1, login: 'ayse', name: 'Ayşe', email: 'ayse@example.com' },
   });

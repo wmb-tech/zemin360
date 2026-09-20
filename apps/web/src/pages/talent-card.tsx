@@ -15,9 +15,10 @@ interface Claim {
 }
 interface Source {
   id: string;
-  kind: string;
+  kind: 'github_repo' | 'live_url' | 'document' | 'network_reference' | 'challenge_submission';
   ref: string;
   ownershipVerified: boolean;
+  verifyToken: string | null;
   lastScannedAt: string | null;
 }
 interface Card {
@@ -98,7 +99,7 @@ export function TalentCardPage() {
               <div className="font-semibold">GitHub</div>
               <div className="text-ink-soft text-xs">
                 {card.talent.githubConnected
-                  ? `Bağlı · ${card.sources.length} repo`
+                  ? `Bağlı · ${card.sources.filter((s) => s.kind === 'github_repo').length} repo`
                   : 'Hangi repoları göstereceğini sen seçersin'}
               </div>
             </div>
@@ -121,20 +122,27 @@ export function TalentCardPage() {
               </a>
             )}
           </div>
-          {card.sources.length > 0 && (
+          {card.sources.some((s) => s.kind === 'github_repo') && (
             <ul className="mt-3 space-y-1 text-sm">
-              {card.sources.map((s) => (
-                <li key={s.id} className="flex items-center gap-2">
-                  <span className="text-verified">●</span>
-                  <span className="font-mono text-xs">{s.ref}</span>
-                </li>
-              ))}
+              {card.sources
+                .filter((s) => s.kind === 'github_repo')
+                .map((s) => (
+                  <li key={s.id} className="flex items-center gap-2">
+                    <span className="text-verified">●</span>
+                    <span className="font-mono text-xs">{s.ref}</span>
+                  </li>
+                ))}
             </ul>
           )}
         </div>
 
+        <LiveUrlBlock
+          sources={card.sources.filter((s) => s.kind === 'live_url')}
+          busy={busy}
+          run={run}
+        />
         <div className="border-line text-ink-soft mt-3 rounded-xl border border-dashed p-4 text-sm">
-          Canlı ürün (URL) ve belge (PDF) kaynakları yakında.
+          Belge (PDF) ve ağ içi referans kaynakları yakında.
         </div>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </section>
@@ -292,6 +300,101 @@ function EditableLine({
       >
         Kaydet
       </button>
+    </div>
+  );
+}
+
+/**
+ * Canlı ürün kaynağı: adres ekle → token al → siteye meta etiketi ya da well-known dosyası
+ * koy → doğrula. Doğrulanana kadar kaynak "beyan" seviyesindedir.
+ */
+function LiveUrlBlock({
+  sources,
+  busy,
+  run,
+}: {
+  sources: Source[];
+  busy: string | null;
+  run: (key: string, fn: () => Promise<unknown>) => Promise<void>;
+}) {
+  const [url, setUrl] = useState('');
+  return (
+    <div className="border-line mt-3 rounded-xl border p-4">
+      <div className="font-semibold">Canlı ürün</div>
+      <div className="text-ink-soft text-xs">
+        Yayında olan bir site ya da uygulama. Sahipliğini bir etiketle kanıtlarsın.
+      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void run('url', () =>
+            api('/api/me/evidence/url', { method: 'POST', body: JSON.stringify({ url }) }),
+          ).then(() => setUrl(''));
+        }}
+        className="mt-3 flex gap-2"
+      >
+        <input
+          type="url"
+          required
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://…"
+          className="border-line focus:border-accent flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none"
+        />
+        <button
+          disabled={busy === 'url'}
+          className="bg-ink text-paper rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+        >
+          Ekle
+        </button>
+      </form>
+      <ul className="mt-3 space-y-3 text-sm">
+        {sources.map((s) => (
+          <li key={s.id} className="border-line rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate font-mono text-xs">{s.ref}</span>
+              <span
+                className={`text-xs font-semibold ${s.ownershipVerified ? 'text-verified' : 'text-declared'}`}
+              >
+                {s.ownershipVerified ? 'Doğrulandı' : 'Doğrulanmadı'}
+              </span>
+            </div>
+            {!s.ownershipVerified && s.verifyToken && (
+              <div className="mt-2 text-xs">
+                <div className="text-ink-soft">Sitenin &lt;head&gt; kısmına ekle:</div>
+                <code className="bg-paper-2 mt-1 block overflow-x-auto rounded p-2">{`<meta name="evidex-verify" content="${s.verifyToken}">`}</code>
+                <div className="text-ink-soft mt-1">
+                  ya da <code>/.well-known/evidex.txt</code> dosyasına <code>{s.verifyToken}</code>{' '}
+                  yaz.
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    disabled={busy === s.id}
+                    onClick={() =>
+                      void run(s.id, () =>
+                        api(`/api/me/evidence/url/${s.id}/verify`, { method: 'POST' }),
+                      )
+                    }
+                    className="bg-accent text-paper rounded-lg px-3 py-1 text-xs font-semibold disabled:opacity-50"
+                  >
+                    Doğrula
+                  </button>
+                  <button
+                    onClick={() =>
+                      void run(s.id, () =>
+                        api(`/api/me/evidence/sources/${s.id}`, { method: 'DELETE' }),
+                      )
+                    }
+                    className="text-ink-soft text-xs hover:text-red-600"
+                  >
+                    Kaldır
+                  </button>
+                </div>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

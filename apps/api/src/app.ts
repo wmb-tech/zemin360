@@ -16,7 +16,12 @@ import { operatorRoutes } from './operator/routes';
 import { createOperatorService } from './operator/service';
 import { talentRoutes } from './talent/routes';
 import { createTalentService } from './talent/service';
-import { createGithubEvidence, type GithubEvidence } from '@evidex/evidence';
+import {
+  createGithubEvidence,
+  createLiveUrlEvidence,
+  type GithubEvidence,
+  type LiveUrlEvidence,
+} from '@evidex/evidence';
 import type { LlmProvider } from '@evidex/ai';
 
 export interface AppDeps {
@@ -26,6 +31,7 @@ export interface AppDeps {
   fetchGithubProfile?: (code: string) => Promise<GithubProfile>;
   llm?: LlmProvider;
   github?: GithubEvidence | null;
+  liveUrl?: LiveUrlEvidence;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -47,7 +53,7 @@ export function createApp(deps: AppDeps) {
               : {}),
           })
         : null;
-  const talent = createTalentService(deps.db, llm, github);
+  const talent = createTalentService(deps.db, llm, github, deps.liveUrl ?? createLiveUrlEvidence());
 
   app.use('*', logger());
   app.use('/api/*', cors({ origin: deps.env.WEB_ORIGIN, credentials: true }));

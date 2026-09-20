@@ -59,6 +59,20 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
         );
       })
       .post('/evidence/github/sync', async (c) => ok(c, await svc.syncGithub(c.get('user').id)))
+      .post('/evidence/url', async (c) => {
+        const body = await parse(
+          z.object({ url: z.string().url().max(500) }),
+          await c.req.json().catch(() => ({})),
+        );
+        return ok(c, await svc.addLiveUrl(c.get('user').id, body.url), 201);
+      })
+      .post('/evidence/url/:id/verify', async (c) =>
+        ok(c, await svc.verifyLiveUrl(c.get('user').id, c.req.param('id'))),
+      )
+      .delete('/evidence/sources/:id', async (c) => {
+        await svc.removeSource(c.get('user').id, c.req.param('id'));
+        return ok(c, { deleted: true });
+      })
       .post('/evidence/signals', async (c) => {
         const body = await parse(
           z.object({ sourceIds: z.array(z.string().uuid()).max(50) }),

@@ -146,3 +146,75 @@ describe('genç kartı (doğrula)', () => {
     expect((await app.request('/api/me/card', { headers: { cookie } })).status).toBe(403);
   });
 });
+
+describe('canlı URL kanıtı', () => {
+  it('ekle → token → doğrulanmadan beyan kalır → doğrula → doğrulanmış iddia', async () => {
+    const sayfalar = new Map<string, string>();
+    const liveUrl = {
+      async verifyOwnership(url: string, token: string) {
+        const ok = (sayfalar.get(url) ?? '').includes(token);
+        return { verified: ok, method: 'dns_meta' as const };
+      },
+      async extract() {
+        return { reachable: true, title: 'Kafe Sipariş', tools: ['Vite'], deployed: true };
+      },
+    };
+    const llm = createFakeProvider({
+      bySchema: {
+        card_draft: {
+          headline: 'Web geliştirici',
+          story: 'Bir kafe için sipariş sitesi yaptı; canlıda ve kullanılıyor.',
+          claims: [
+            {
+              text: 'Canlıda çalışan kafe sipariş sitesi (Vite)',
+              sourceRefs: ['https://kafe.example/'],
+              periodStart: null,
+              periodEnd: null,
+            },
+          ],
+        },
+      },
+    });
+    const { app } = testApp({
+      llm,
+      liveUrl,
+      githubProfile: { id: 601, login: 'deniz', name: 'Deniz', email: 'deniz@example.com' },
+    });
+    const giris = await app.request('/api/auth/github/callback?code=abc&state=s6', {
+      headers: { cookie: 'evidex_oauth_state=s6' },
+      redirect: 'manual',
+    });
+    const cookie = cookieOf(giris, 'evidex_session');
+
+    // Yerel adres reddedilir.
+    expect(
+      (await app.request('/api/me/evidence/url', json({ url: 'http://localhost:3100' }, cookie)))
+        .status,
+    ).toBe(422);
+
+    const ekle = await app.request(
+      '/api/me/evidence/url',
+      json({ url: 'https://kafe.example/' }, cookie),
+    );
+    expect(ekle.status).toBe(201);
+    const kaynak = (await ekle.json()).data;
+    expect(kaynak.ownershipVerified).toBe(false);
+    expect(kaynak.verifyToken).toMatch(/^evidex-/);
+
+    // Token sayfada yok → 422, kaynak doğrulanmaz.
+    expect(
+      (await app.request(`/api/me/evidence/url/${kaynak.id}/verify`, json({}, cookie))).status,
+    ).toBe(422);
+
+    sayfalar.set(
+      'https://kafe.example/',
+      `<meta name="evidex-verify" content="${kaynak.verifyToken}">`,
+    );
+    const dogrula = await app.request(`/api/me/evidence/url/${kaynak.id}/verify`, json({}, cookie));
+    expect(dogrula.status).toBe(200);
+    const kart = (await dogrula.json()).data;
+    expect(kart.sources[0].ownershipVerified).toBe(true);
+    expect(kart.claims).toHaveLength(1);
+    expect(kart.claims[0].level).toBe('verified');
+  });
+});

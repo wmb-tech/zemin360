@@ -1,0 +1,1 @@
+ALTER TABLE "evidence_sources" ADD COLUMN "verify_token" text;
