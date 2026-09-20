@@ -27,7 +27,10 @@ export const CardDraft = z.object({
 });
 export type CardDraft = z.infer<typeof CardDraft>;
 
-const SYSTEM = `Sen GİRVAK'ın kart yazım asistanısın. Bir gencin bağladığı kaynakların (repo, belge, canlı
+const SYSTEM = `DİL: ÇIKTININ TAMAMI TÜRKÇE. Girdi sinyalleri (repo açıklamaları, README) İngilizce olsa bile
+headline, story ve her iddia Türkçe yazılır; yalnız teknoloji adları olduğu gibi kalır.
+
+Sen GİRVAK'ın kart yazım asistanısın. Bir gencin bağladığı kaynakların (repo, belge, canlı
 ürün) makine sinyallerini alırsın; ondan bir kurum temsilcisinin 1 dakikada okuyup "bu kişi ne
 yapabiliyor" diyeceği bir yetkinlik kartı taslağı yazarsın. Kurallar:
 
@@ -76,11 +79,38 @@ export function buildCardMessages(login: string, repos: RepoSignalInput[]): LlmM
   ];
 }
 
+/** Kaba dil sezgisi: sık İngilizce kelime sık Türkçe kelimeden çoksa İngilizce sayılır. */
+export function looksEnglish(text: string) {
+  const en = (text.match(/\b(the|and|with|of|for|as|developed|built|using)\b/gi) ?? []).length;
+  const tr = (text.match(/\b(ve|ile|için|olarak|bir|geliştirdi|kullanarak|ekip)\b/gi) ?? []).length;
+  return en > tr;
+}
+
 export async function runCardDrafter(llm: LlmProvider, login: string, repos: RepoSignalInput[]) {
-  const { value, usage } = await llm.structured(buildCardMessages(login, repos), CardDraft, {
+  const messages = buildCardMessages(login, repos);
+  let { value, usage } = await llm.structured(messages, CardDraft, {
     schemaName: 'card_draft',
     maxTokens: 3000,
   });
+  // Model İngilizce girdiye kayabiliyor (ilk gerçek kullanıcıda oldu): tespit et, bir kez yeniden iste.
+  const metin = [value.story, ...value.claims.map((c) => c.text)].join(' ');
+  if (looksEnglish(metin)) {
+    const tekrar = await llm.structured(
+      [
+        ...messages,
+        { role: 'assistant', content: JSON.stringify(value) },
+        {
+          role: 'user',
+          content:
+            'Bu çıktı İngilizce. Aynı içeriği TAMAMEN TÜRKÇE yeniden yaz; teknoloji adları dışında İngilizce kelime kullanma.',
+        },
+      ],
+      CardDraft,
+      { schemaName: 'card_draft', maxTokens: 3000 },
+    );
+    value = tekrar.value;
+    usage = { ...tekrar.usage, durationMs: usage.durationMs + tekrar.usage.durationMs };
+  }
   const gecerli = new Set(repos.map((r) => r.ref));
   // Uydurma kaynak referansı atılır; kaynaksız kalan iddia düşer.
   const claims = value.claims

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createFakeProvider } from '../provider';
-import { runCardDrafter } from './cardDrafter';
+import { looksEnglish, runCardDrafter } from './cardDrafter';
 
 describe('card_drafter', () => {
   it('kaynağı olmayan iddia düşer, uydurma kaynak referansı atılır', async () => {
@@ -30,5 +30,18 @@ describe('card_drafter', () => {
     ]);
     expect(draft.claims).toHaveLength(1);
     expect(draft.claims[0]!.sourceRefs).toEqual(['ayse/kafe']);
+  });
+
+  it('dil sezgisi: İngilizce çıktıyı yakalar, Türkçeyi bırakır', () => {
+    expect(
+      looksEnglish(
+        'Led the development of a platform as the main developer with TypeScript and Docker.',
+      ),
+    ).toBe(true);
+    expect(
+      looksEnglish(
+        'Bir platformun geliştirilmesinde ekip içinde ana geliştirici olarak TypeScript ile çalıştı.',
+      ),
+    ).toBe(false);
   });
 });
