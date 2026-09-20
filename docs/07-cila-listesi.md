@@ -35,5 +35,5 @@ kullanıcı bir adımı bitirince "şimdi ne olacak" göremiyor. Sıra = etki. `
 - [x] Sayfa başlıkları (`document.title`).
 - [x] Favicon.
 - [x] Alt bilgi: Nasıl çalışır · Kaynak kod · KVKK (metin GİRVAK hukuktan; şimdilik taslak).
-- [ ] Mobil genişlikte menü ve kart yerleşimi.
-- [ ] Tasarım turu (ayrı): tipografi/renk/boşluk; jüri UI/UX %20.
+- [x] Mobil genişlikte menü ve kart yerleşimi → alt menü (≤4 + "Diğer"), 390/768/1440 kanıtı `docs/redesign/evidence/`.
+- [x] Tasarım turu → `docs/redesign/` paketi uygulandı (A–F); dal `feature/evidex-product-redesign`, merge kararı Hasan'da.
