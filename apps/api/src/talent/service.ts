@@ -54,8 +54,21 @@ export function createTalentService(db: Db, llm: LlmProvider, github: GithubEvid
       };
     },
 
+    /**
+     * Kurulumu kaydetmeden önce sahibini doğrular: installation_id callback'te kullanıcı
+     * kontrolündedir; başkasının kurulumunu kendi kartına bağlamak (IDOR) 403 ile düşer.
+     */
     async saveInstallation(userId: string, installationId: string) {
-      const { talent } = await talentOf(userId);
+      if (!github) throw new AppError('not_configured', 'GitHub App yapılandırılmamış', 503);
+      const { talent, user } = await talentOf(userId);
+      const sahip = await github.installationOwner(installationId);
+      if (!sahip || !user.githubId || sahip.id !== user.githubId) {
+        throw new AppError(
+          'installation_owner_mismatch',
+          'Bu kurulum bu GitHub hesabına ait değil',
+          403,
+        );
+      }
       await db
         .update(talents)
         .set({ githubInstallationId: installationId, updatedAt: new Date() })

@@ -11,6 +11,12 @@ const json = (body: unknown, cookie?: string, method = 'POST') => ({
 
 /** Sahte GitHub: iki repo, biri fork. Ağa çıkmaz. */
 const sahteGithub: GithubEvidence = {
+  async installationOwner(installationId) {
+    // 777 → Ayşe (github id 501); 999 → başkası
+    return installationId === '777'
+      ? { id: '501', login: 'ayse' }
+      : { id: '999', login: 'baskasi' };
+  },
   async listRepos() {
     return [
       { fullName: 'ayse/kafe-siparis', private: true, defaultBranch: 'main' },
@@ -117,6 +123,19 @@ describe('genç kartı (doğrula)', () => {
     ).data;
     expect(tekrar.claims.filter((c: { approved: boolean }) => c.approved)).toHaveLength(1);
     expect(tekrar.sources).toHaveLength(2); // aynı kaynak iki kez bağlanmadı
+  });
+
+  it('başkasının kurulum numarası kabul edilmez (IDOR)', async () => {
+    const { app } = testApp({
+      github: sahteGithub,
+      githubProfile: { id: 502, login: 'veli', name: 'Veli', email: 'veli@example.com' },
+    });
+    const donus = await app.request(
+      '/api/auth/github/callback?code=abc&state=st2&installation_id=999&setup_action=install',
+      { headers: { cookie: 'evidex_install_state=st2' }, redirect: 'manual' },
+    );
+    expect(donus.status).toBe(403);
+    expect(cookieOf(donus, 'evidex_session')).toBe('');
   });
 
   it('kurum hesabı genç uçlarına giremez', async () => {

@@ -39,6 +39,19 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
   }
 
   return {
+    /**
+     * Kurulumun sahibi hangi GitHub hesabı? ⚠ callback'teki installation_id kullanıcı
+     * kontrolündedir; kaydetmeden önce sahibi oturumdaki GitHub kimliğiyle karşılaştırılır.
+     */
+    async installationOwner(installationId: string): Promise<{ id: string; login: string } | null> {
+      const { data } = await app.octokit.request('GET /app/installations/{installation_id}', {
+        installation_id: Number(installationId),
+      });
+      const hesap = data.account as { id?: number; login?: string } | null;
+      if (!hesap?.id) return null;
+      return { id: String(hesap.id), login: hesap.login ?? '' };
+    },
+
     /** Kurulumdaki repolar: kişinin GitHub'da bizzat seçtikleri. */
     async listRepos(installationId: string): Promise<RepoRef[]> {
       const gh = await client(installationId);

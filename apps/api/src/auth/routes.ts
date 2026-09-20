@@ -123,11 +123,14 @@ export function authRoutes(deps: {
         throw new AppError('oauth_state', 'Geçersiz OAuth durumu', 401);
       const profile = await fetchProfile(code);
       const { user, sessionToken } = await auth.loginWithGithub(profile);
-      setSession(c, sessionToken);
+      // ⚠ Kurulum doğrulaması oturum çerezinden ÖNCE: sahte installation_id ile gelen istek
+      // 403 alır ve çerezsiz döner; hata cevabına oturum yazılmaz.
       if (installationId && deps.onInstallation) {
         await deps.onInstallation(user.id, installationId);
+        setSession(c, sessionToken);
         return c.redirect(`${env.WEB_ORIGIN}/kanit?installed=1`);
       }
+      setSession(c, sessionToken);
       return c.redirect(`${env.WEB_ORIGIN}/`);
     })
     .get('/me', async (c) => {
