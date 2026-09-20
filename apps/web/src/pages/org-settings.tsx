@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/ui';
+import { Button, ErrorNote, Field, Input, Skeleton } from '../components/ui';
+import { Enter } from '../components/motion';
 
 interface OrgProfile {
   id: string;
@@ -59,79 +60,66 @@ export function OrgSettingsPage() {
 
   return (
     <div className="max-w-lg">
-      <h1 className="text-2xl font-bold tracking-tight">Kurum bilgileri</h1>
-      <p className="text-ink-soft mt-2 text-sm">
-        Kurum adı, gence giden tanıştırma ve takip e-postalarında görünür; ihtiyaç açmadan önce
-        doğru olsun.
-      </p>
+      <Enter i={0} as="header">
+        <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
+          Kurum bilgileri
+        </h1>
+        <p className="text-ink-soft mt-2">
+          Kurum adı, gence giden tanıştırma ve takip e-postalarında görünür; ihtiyaç açmadan önce
+          doğru olsun.
+        </p>
+      </Enter>
       {p.needsName && (
-        <p className="border-referenced text-referenced mt-4 rounded-lg border px-3 py-2 text-sm">
+        <p className="bg-accent-soft text-accent-strong mt-4 rounded-[var(--radius-control)] px-4 py-3 text-sm font-semibold">
           Kurumunuzun adı henüz yok. Önce onu yazın.
         </p>
       )}
-      <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-4">
-        <Alan
-          label="Kurum adı"
-          value={name}
-          onChange={setName}
-          required
-          placeholder="Örn. Lodos Yazılım"
-        />
-        <Alan label="Şehir" value={city} onChange={setCity} placeholder="İstanbul" />
-        <Alan
-          label="Web sitesi"
-          value={website}
-          onChange={setWebsite}
-          placeholder="https://…"
-          type="url"
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <div className="flex items-center gap-3">
-          <button
-            disabled={busy || name.trim().length < 2}
-            className="bg-accent text-paper rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50"
-          >
-            Kaydet
-          </button>
-          {saved && <span className="text-verified text-sm">Kaydedildi</span>}
-        </div>
-      </form>
-      <p className="text-ink-soft mt-8 text-xs">
-        Referans yetkisi:{' '}
-        {p.approved
-          ? 'GİRVAK onaylı — biten iş birliklerinde verdiğiniz değerlendirme gencin kartına referans olarak girer.'
-          : 'GİRVAK onayı bekliyor — onaydan sonra biten iş birliklerinde referans verebilirsiniz.'}
-      </p>
+      <Enter i={1} as="section">
+        <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-4">
+          <Field label="Kurum adı">
+            <Input
+              value={name}
+              required
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Örn. Lodos Yazılım"
+            />
+          </Field>
+          <Field label="Şehir" hint="Eşleşmede yakınlık için (isteğe bağlı)">
+            <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="İstanbul" />
+          </Field>
+          <Field label="Web sitesi">
+            <Input
+              type="url"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://…"
+            />
+          </Field>
+          {error && <ErrorNote>{error}</ErrorNote>}
+          <div className="flex items-center gap-3">
+            <Button
+              type="submit"
+              variant="primary"
+              pending={busy}
+              pendingText="Kaydediliyor…"
+              disabled={name.trim().length < 2}
+            >
+              Kaydet
+            </Button>
+            {saved && (
+              <span className="text-verified text-sm font-semibold" aria-live="polite">
+                Kaydedildi
+              </span>
+            )}
+          </div>
+        </form>
+        <p className="text-ink-soft mt-8 text-sm">
+          Referans yetkisi:{' '}
+          {p.approved
+            ? 'GİRVAK onaylı — biten iş birliklerinde verdiğiniz değerlendirme gencin kartına referans olarak girer.'
+            : 'GİRVAK onayı bekliyor — onaydan sonra biten iş birliklerinde referans verebilirsiniz.'}
+        </p>
+      </Enter>
     </div>
-  );
-}
-
-function Alan({
-  label,
-  value,
-  onChange,
-  placeholder,
-  required,
-  type = 'text',
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  type?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-ink-soft text-xs font-semibold tracking-wide uppercase">{label}</span>
-      <input
-        type={type}
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="border-line focus:border-accent mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none"
-      />
-    </label>
   );
 }
