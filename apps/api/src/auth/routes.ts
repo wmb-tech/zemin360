@@ -74,97 +74,131 @@ export function authRoutes(deps: {
       return { ...user, email: birincil?.email ?? user.email };
     });
 
-  return new Hono()
-    .post('/magic-link', async (c) => {
-      const body = MagicLinkBody.safeParse(await c.req.json().catch(() => ({})));
-      if (!body.success) throw new AppError('validation', 'Geçerli bir e-posta girin', 422);
-      const raw = await auth.requestMagicLink(body.data.email);
-      const link = `${env.API_ORIGIN}/api/auth/magic/${raw}`;
-      await email.send({
-        to: body.data.email,
-        subject: 'Evidex giriş bağlantınız',
-        text: `Giriş için bağlantı (15 dakika geçerli): ${link}`,
-      });
-      // Bağlantı cevapta DÖNMEZ; e-posta sahipliği kapının kendisi.
-      return ok(c, { sent: true });
-    })
-    .get('/magic/:token', async (c) => {
-      const { sessionToken } = await auth.consumeMagicLink(c.req.param('token'));
-      setSession(c, sessionToken);
-      return c.redirect(`${env.WEB_ORIGIN}/`);
-    })
-    .get('/github', (c) => {
-      if (!env.GITHUB_CLIENT_ID)
-        throw new AppError('not_configured', 'GitHub girişi yapılandırılmamış', 503);
-      const state = newRawToken(16);
-      setCookie(c, OAUTH_STATE_COOKIE, state, {
-        httpOnly: true,
-        sameSite: 'Lax',
-        secure,
-        path: '/',
-        maxAge: 600,
-      });
-      // Mobil (Expo) aynı akışı tarayıcı oturumunda yürütür; dönüş çerez değil derin link olur.
-      if (c.req.query('client') === 'mobile')
-        setCookie(c, OAUTH_CLIENT_COOKIE, 'mobile', {
+  return (
+    new Hono()
+      .post('/magic-link', async (c) => {
+        const body = MagicLinkBody.safeParse(await c.req.json().catch(() => ({})));
+        if (!body.success) throw new AppError('validation', 'Geçerli bir e-posta girin', 422);
+        const raw = await auth.requestMagicLink(body.data.email);
+        const link = `${env.API_ORIGIN}/api/auth/magic/${raw}`;
+        await email.send({
+          to: body.data.email,
+          subject: 'Evidex giriş bağlantınız',
+          text: `Giriş için bağlantı (15 dakika geçerli): ${link}`,
+        });
+        // Bağlantı cevapta DÖNMEZ; e-posta sahipliği kapının kendisi.
+        return ok(c, { sent: true });
+      })
+      .get('/magic/:token', async (c) => {
+        const { sessionToken } = await auth.consumeMagicLink(c.req.param('token'));
+        setSession(c, sessionToken);
+        return c.redirect(`${env.WEB_ORIGIN}/`);
+      })
+      .get('/github', (c) => {
+        if (!env.GITHUB_CLIENT_ID)
+          throw new AppError('not_configured', 'GitHub girişi yapılandırılmamış', 503);
+        const state = newRawToken(16);
+        setCookie(c, OAUTH_STATE_COOKIE, state, {
           httpOnly: true,
           sameSite: 'Lax',
           secure,
           path: '/',
           maxAge: 600,
         });
-      const url = new URL('https://github.com/login/oauth/authorize');
-      url.searchParams.set('client_id', env.GITHUB_CLIENT_ID);
-      url.searchParams.set('redirect_uri', `${env.API_ORIGIN}/api/auth/github/callback`);
-      url.searchParams.set('scope', 'read:user user:email');
-      url.searchParams.set('state', state);
-      return c.redirect(url.toString());
-    })
-    .get('/github/callback', async (c) => {
-      const state = c.req.query('state');
-      const code = c.req.query('code');
-      const installationId = c.req.query('installation_id');
-      // İki giriş yolu aynı callback'e düşer: düz OAuth ve App kurulumu (OAuth-during-install).
-      const oauthState = getCookie(c, OAUTH_STATE_COOKIE);
-      const installState = getCookie(c, INSTALL_STATE_COOKIE);
-      const mobil = getCookie(c, OAUTH_CLIENT_COOKIE) === 'mobile';
-      deleteCookie(c, OAUTH_STATE_COOKIE, { path: '/' });
-      deleteCookie(c, INSTALL_STATE_COOKIE, { path: '/' });
-      deleteCookie(c, OAUTH_CLIENT_COOKIE, { path: '/' });
-      const beklenen = installationId ? installState : oauthState;
-      // ⚠ state eşleşmezse CSRF: oturum açılmaz, sessizce yönlendirilmez.
-      if (!code || !state || state !== beklenen)
-        throw new AppError('oauth_state', 'Geçersiz OAuth durumu', 401);
-      const profile = await fetchProfile(code);
-      const { user, sessionToken } = await auth.loginWithGithub(profile);
-      // ⚠ Kurulum doğrulaması oturum çerezinden ÖNCE: sahte installation_id ile gelen istek
-      // 403 alır ve çerezsiz döner; hata cevabına oturum yazılmaz.
-      if (installationId && deps.onInstallation) {
-        await deps.onInstallation(user.id, installationId);
+        // Mobil (Expo) aynı akışı tarayıcı oturumunda yürütür; dönüş çerez değil derin link olur.
+        if (c.req.query('client') === 'mobile')
+          setCookie(c, OAUTH_CLIENT_COOKIE, 'mobile', {
+            httpOnly: true,
+            sameSite: 'Lax',
+            secure,
+            path: '/',
+            maxAge: 600,
+          });
+        const url = new URL('https://github.com/login/oauth/authorize');
+        url.searchParams.set('client_id', env.GITHUB_CLIENT_ID);
+        url.searchParams.set('redirect_uri', `${env.API_ORIGIN}/api/auth/github/callback`);
+        url.searchParams.set('scope', 'read:user user:email');
+        url.searchParams.set('state', state);
+        return c.redirect(url.toString());
+      })
+      /**
+       * GitHub App kurulumu (mobil): oturum gerekmez — kurulum dönüşünde OAuth profili kimliği
+       * belirler ve installation sahibi doğrulanır (IDOR kapısı callback'te). Web için aynı iş
+       * `/api/me/evidence/github/install` altında oturumla yapılır.
+       */
+      .get('/github/install', (c) => {
+        if (!env.GITHUB_APP_SLUG)
+          throw new AppError('not_configured', 'GitHub App yapılandırılmamış', 503);
+        const state = newRawToken(16);
+        setCookie(c, INSTALL_STATE_COOKIE, state, {
+          httpOnly: true,
+          sameSite: 'Lax',
+          secure,
+          path: '/',
+          maxAge: 600,
+        });
+        if (c.req.query('client') === 'mobile')
+          setCookie(c, OAUTH_CLIENT_COOKIE, 'mobile', {
+            httpOnly: true,
+            sameSite: 'Lax',
+            secure,
+            path: '/',
+            maxAge: 600,
+          });
+        return c.redirect(
+          `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new?state=${state}`,
+        );
+      })
+      .get('/github/callback', async (c) => {
+        const state = c.req.query('state');
+        const code = c.req.query('code');
+        const installationId = c.req.query('installation_id');
+        // İki giriş yolu aynı callback'e düşer: düz OAuth ve App kurulumu (OAuth-during-install).
+        const oauthState = getCookie(c, OAUTH_STATE_COOKIE);
+        const installState = getCookie(c, INSTALL_STATE_COOKIE);
+        const mobil = getCookie(c, OAUTH_CLIENT_COOKIE) === 'mobile';
+        deleteCookie(c, OAUTH_STATE_COOKIE, { path: '/' });
+        deleteCookie(c, INSTALL_STATE_COOKIE, { path: '/' });
+        deleteCookie(c, OAUTH_CLIENT_COOKIE, { path: '/' });
+        const beklenen = installationId ? installState : oauthState;
+        // ⚠ state eşleşmezse CSRF: oturum açılmaz, sessizce yönlendirilmez.
+        if (!code || !state || state !== beklenen)
+          throw new AppError('oauth_state', 'Geçersiz OAuth durumu', 401);
+        const profile = await fetchProfile(code);
+        const { user, sessionToken } = await auth.loginWithGithub(profile);
+        // ⚠ Kurulum doğrulaması oturum çerezinden ÖNCE: sahte installation_id ile gelen istek
+        // 403 alır ve çerezsiz döner; hata cevabına oturum yazılmaz.
+        if (installationId && deps.onInstallation) {
+          await deps.onInstallation(user.id, installationId);
+          if (mobil)
+            return c.redirect(
+              `${MOBILE_SCHEME}://auth?token=${encodeURIComponent(sessionToken)}&installed=1`,
+            );
+          setSession(c, sessionToken);
+          return c.redirect(`${env.WEB_ORIGIN}/kanit?installed=1`);
+        }
+        if (mobil) {
+          // Token uygulamaya derin linkle taşınır; SecureStore'da durur, Bearer ile gelir.
+          return c.redirect(`${MOBILE_SCHEME}://auth?token=${encodeURIComponent(sessionToken)}`);
+        }
         setSession(c, sessionToken);
-        return c.redirect(`${env.WEB_ORIGIN}/kanit?installed=1`);
-      }
-      if (mobil) {
-        // Token uygulamaya derin linkle taşınır; SecureStore'da durur, Bearer ile gelir.
-        return c.redirect(`${MOBILE_SCHEME}://auth?token=${encodeURIComponent(sessionToken)}`);
-      }
-      setSession(c, sessionToken);
-      return c.redirect(`${env.WEB_ORIGIN}/`);
-    })
-    .get('/me', async (c) => {
-      const user = await auth.resolveSession(sessionTokenOf(c));
-      if (!user) throw new AppError('unauthenticated', 'Oturum yok', 401);
-      return ok(c, {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        githubLogin: user.githubLogin,
-      });
-    })
-    .post('/logout', async (c) => {
-      await auth.logout(sessionTokenOf(c));
-      deleteCookie(c, SESSION_COOKIE, { path: '/' });
-      return ok(c, { loggedOut: true });
-    });
+        return c.redirect(`${env.WEB_ORIGIN}/`);
+      })
+      .get('/me', async (c) => {
+        const user = await auth.resolveSession(sessionTokenOf(c));
+        if (!user) throw new AppError('unauthenticated', 'Oturum yok', 401);
+        return ok(c, {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          githubLogin: user.githubLogin,
+        });
+      })
+      .post('/logout', async (c) => {
+        await auth.logout(sessionTokenOf(c));
+        deleteCookie(c, SESSION_COOKIE, { path: '/' });
+        return ok(c, { loggedOut: true });
+      })
+  );
 }

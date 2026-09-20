@@ -9,7 +9,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Giriş: genç GitHub OAuth; kurum/operatör e-posta sihirli link (KARAR-07)
 - [x] Oturum, rol koruması, `withRole` middleware
 - [x] Web iskeleti: kabuk, tasarım tokenleri, üç rol için boş sayfalar
-- [ ] Mobil iskeleti: Expo, giriş, boş ekranlar
+- [x] Mobil (Expo, genç tarafı): GitHub girişi (Bearer + derin link), kart (kaynak/iddia/onay/paylaş), meydan okumalar; simülatörde doğrulandı
 - [x] Tohum verisi (sentetik, @evidex.dev)
 
 ## Doğrula (02)
@@ -18,7 +18,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Canlı URL sağlayıcısı (meta etiketi/well-known doğrulama + tarama, SSRF korumalı)
 - [ ] Belge sağlayıcısı (PDF yükleme, özet sinyal)
 - [x] Kart taslağı ajanı (`card_drafter`): sinyal → iddia (seviye + zaman)
-- [x] Kart onay akışı (web) · [ ] mobil; taslak vs onay farkı kaydı
+- [x] Kart onay akışı (web) · [x] mobil; taslak vs onay farkı kaydı
 - [x] Otomatik hikâye bloğu
 
 ## Tanımla (05)

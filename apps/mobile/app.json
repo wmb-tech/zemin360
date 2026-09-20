@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Evidex",
+    "slug": "evidex",
+    "scheme": "evidex",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": { "image": "./assets/splash-icon.png", "backgroundColor": "#FCFCFB" },
+    "ios": { "supportsTablet": false, "bundleIdentifier": "com.wmb.evidex" },
+    "android": {
+      "package": "com.wmb.evidex",
+      "adaptiveIcon": {
+        "backgroundColor": "#FCFCFB",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": ["expo-secure-store", "expo-web-browser"],
+    "extra": { "apiOrigin": "http://localhost:3100" }
+  }
+}

@@ -77,7 +77,7 @@ public data only and never stores profiles ([ADR-0007](docs/adr/0007-kesif-ajani
 apps/api           Hono API (Bun) — auth, needs, matching, operator queue, follow-ups,
                    challenges, scouting, network, metrics; hourly scheduler
 apps/web           Talent + organization + operator web app (React)
-apps/mobile        Talent app (Expo) — in progress
+apps/mobile        Talent app (Expo): GitHub sign-in, card, challenges
 packages/shared    Domain schemas, thresholds and API envelope (Zod) — single source of types
 packages/db        Drizzle schema, migrations, seed
 packages/ai        LLM provider abstraction (Google/Vertex, Anthropic, fake) and agents
@@ -106,6 +106,16 @@ bun run dev                  # api :3100, web :5100
 
 Without SMTP the magic-link e-mail is printed to the API console. GitHub sign-in and the
 GitHub App need `GITHUB_*`; scouting and public-repo reading need `GITHUB_SERVER_TOKEN`.
+
+### Mobile
+
+```bash
+cd apps/mobile && bunx expo start --ios    # Expo Go; API origin in app.json → extra.apiOrigin
+```
+
+The talent app signs in through the system browser (`/api/auth/github?client=mobile`) and
+receives the session token on the `evidex://auth` deep link; the API accepts it as a Bearer
+token. GitHub App installation runs the same way (`/api/auth/github/install?client=mobile`).
 
 ## Quality gates
 
