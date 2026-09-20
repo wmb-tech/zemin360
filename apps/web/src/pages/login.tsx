@@ -1,9 +1,17 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { api } from '../lib/api';
 
 /** KARAR-07: genç GitHub ile, kurum/operatör e-posta bağlantısıyla girer. */
+const HATA: Record<string, string> = {
+  installation_owner_mismatch: `GitHub App kişisel hesabına değil bir organizasyona kurulmuş. Kurulumu GitHub'da "Settings → Applications → Evidex by WMB" altından kaldırıp tekrar dene; bu kez hesap seçimi atlanır ve doğrudan kendi hesabına kurulur.`,
+  oauth_state: 'GitHub dönüşü doğrulanamadı (süre dolmuş olabilir). Tekrar dene.',
+  not_configured: 'GitHub bağlantısı bu ortamda yapılandırılmamış.',
+};
+
 export function LoginPage() {
+  const [params] = useSearchParams();
+  const hata = params.get('hata');
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +34,11 @@ export function LoginPage() {
       </Link>
       <p className="text-ink-soft mt-2">Beyan değil kanıt. Skor değil gerekçe.</p>
 
+      {hata && (
+        <p className="border-referenced text-referenced mt-6 rounded-lg border px-3 py-2 text-sm">
+          {HATA[hata] ?? `Giriş tamamlanamadı (${hata}).`}
+        </p>
+      )}
       <section className="border-line mt-10 rounded-xl border p-6">
         <h2 className="font-semibold">Genç yetenek</h2>
         <p className="text-ink-soft mt-1 text-sm">

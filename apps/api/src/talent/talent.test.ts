@@ -134,7 +134,9 @@ describe('genç kartı (doğrula)', () => {
       '/api/auth/github/callback?code=abc&state=st2&installation_id=999&setup_action=install',
       { headers: { cookie: 'evidex_install_state=st2' }, redirect: 'manual' },
     );
-    expect(donus.status).toBe(403);
+    // Ham 403 JSON değil: giriş sayfasına okunur hata koduyla döner; oturum yine açılmaz.
+    expect(donus.status).toBe(302);
+    expect(donus.headers.get('location')).toContain('/giris?hata=installation_owner_mismatch');
     expect(cookieOf(donus, 'evidex_session')).toBe('');
   });
 

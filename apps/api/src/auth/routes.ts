@@ -169,7 +169,19 @@ export function authRoutes(deps: {
         // ⚠ Kurulum doğrulaması oturum çerezinden ÖNCE: sahte installation_id ile gelen istek
         // 403 alır ve çerezsiz döner; hata cevabına oturum yazılmaz.
         if (installationId && deps.onInstallation) {
-          await deps.onInstallation(user.id, installationId);
+          try {
+            await deps.onInstallation(user.id, installationId);
+          } catch (e) {
+            // Tarayıcıya ham JSON değil, giriş sayfasında okunur mesaj; oturum yine açılmaz.
+            // İlk gerçek koşuda yakalandı: kullanıcı App'i org'a kurdu → 403 JSON gördü.
+            if (e instanceof AppError)
+              return c.redirect(
+                mobil
+                  ? `${MOBILE_SCHEME}://auth?hata=${e.code}`
+                  : `${env.WEB_ORIGIN}/giris?hata=${e.code}`,
+              );
+            throw e;
+          }
           if (mobil)
             return c.redirect(
               `${MOBILE_SCHEME}://auth?token=${encodeURIComponent(sessionToken)}&installed=1`,

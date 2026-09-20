@@ -67,8 +67,12 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
           path: '/',
           maxAge: 600,
         });
+        // target_id = kişinin GitHub kullanıcı id'si: hesap seçme ekranı atlanır, kurulum
+        // KİŞİSEL hesaba yapılır. Org'a kurulum callback'te 403 (sahiplik uyuşmaz) — ilk gerçek
+        // koşuda yakalanan tuzak: kullanıcı wmb-tech'e kurdu, kart bağlanamadı.
+        const hedef = c.get('user').githubId ? `&target_id=${c.get('user').githubId}` : '';
         return c.redirect(
-          `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new?state=${state}`,
+          `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new/permissions?state=${state}${hedef}`,
         );
       })
       .post('/evidence/github/sync', async (c) => ok(c, await svc.syncGithub(c.get('user').id)))
