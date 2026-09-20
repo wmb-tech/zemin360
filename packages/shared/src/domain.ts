@@ -205,3 +205,10 @@ export const ScoutPick = z.object({
 export const ScoutBatchResult = z.object({ picks: z.array(ScoutPick).max(10) });
 export type ScoutPick = z.infer<typeof ScoutPick>;
 export type ScoutBatchResult = z.infer<typeof ScoutBatchResult>;
+
+/** Tanıştırma e-postası taslağı (ajan çıktısı): iki tarafa tek mesaj, operatör düzenler/onaylar. */
+export const IntroDraft = z.object({
+  subject: z.string().min(5).max(120),
+  message: z.string().min(80).max(1500),
+});
+export type IntroDraft = z.infer<typeof IntroDraft>;

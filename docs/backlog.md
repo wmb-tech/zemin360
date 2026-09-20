@@ -30,7 +30,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Ön eleme (anahtar kelime örtüşmesi; tür/süre/konum filtresi kişi tercihleri gelince)
 - [x] Gerekçe ajanı (`matcher`): MatchReasoning
 - [x] Operatör onay kuyruğu (API + ekran)
-- [x] Tanıştırma e-postası (kuyruk → onay → iki tarafa) · [ ] ajan taslağı
+- [x] Tanıştırma e-postası (kuyruk → onay → iki tarafa) · [x] ajan taslağı (kurum "tanıştır" der → `introducer`)
 - [x] Kurum görünümü (API + ekran): önce özet, tanıştırma sonrası tam kart (KARAR-09)
 
 ## İzle (06)

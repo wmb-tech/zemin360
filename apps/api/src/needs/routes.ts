@@ -48,6 +48,14 @@ export function needRoutes(
       await svc.get(c.get('user').id, c.req.param('id')); // sahiplik kapısı
       return ok(c, await matching.candidatesForNeed(c.req.param('id')));
     })
+    .post('/:id/candidates/:matchId/introduce', async (c) => {
+      await svc.get(c.get('user').id, c.req.param('id')); // sahiplik kapısı
+      return ok(
+        c,
+        await matching.requestIntroduction(c.req.param('id'), c.req.param('matchId')),
+        201,
+      );
+    })
     .post('/:id/answer', async (c) => {
       const body = await parse(AnswerBody, await c.req.json().catch(() => ({})));
       return ok(c, await svc.answer(c.get('user').id, c.req.param('id'), body.answer));

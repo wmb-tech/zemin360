@@ -1,8 +1,16 @@
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
-import { approvalQueue, cardClaims, matches, needs, talents, users } from '@evidex/db';
-import { runMatcher, type CandidateCard, type LlmProvider } from '@evidex/ai';
-import type { NeedCard } from '@evidex/shared';
+import {
+  approvalQueue,
+  cardClaims,
+  matches,
+  needs,
+  organizations,
+  talents,
+  users,
+} from '@evidex/db';
+import { runIntroducer, runMatcher, type CandidateCard, type LlmProvider } from '@evidex/ai';
+import type { MatchReasoning, NeedCard } from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
 import { AppError } from '../lib/response';
 
@@ -137,6 +145,11 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
       const [need] = await db.select().from(needs).where(eq(needs.id, needId)).limit(1);
       if (!need) throw new AppError('not_found', 'İhtiyaç bulunamadı', 404);
       if (!need.shortlistPublishedAt) return { published: false as const, candidates: [] };
+      const bekleyenler = await db
+        .select({ subjectId: approvalQueue.subjectId })
+        .from(approvalQueue)
+        .where(and(eq(approvalQueue.action, 'introduce'), eq(approvalQueue.status, 'proposed')));
+      const istekte = new Set(bekleyenler.map((b) => b.subjectId));
       const satirlar = await db
         .select({
           matchId: matches.id,
@@ -163,8 +176,76 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
           headline: s.headline,
           reasoning: s.reasoning,
           introduced: Boolean(s.introducedAt),
+          introRequested: istekte.has(s.matchId),
         })),
       };
+    },
+
+    /**
+     * Kurum "tanıştır" der (KARAR-09'un kapısı): ajan tanıştırma e-postasını taslaklar, kuyruğa
+     * düşer; operatör düzenler/onaylar, ancak o zaman iki tarafa gider. Aynı eşleşme için
+     * bekleyen istek varsa ikincisi 409.
+     */
+    async requestIntroduction(needId: string, matchId: string) {
+      const [m] = await db
+        .select({
+          match: matches,
+          need: needs,
+          orgName: organizations.name,
+          talentName: users.name,
+        })
+        .from(matches)
+        .innerJoin(needs, eq(needs.id, matches.needId))
+        .innerJoin(organizations, eq(organizations.id, needs.organizationId))
+        .innerJoin(talents, eq(talents.id, matches.talentId))
+        .innerJoin(users, eq(users.id, talents.userId))
+        .where(and(eq(matches.id, matchId), eq(matches.needId, needId)))
+        .limit(1);
+      if (!m) throw new AppError('not_found', 'Aday bulunamadı', 404);
+      if (!m.need.shortlistPublishedAt)
+        throw new AppError('not_published', 'Kısa liste henüz açılmadı', 409);
+      if (m.match.introducedAt)
+        throw new AppError('already_introduced', 'Tanıştırma yapılmış', 409);
+      const [bekleyen] = await db
+        .select({ id: approvalQueue.id })
+        .from(approvalQueue)
+        .where(
+          and(
+            eq(approvalQueue.action, 'introduce'),
+            eq(approvalQueue.subjectId, matchId),
+            eq(approvalQueue.status, 'proposed'),
+          ),
+        )
+        .limit(1);
+      if (bekleyen) throw new AppError('already_requested', 'İstek zaten kuyrukta', 409);
+
+      const { draft, usage } = await runIntroducer(llm, {
+        organizationName: m.orgName,
+        talentName: m.talentName,
+        need: m.need.card as NeedCard,
+        reasoning: m.match.reasoning as unknown as MatchReasoning,
+      });
+      await recordAgentRun(db, {
+        agent: 'introducer',
+        subjectType: 'match',
+        subjectId: matchId,
+        outputSummary: { subject: draft.subject },
+        usage,
+      });
+      const [kayit] = await db
+        .insert(approvalQueue)
+        .values({
+          action: 'introduce',
+          subjectType: 'match',
+          subjectId: matchId,
+          payload: {
+            ...draft,
+            requestedBy: 'organization',
+            needTitle: (m.need.card as NeedCard).title,
+          },
+        })
+        .returning();
+      return { queued: kayit!.id };
     },
 
     async matchesForNeed(needId: string) {

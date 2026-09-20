@@ -117,6 +117,9 @@ function QueuePayload({ item }: { item: QueueItem }) {
     return (
       <div className="mt-1">
         <div className="font-semibold">{String(p.subject ?? '')}</div>
+        {p.requestedBy === 'organization' && (
+          <div className="text-ink-soft text-xs">Kurum istedi · ajan taslağı</div>
+        )}
         <pre className="text-ink-soft mt-2 max-w-xl text-sm whitespace-pre-wrap">
           {String(p.message ?? '')}
         </pre>

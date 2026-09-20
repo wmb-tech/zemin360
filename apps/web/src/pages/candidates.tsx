@@ -10,6 +10,7 @@ interface Candidate {
   name: string;
   headline: string | null;
   introduced: boolean;
+  introRequested: boolean;
   reasoning: {
     fits: { text: string; claimIds: string[] }[];
     gaps: string[];
@@ -38,10 +39,28 @@ export function CandidatesPage() {
   const [need, setNeed] = useState<NeedLite | null>(null);
   const [data, setData] = useState<CandidatesResponse | null>(null);
 
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
+
   useEffect(() => {
     void api<NeedLite>(`/api/needs/${id}`).then(setNeed);
     void api<CandidatesResponse>(`/api/needs/${id}/candidates`).then(setData);
   }, [id]);
+
+  async function requestIntro(matchId: string) {
+    setBusy(matchId);
+    setError(null);
+    try {
+      await api(`/api/needs/${id}/candidates/${matchId}/introduce`, { method: 'POST' });
+      setData(await api<CandidatesResponse>(`/api/needs/${id}/candidates`));
+    } catch (err) {
+      setError(matchId);
+      setErrorMsg(err instanceof Error ? err.message : 'Hata');
+    } finally {
+      setBusy(null);
+    }
+  }
 
   if (!need || !data) return null;
 
@@ -114,10 +133,26 @@ export function CandidatesPage() {
               </div>
             </div>
             {!c.introduced && (
-              <p className="text-ink-soft mt-4 text-xs">
-                Tam kart ve iletişim, GİRVAK tanıştırdıktan sonra açılır.
-              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                {c.introRequested ? (
+                  <span className="text-accent text-xs font-semibold">
+                    Tanıştırma isteği GİRVAK'ta; onaylanınca e-posta iki tarafa gider.
+                  </span>
+                ) : (
+                  <button
+                    disabled={busy === c.matchId}
+                    onClick={() => void requestIntro(c.matchId)}
+                    className="bg-accent text-paper rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {busy === c.matchId ? 'Hazırlanıyor…' : 'Tanıştırılmak istiyorum'}
+                  </button>
+                )}
+                <span className="text-ink-soft text-xs">
+                  Tam kart ve iletişim, GİRVAK tanıştırdıktan sonra açılır.
+                </span>
+              </div>
             )}
+            {error === c.matchId && <p className="mt-2 text-sm text-red-600">{errorMsg}</p>}
           </li>
         ))}
       </ul>

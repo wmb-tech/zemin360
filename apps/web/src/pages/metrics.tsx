@@ -22,6 +22,8 @@ const AGENT_LABEL: Record<string, string> = {
   checkin_interpreter: 'Takip cevabı yorumu',
   challenge_designer: 'Meydan okuma tasarımı',
   submission_evaluator: 'Teslim değerlendirme',
+  introducer: 'Tanıştırma taslağı',
+  scout: 'Keşif',
 };
 
 const pct = (a: number, b: number) => (b === 0 ? '—' : `%${Math.round((a / b) * 100)}`);

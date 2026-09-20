@@ -70,6 +70,11 @@ describe('eşleştir + onay kuyruğu', () => {
     const llm = createFakeProvider({
       bySchema: {
         need_step: { draft: tamKart, missing: [], done: true, nextQuestion: null },
+        intro_draft: {
+          subject: 'Tanıştırma: Firma · Ayşe Yılmaz · Mobil uygulama',
+          message:
+            "Merhaba, mağaza için mobil uygulama ihtiyacınızla Ayşe'yi tanıştırmak istedik. Sekiz aydır sürdürdüğü canlı bir React Native uygulaması var. Önerimiz 30 dakikalık bir tanışma görüşmesi; tarihi siz belirleyin. Üç gün sonra kısa bir takip sorusu göndereceğiz.",
+        },
         match_batch: {
           results: [
             {
@@ -164,16 +169,30 @@ describe('eşleştir + onay kuyruğu', () => {
     expect(adaylar.candidates[0].introduced).toBe(false);
     expect(adaylar.candidates[0].reasoning.fits[0].claimIds).toEqual([iddia!.id]);
 
-    // Operatör tanıştırma önerir → kuyruk → onay → e-posta iki tarafa, tam ad açılır.
+    // Kurum "tanıştır" der → ajan e-postayı taslaklar → kuyruk → onay → iki tarafa, tam ad açılır.
     const matchId = adaylar.candidates[0].matchId;
-    const oneri = (
-      await (
+    expect(adaylar.candidates[0].introRequested).toBe(false);
+    const istek = await app.request(
+      `/api/needs/${need.id}/candidates/${matchId}/introduce`,
+      json({}, orgCookie),
+    );
+    expect(istek.status).toBe(201);
+    // İkinci istek 409; aday listesinde "istek kuyrukta" görünür.
+    expect(
+      (
         await app.request(
-          `/api/operator/matches/${matchId}/introduce`,
-          json({ subject: 'Tanıştırma', message: 'Merhaba, sizi tanıştırmak istedik.' }, opCookie),
+          `/api/needs/${need.id}/candidates/${matchId}/introduce`,
+          json({}, orgCookie),
         )
+      ).status,
+    ).toBe(409);
+    adaylar = (
+      await (
+        await app.request(`/api/needs/${need.id}/candidates`, { headers: { cookie: orgCookie } })
       ).json()
     ).data;
+    expect(adaylar.candidates[0].introRequested).toBe(true);
+    const oneri = { id: (await istek.json()).data.queued as string };
     const oncekiMail = gonderilen.length;
     expect(
       (

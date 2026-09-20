@@ -7,3 +7,4 @@ export * from './agents/cardDrafter';
 export * from './agents/challenge';
 export * from './agents/followUp';
 export * from './agents/scout';
+export * from './agents/introducer';
