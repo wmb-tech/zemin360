@@ -4,9 +4,12 @@ import { loadEnv } from '../lib/env';
 import type { EmailSender } from '../lib/email';
 import type { GithubProfile } from '../auth/service';
 import { createFakeProvider, type LlmProvider } from '@evidex/ai';
+import type { GithubEvidence } from '@evidex/evidence';
 
 /** Testler gerçek (test) Postgres üzerinde koşar; e-posta ve GitHub sahte. */
-export function testApp(opts: { github?: GithubProfile; llm?: LlmProvider } = {}) {
+export function testApp(
+  opts: { github?: GithubEvidence | null; githubProfile?: GithubProfile; llm?: LlmProvider } = {},
+) {
   const env = loadEnv();
   const db = createDb(env.DATABASE_URL);
   const gonderilen: { to: string; text: string }[] = [];
@@ -20,8 +23,9 @@ export function testApp(opts: { github?: GithubProfile; llm?: LlmProvider } = {}
     db,
     email,
     llm: opts.llm ?? createFakeProvider(),
+    github: opts.github ?? null,
     fetchGithubProfile: async () =>
-      opts.github ?? { id: 1, login: 'ayse', name: 'Ayşe', email: 'ayse@example.com' },
+      opts.githubProfile ?? { id: 1, login: 'ayse', name: 'Ayşe', email: 'ayse@example.com' },
   });
   return { app, db, gonderilen };
 }

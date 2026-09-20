@@ -13,13 +13,13 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Tohum verisi (sentetik, @evidex.dev)
 
 ## Doğrula (02)
-- [ ] GitHub App: kurulum, repo seçimi, sahiplik doğrulama
-- [ ] GitHub sinyal çıkarma (diller, süre, sahiplik oranı, katkıcı, README/test, canlı)
+- [x] GitHub App: kurulum, repo seçimi, sahiplik doğrulama
+- [x] GitHub sinyal çıkarma (diller, süre, sahiplik oranı, katkıcı, README/test, canlı)
 - [ ] Canlı URL sağlayıcısı (meta etiketi doğrulama + tarama)
 - [ ] Belge sağlayıcısı (PDF yükleme, özet sinyal)
-- [ ] Kart taslağı ajanı (`card_drafter`): sinyal → iddia (seviye + zaman)
-- [ ] Kart onay akışı (web + mobil); taslak vs onay farkı kaydı
-- [ ] Otomatik hikâye bloğu
+- [x] Kart taslağı ajanı (`card_drafter`): sinyal → iddia (seviye + zaman)
+- [x] Kart onay akışı (web) · [ ] mobil; taslak vs onay farkı kaydı
+- [x] Otomatik hikâye bloğu
 
 ## Tanımla (05)
 - [x] İhtiyaç yapılandırma ajanı (`need_structurer`): soru-cevap → NeedCard

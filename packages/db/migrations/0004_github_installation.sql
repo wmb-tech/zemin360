@@ -1,0 +1,1 @@
+ALTER TABLE "talents" ADD COLUMN "github_installation_id" text;

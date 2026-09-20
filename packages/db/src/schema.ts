@@ -9,6 +9,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -113,6 +114,7 @@ export const talents = pgTable('talents', {
   cardStatus: cardStatusEnum('card_status').default('draft').notNull(),
   cardApprovedAt: timestamp('card_approved_at', { withTimezone: true }),
   publicSlug: text('public_slug').unique(), // paylaşılabilir kart (keşfet)
+  githubInstallationId: text('github_installation_id'), // GitHub App kurulumu (doğrula)
   lastSignalAt: timestamp('last_signal_at', { withTimezone: true }), // canlı ağ: sessiz kart
   ...timestamps,
 });
@@ -134,7 +136,11 @@ export const evidenceSources = pgTable(
     lastScannedAt: timestamp('last_scanned_at', { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [index('evidence_sources_talent_idx').on(t.talentId)],
+  (t) => [
+    index('evidence_sources_talent_idx').on(t.talentId),
+    // Aynı kaynak iki kez bağlanmaz; yeniden senkron mevcut kaydı kullanır
+    uniqueIndex('evidence_sources_talent_ref_uq').on(t.talentId, t.kind, t.ref),
+  ],
 );
 
 export const evidenceSignals = pgTable(

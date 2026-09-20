@@ -46,7 +46,7 @@ describe('kimlik', () => {
 
   it('github girişi genç hesabı açar', async () => {
     const { app } = testApp({
-      github: { id: 42, login: 'mehmet', name: 'Mehmet', email: 'mehmet@example.com' },
+      githubProfile: { id: 42, login: 'mehmet', name: 'Mehmet', email: 'mehmet@example.com' },
     });
     const res = await app.request('/api/auth/github/callback?code=abc&state=s1', {
       headers: { cookie: 'evidex_oauth_state=s1' },
@@ -60,7 +60,7 @@ describe('kimlik', () => {
   });
 
   it('oturumsuz /me 401, çıkış sonrası çerez geçersiz', async () => {
-    const { app } = testApp({ github: { id: 7, login: 'zeynep', name: null, email: null } });
+    const { app } = testApp({ githubProfile: { id: 7, login: 'zeynep', name: null, email: null } });
     expect((await app.request('/api/auth/me')).status).toBe(401);
     const res = await app.request('/api/auth/github/callback?code=abc&state=s2', {
       headers: { cookie: 'evidex_oauth_state=s2' },

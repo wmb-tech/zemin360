@@ -14,6 +14,9 @@ import { createLlmFromEnv } from './lib/llm';
 import { createMatchingService } from './matching/service';
 import { operatorRoutes } from './operator/routes';
 import { createOperatorService } from './operator/service';
+import { talentRoutes } from './talent/routes';
+import { createTalentService } from './talent/service';
+import { createGithubEvidence, type GithubEvidence } from '@evidex/evidence';
 import type { LlmProvider } from '@evidex/ai';
 
 export interface AppDeps {
@@ -22,6 +25,7 @@ export interface AppDeps {
   email?: EmailSender;
   fetchGithubProfile?: (code: string) => Promise<GithubProfile>;
   llm?: LlmProvider;
+  github?: GithubEvidence | null;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -30,6 +34,20 @@ export function createApp(deps: AppDeps) {
   const auth = createAuthService(deps.db);
   const email = deps.email ?? createConsoleEmailSender();
   const llm = deps.llm ?? createLlmFromEnv(deps.env);
+  const github =
+    deps.github !== undefined
+      ? deps.github
+      : deps.env.GITHUB_APP_ID && deps.env.GITHUB_APP_PRIVATE_KEY
+        ? createGithubEvidence({
+            appId: deps.env.GITHUB_APP_ID,
+            privateKey: deps.env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            ...(deps.env.GITHUB_CLIENT_ID ? { clientId: deps.env.GITHUB_CLIENT_ID } : {}),
+            ...(deps.env.GITHUB_CLIENT_SECRET
+              ? { clientSecret: deps.env.GITHUB_CLIENT_SECRET }
+              : {}),
+          })
+        : null;
+  const talent = createTalentService(deps.db, llm, github);
 
   app.use('*', logger());
   app.use('/api/*', cors({ origin: deps.env.WEB_ORIGIN, credentials: true }));
@@ -45,8 +63,10 @@ export function createApp(deps: AppDeps) {
       auth,
       email,
       ...(deps.fetchGithubProfile ? { fetchGithubProfile: deps.fetchGithubProfile } : {}),
+      onInstallation: (userId, installationId) => talent.saveInstallation(userId, installationId),
     }),
   );
+  app.route('/api/me', talentRoutes(deps.env, auth, talent));
 
   app.notFound((c) => fail(c, new AppError('not_found', 'Kaynak bulunamadı', 404)));
   app.onError((err, c) => {

@@ -29,6 +29,20 @@
       "when": 1789859856949,
       "tag": "0003_shortlist_published",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789900681446,
+      "tag": "0004_github_installation",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789900819030,
+      "tag": "0005_evidence_source_unique",
+      "breakpoints": true
     }
   ]
 }

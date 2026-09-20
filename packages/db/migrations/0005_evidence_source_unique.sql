@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "evidence_sources_talent_ref_uq" ON "evidence_sources" USING btree ("talent_id","kind","ref");

@@ -6,11 +6,11 @@ import { Placeholder } from './pages/placeholder';
 import { NeedDetailPage, NeedsListPage } from './pages/needs';
 import { CandidatesPage } from './pages/candidates';
 import { OperatorQueuePage } from './pages/operator-queue';
+import { TalentCardPage } from './pages/talent-card';
 
 const NAV = {
   talent: [
     { to: '/kart', label: 'Kartım' },
-    { to: '/kanit', label: 'Kanıtlarım' },
     { to: '/davetler', label: 'Davetler' },
   ],
   organization: [{ to: '/ihtiyaclar', label: 'İhtiyaçlar' }],
@@ -36,24 +36,8 @@ function Routed() {
         <Route index element={<Navigate to={home} replace />} />
         {me.role === 'talent' && (
           <>
-            <Route
-              path="/kart"
-              element={
-                <Placeholder
-                  title="Kartım"
-                  note="Kanıttan üretilen yetkinlik kartın burada olacak; her satırın kaynağı, seviyesi ve zamanı görünecek."
-                />
-              }
-            />
-            <Route
-              path="/kanit"
-              element={
-                <Placeholder
-                  title="Kanıtlarım"
-                  note="GitHub repoları, canlı ürünler ve belgeler. Kod saklanmaz; sinyal çıkarılır."
-                />
-              }
-            />
+            <Route path="/kart" element={<TalentCardPage />} />
+            <Route path="/kanit" element={<TalentCardPage />} />
             <Route
               path="/davetler"
               element={<Placeholder title="Davetler" note="Tanıştırmalar ve meydan okumalar." />}

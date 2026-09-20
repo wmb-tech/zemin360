@@ -12,6 +12,7 @@
   "dependencies": {
     "@evidex/ai": "workspace:*",
     "@evidex/db": "workspace:*",
+    "@evidex/evidence": "workspace:*",
     "@evidex/shared": "workspace:*",
     "drizzle-orm": "^0.45",
     "hono": "^4",

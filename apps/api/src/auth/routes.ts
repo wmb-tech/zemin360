@@ -6,6 +6,7 @@ import type { EmailSender } from '../lib/email';
 import { AppError, ok } from '../lib/response';
 import type { AuthService, GithubProfile } from './service';
 import { newRawToken } from './tokens';
+import { INSTALL_STATE_COOKIE } from '../talent/routes';
 
 export const SESSION_COOKIE = 'evidex_session';
 const OAUTH_STATE_COOKIE = 'evidex_oauth_state';
@@ -26,6 +27,8 @@ export function authRoutes(deps: {
   auth: AuthService;
   email: EmailSender;
   fetchGithubProfile?: (code: string) => Promise<GithubProfile>;
+  /** GitHub App kurulumundan dönüşte çağrılır (installation_id ile). */
+  onInstallation?: (userId: string, installationId: string) => Promise<void>;
 }) {
   const { env, auth, email } = deps;
   const secure = env.API_ORIGIN.startsWith('https');
@@ -108,14 +111,23 @@ export function authRoutes(deps: {
     .get('/github/callback', async (c) => {
       const state = c.req.query('state');
       const code = c.req.query('code');
-      const beklenen = getCookie(c, OAUTH_STATE_COOKIE);
+      const installationId = c.req.query('installation_id');
+      // İki giriş yolu aynı callback'e düşer: düz OAuth ve App kurulumu (OAuth-during-install).
+      const oauthState = getCookie(c, OAUTH_STATE_COOKIE);
+      const installState = getCookie(c, INSTALL_STATE_COOKIE);
       deleteCookie(c, OAUTH_STATE_COOKIE, { path: '/' });
+      deleteCookie(c, INSTALL_STATE_COOKIE, { path: '/' });
+      const beklenen = installationId ? installState : oauthState;
       // ⚠ state eşleşmezse CSRF: oturum açılmaz, sessizce yönlendirilmez.
       if (!code || !state || state !== beklenen)
         throw new AppError('oauth_state', 'Geçersiz OAuth durumu', 401);
       const profile = await fetchProfile(code);
-      const { sessionToken } = await auth.loginWithGithub(profile);
+      const { user, sessionToken } = await auth.loginWithGithub(profile);
       setSession(c, sessionToken);
+      if (installationId && deps.onInstallation) {
+        await deps.onInstallation(user.id, installationId);
+        return c.redirect(`${env.WEB_ORIGIN}/kanit?installed=1`);
+      }
       return c.redirect(`${env.WEB_ORIGIN}/`);
     })
     .get('/me', async (c) => {

@@ -119,7 +119,7 @@ describe('ihtiyaçlar (tanımla)', () => {
 
   it('genç hesabı ihtiyaç uçlarına giremez (403), oturumsuz 401', async () => {
     const { app } = testApp({
-      github: { id: 99, login: 'genc', name: 'Genç', email: 'genc@example.com' },
+      githubProfile: { id: 99, login: 'genc', name: 'Genç', email: 'genc@example.com' },
     });
     expect((await app.request('/api/needs')).status).toBe(401);
     const res = await app.request('/api/auth/github/callback?code=abc&state=s9', {
