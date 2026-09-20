@@ -390,3 +390,13 @@ export const challengeSubmissions = pgTable(
   },
   (t) => [uniqueIndex('challenge_submissions_uq').on(t.challengeId, t.talentId)],
 );
+
+/**
+ * Keşif davet kaydı (keşfet 01): aynı GitHub kullanıcısına kısa aralıkla ikinci davet gitmesin.
+ * Yalnız login + zaman; profil verisi saklanmaz (ADR-0007).
+ */
+export const scoutInvites = pgTable('scout_invites', {
+  login: text('login').primaryKey(),
+  needId: uuid('need_id').references(() => needs.id, { onDelete: 'set null' }),
+  invitedAt: timestamp('invited_at', { withTimezone: true }).defaultNow().notNull(),
+});

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
+import { NeedPicker } from '../components/need-picker';
 
 interface TalentRow {
   id: string;
@@ -154,7 +155,10 @@ export function NetworkPage() {
         </section>
 
         <section>
-          <InviteForm onDone={(m) => setNote(m)} />
+          <ScoutForm onDone={(m) => setNote(m)} />
+          <div className="mt-4">
+            <InviteForm onDone={(m) => setNote(m)} />
+          </div>
           <h2 className="text-ink-soft mt-8 text-xs font-semibold tracking-wide uppercase">
             Kurumlar
           </h2>
@@ -262,6 +266,60 @@ function InviteForm({ onDone }: { onDone: (msg: string) => void }) {
         className="bg-accent text-paper mt-3 rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
       >
         Kuyruğa koy
+      </button>
+    </form>
+  );
+}
+
+/**
+ * Keşif ajanı (keşfet 01): onaylı ihtiyaçtan GitHub araması, ajan gerekçeli seçer, davet kuyruğa
+ * düşer. Ağ içi eşleşme zayıfsa operatörün ilk hamlesi.
+ */
+function ScoutForm({ onDone }: { onDone: (msg: string) => void }) {
+  const [needId, setNeedId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<{
+        queued: { id: string } | null;
+        summary: { searched: number; inNetwork: number; picked: number; withEmail: number };
+      }>(`/api/operator/needs/${needId}/scout`, { method: 'POST' });
+      const s = r.summary;
+      onDone(
+        r.queued
+          ? `${s.searched} profil tarandı (${s.inNetwork} zaten ağda) → ${s.picked} aday seçildi, ${s.withEmail} e-postalı. Davet onay kuyruğunda.`
+          : `${s.searched} profil tarandı; ajan uygun aday bulmadı.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Hata');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={(e) => void submit(e)} className="border-line rounded-2xl border p-4">
+      <h2 className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
+        Keşif ajanı · ağ dışında ara
+      </h2>
+      <p className="text-ink-soft mt-1 text-xs">
+        İhtiyacın becerilerinden GitHub araması kurulur; ajan herkese açık sinyale bakıp gerekçeli
+        seçer. Davet sen onaylamadan gitmez.
+      </p>
+      <div className="mt-3">
+        <NeedPicker value={needId} onChange={(id) => setNeedId(id)} />
+      </div>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      <button
+        disabled={busy || !needId}
+        className="bg-accent text-paper mt-3 rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+      >
+        {busy ? 'Aranıyor…' : 'Ara ve öner'}
       </button>
     </form>
   );

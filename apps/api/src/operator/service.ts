@@ -8,6 +8,7 @@ import {
   needs,
   organizationMembers,
   organizations,
+  scoutInvites,
   talents,
   users,
 } from '@evidex/db';
@@ -120,12 +121,33 @@ export function createOperatorService(
           ? payload.emails.filter((e): e is string => typeof e === 'string')
           : [];
         const metin = String(payload.message ?? '');
-        for (const to of emails)
+        // Keşif davetinde kişiye özel satır (ajanın profilde gördüğü somut şey) eklenir.
+        const adaylar = Array.isArray(payload.candidates)
+          ? (payload.candidates as { email: string | null; inviteLine?: string }[])
+          : [];
+        // Keşif davetinde login kaydı: aynı kişiye 90 gün tekrar yazılmaz (ADR-0007).
+        const loginlar = adaylar
+          .map((a) => (a as { login?: string }).login)
+          .filter((l): l is string => typeof l === 'string');
+        if (loginlar.length)
+          await db
+            .insert(scoutInvites)
+            .values(
+              loginlar.map((login) => ({
+                login,
+                needId: item.subjectType === 'need' ? item.subjectId : null,
+                invitedAt: new Date(),
+              })),
+            )
+            .onConflictDoUpdate({ target: scoutInvites.login, set: { invitedAt: new Date() } });
+        for (const to of emails) {
+          const ozel = adaylar.find((a) => a.email === to)?.inviteLine;
           await email.send({
             to,
             subject: String(payload.subject ?? 'GİRVAK ağına davet · Evidex'),
-            text: `${metin}\n\nKatılmak için: ${webOrigin}\nGitHub ile giriş yap; hangi repoları göstereceğini sen seçersin, kod saklanmaz.`,
+            text: `${metin}${ozel ? `\n\n${ozel}` : ''}\n\nKatılmak için: ${webOrigin}\nGitHub ile giriş yap; hangi repoları göstereceğini sen seçersin, kod saklanmaz.`,
           });
+        }
         return;
       }
     }

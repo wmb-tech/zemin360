@@ -7,6 +7,7 @@ import { AppError, ok } from '../lib/response';
 import type { OperatorService } from './service';
 import type { createMetricsService } from '../metrics/service';
 import type { FollowUpService } from '../followups/service';
+import type { ScoutingService } from '../scouting/service';
 import { CollaborationStatus } from '@evidex/shared';
 
 const DecideBody = z.object({
@@ -35,6 +36,7 @@ export function operatorRoutes(
   matching: MatchingService,
   metrics: ReturnType<typeof createMetricsService>,
   followUp: FollowUpService,
+  scouting: ScoutingService,
 ) {
   return (
     new Hono()
@@ -65,6 +67,9 @@ export function operatorRoutes(
       // İzle (06): iş birliği listesi + takip taraması (zamanlayıcı da aynı fonksiyonu çağırır)
       .get('/collaborations', async (c) => ok(c, await followUp.list()))
       .post('/follow-ups/scan', async (c) => ok(c, await followUp.scan()))
+      // Keşfet (01): operatörün ihtiyaç listesi + ağ dışı keşif (GitHub → ajan → davet kuyruğu)
+      .get('/needs', async (c) => ok(c, await scouting.needsForOperator()))
+      .post('/needs/:id/scout', async (c) => ok(c, await scouting.scoutForNeed(c.req.param('id'))))
       // Keşfet (01): kulüp kanalı — liste kuyruğa, onayla davet gider
       .post('/invites', async (c) => {
         const body = await parse(InviteBody, await c.req.json().catch(() => ({})));

@@ -46,7 +46,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 
 ## Keşfet (01)
 - [x] Meydan okuma: ihtiyaçtan görev üretme, açma, teslim, rubrik değerlendirme, kanıta dönüşüm
-- [ ] Keşif ajanı: dış kaynak tarama + davet listesi (onay kuyruğu)
+- [x] Keşif ajanı: GitHub araması → gerekçeli seçim → davet kuyruğu (ADR-0007)
 - [x] Kulüp kanalı: toplu davet (liste → kuyruk → onay → e-posta; ağdakiler elenir)
 - [ ] Talepten çekim bildirimi
 - [x] Paylaşılabilir kart sayfası (`/k/:slug`, onaylı iddialar, kimlik yok, kapatınca link ölür)

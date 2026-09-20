@@ -192,4 +192,16 @@ export const THRESHOLDS = {
   silentCollaborationAfterDays: 5, // soru gitti, cevap yok → sessiz iş birliği
   silentCardAfterDays: 90, // kanıtta etkinlik yok → sessiz kart
   evidenceRefreshAfterDays: 7, // GitHub kaynakları yeniden okunur
+  scoutReinviteAfterDays: 90, // aynı GitHub kullanıcısına ikinci davet için bekleme
 } as const;
+
+/** Keşif ajanı çıktısı (keşfet 01): ağ dışı adaylardan davet edilmeye değer olanlar, gerekçeli. */
+export const ScoutPick = z.object({
+  login: z.string().min(1),
+  fit: z.enum(['strong', 'possible']),
+  why: z.string().min(10).max(300), // herkese açık sinyale bağlı somut gerekçe
+  inviteLine: z.string().min(20).max(300), // davet e-postasına girecek kişiye özel tek cümle
+});
+export const ScoutBatchResult = z.object({ picks: z.array(ScoutPick).max(10) });
+export type ScoutPick = z.infer<typeof ScoutPick>;
+export type ScoutBatchResult = z.infer<typeof ScoutBatchResult>;

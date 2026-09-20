@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { NeedPicker } from '../components/need-picker';
 
 interface Challenge {
   id: string;
@@ -97,12 +98,9 @@ export function OperatorChallengesPage() {
           Kanıtı olmayan genç, gerçek bir ihtiyaçtan türetilmiş 24–48 saatlik görevle kanıt kazanır.
         </p>
         <form onSubmit={(e) => void design(e)} className="mt-4 flex gap-2">
-          <input
-            value={needId}
-            onChange={(e) => setNeedId(e.target.value)}
-            placeholder="Onaylı ihtiyaç id'si"
-            className="border-line focus:border-accent flex-1 rounded-lg border px-3 py-1.5 font-mono text-xs outline-none"
-          />
+          <div className="flex-1">
+            <NeedPicker value={needId} onChange={(id) => setNeedId(id)} />
+          </div>
           <button
             disabled={busy === 'design' || !needId.trim()}
             className="bg-accent text-paper rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"

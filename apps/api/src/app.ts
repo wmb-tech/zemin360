@@ -19,15 +19,18 @@ import { createFollowUpService } from './followups/service';
 import { checkinRoutes } from './followups/routes';
 import { createNetworkService } from './network/service';
 import { networkRoutes } from './network/routes';
+import { createScoutingService } from './scouting/service';
 import { operatorChallengeRoutes, talentChallengeRoutes } from './challenges/routes';
 import { createChallengeService } from './challenges/service';
 import { publicCardRoutes, talentRoutes } from './talent/routes';
 import { createTalentService } from './talent/service';
 import {
   createGithubEvidence,
+  createGithubScout,
   createLiveUrlEvidence,
   createPublicRepoEvidence,
   type GithubEvidence,
+  type GithubScout,
   type LiveUrlEvidence,
   type PublicRepoEvidence,
 } from '@evidex/evidence';
@@ -42,6 +45,7 @@ export interface AppDeps {
   github?: GithubEvidence | null;
   liveUrl?: LiveUrlEvidence;
   publicRepo?: PublicRepoEvidence;
+  githubScout?: GithubScout;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -85,6 +89,14 @@ export function createApp(deps: AppDeps) {
     needRoutes(auth, createNeedService(deps.db, llm, matching), matching, challenge),
   );
   const followUp = createFollowUpService(deps.db, llm, email, deps.env.WEB_ORIGIN);
+  const scouting = createScoutingService(
+    deps.db,
+    llm,
+    deps.githubScout ??
+      createGithubScout(
+        deps.env.GITHUB_SERVER_TOKEN ? { token: deps.env.GITHUB_SERVER_TOKEN } : {},
+      ),
+  );
   app.route(
     '/api/operator',
     operatorRoutes(
@@ -93,6 +105,7 @@ export function createApp(deps: AppDeps) {
       matching,
       createMetricsService(deps.db),
       followUp,
+      scouting,
     ),
   );
   // Takip cevabı: giriş yok, e-postadaki tek kullanımlık token yetkidir.

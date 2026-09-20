@@ -167,6 +167,35 @@ function QueuePayload({ item }: { item: QueueItem }) {
           {emails.slice(0, 8).join(', ')}
           {emails.length > 8 ? ` … +${emails.length - 8}` : ''}
         </p>
+        {Array.isArray(p.candidates) && (
+          <ul className="mt-2 space-y-1 text-xs">
+            {(
+              p.candidates as {
+                login: string;
+                url: string;
+                fit: 'strong' | 'possible';
+                why: string;
+                email: string | null;
+              }[]
+            ).map((c) => (
+              <li key={c.login}>
+                <a
+                  href={c.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono hover:underline"
+                >
+                  @{c.login}
+                </a>{' '}
+                <span className={c.fit === 'strong' ? 'text-verified' : 'text-documented'}>
+                  {c.fit === 'strong' ? 'güçlü' : 'olası'}
+                </span>{' '}
+                <span className="text-ink-soft">— {c.why}</span>
+                {!c.email && <span className="text-declared"> · e-posta yok, elle ulaş</span>}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     );
   }
