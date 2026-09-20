@@ -21,7 +21,12 @@ const sahteGithub: GithubEvidence = {
   async userInstallationIds() {
     return ['777', '888'];
   },
-  async listRepos() {
+  async listRepos(installationId) {
+    if (installationId === '888')
+      return [
+        { fullName: 'kulup-org/etkinlik-sitesi', private: true, defaultBranch: 'main' },
+        { fullName: 'kulup-org/baskasinin-isi', private: true, defaultBranch: 'main' },
+      ];
     return [
       { fullName: 'ayse/kafe-siparis', private: true, defaultBranch: 'main' },
       { fullName: 'ayse/react-fork', private: false, defaultBranch: 'main' },
@@ -44,7 +49,25 @@ const sahteGithub: GithubEvidence = {
           hasReadme: true,
           fork: false,
         }
-      : { languages: ['JavaScript'], authorshipRatio: 0, contributors: 900, fork: true };
+      : fullName === 'kulup-org/etkinlik-sitesi'
+        ? {
+            languages: ['TypeScript'],
+            authorshipRatio: 0.4,
+            ownCommits: 12,
+            contributors: 3,
+            fork: false,
+            isPrivate: true,
+          }
+        : fullName === 'kulup-org/baskasinin-isi'
+          ? {
+              languages: ['Go'],
+              authorshipRatio: 0,
+              ownCommits: 0,
+              contributors: 5,
+              fork: false,
+              isPrivate: true,
+            }
+          : { languages: ['JavaScript'], authorshipRatio: 0, contributors: 900, fork: true };
   },
 };
 
@@ -126,6 +149,8 @@ describe('genç kartı (doğrula)', () => {
       await (await app.request('/api/me/evidence/github/sync', json({}, cookie))).json()
     ).data;
     expect(tekrar.claims.filter((c: { approved: boolean }) => c.approved)).toHaveLength(1);
+    // …ve aynı repo için ikinci bir taslak da üretmez (onaylı iddianın kaynağı ajana gitmez).
+    expect(tekrar.claims).toHaveLength(1);
     expect(tekrar.sources).toHaveLength(2); // aynı kaynak iki kez bağlanmadı
   });
 
@@ -157,6 +182,17 @@ describe('genç kartı (doğrula)', () => {
     expect(loginler).toContain('kulup-org');
     expect(loginler).toContain('ayse');
     expect(kart.talent.githubConnected).toBe(true);
+    // Senkron: org'daki iki repodan yalnız commit'i olan kaynağa girer; sıfır commit'li atlanır.
+    const senkron = (
+      await (
+        await app.request('/api/me/evidence/github/sync', { method: 'POST', headers: { cookie } })
+      ).json()
+    ).data;
+    expect(senkron.skippedOrgRepos).toBe(1);
+    const orgKaynaklar = senkron.sources
+      .map((x: { ref: string }) => x.ref)
+      .filter((r: string) => r.startsWith('kulup-org/'));
+    expect(orgKaynaklar).toEqual(['kulup-org/etkinlik-sitesi']);
     // Org kurulumunu kaldırınca yalnız o hesabın kaynakları düşer.
     const orgKurulum = kart.talent.installations.find(
       (i: { accountType: string }) => i.accountType === 'org',

@@ -119,6 +119,23 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
         .map((c) => c.commit.author?.date ?? c.commit.committer?.date)
         .filter((d): d is string => Boolean(d))
         .sort();
+      // Kişinin repodaki toplam commit'i (örneklemden bağımsız, ≤ 300 sayılır). Org reposunda
+      // "kanıt" olabilmenin kapısı: 0 ise repo kaynağa girmez.
+      const kendiCommitleri = await gh.paginate(
+        gh.repos.listCommits,
+        { owner, repo, author: githubLogin, per_page: 100 },
+        (res, done) => {
+          if (res.data.length >= 300) done();
+          return res.data;
+        },
+      );
+      const ownCommits = kendiCommitleri.length;
+      const kendiTarihler = kendiCommitleri
+        .map((c) => c.commit.author?.date ?? c.commit.committer?.date)
+        .filter((d): d is string => Boolean(d))
+        .sort();
+      const ilkKendi = kendiTarihler[0];
+      const sonKendi = kendiTarihler[kendiTarihler.length - 1];
 
       let contributors = 1;
       try {
@@ -167,6 +184,9 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
         authorshipRatio: ornek.length ? kisininki / ornek.length : 0,
         authorshipSampled: commits.length >= COMMIT_SAMPLE,
         commitCount: ornek.length,
+        ownCommits,
+        ...(ilkKendi ? { ownFirstCommitAt: ilkKendi } : {}),
+        ...(sonKendi ? { ownLastCommitAt: sonKendi } : {}),
         contributors,
         deployed: Boolean(meta.homepage) || Boolean(meta.has_pages),
         homepage: meta.homepage || undefined,

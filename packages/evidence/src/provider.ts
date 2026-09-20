@@ -10,7 +10,10 @@ export interface ExtractedSignals {
   tools?: string[];
   firstActivityAt?: string; // ISO tarih
   lastActivityAt?: string;
-  authorshipRatio?: number; // 0..1 — commit'lerin ne kadarı kişiye ait
+  authorshipRatio?: number; // 0..1 — commit'lerin ne kadarı kişiye ait (son örneklem)
+  ownCommits?: number; // kişinin repodaki commit sayısı (≤ 300); 0 → org reposu kanıt olamaz
+  ownFirstCommitAt?: string;
+  ownLastCommitAt?: string;
   contributors?: number;
   deployed?: boolean;
   hasTests?: boolean;

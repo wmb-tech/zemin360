@@ -81,8 +81,23 @@ export function createTalentService(
           signals: { kind: k.kind, ownershipVerified: k.ownershipVerified, ...son.signals },
         });
     }
-    if (inputs.length === 0) return;
-    const { draft, usage } = await runCardDrafter(llm, login, inputs);
+    // Onaylı bir iddianın kapsadığı kaynak ajana yeniden verilmez: "yeniden oku" aynı repo için
+    // ikinci bir taslak üretmesin (ilk gerçek kullanıcıda görüldü). Yeni kaynak yoksa çağrı da yok.
+    const onayliKaynaklar = new Set(
+      (
+        await db
+          .select({ sourceIds: cardClaims.sourceIds })
+          .from(cardClaims)
+          .where(and(eq(cardClaims.talentId, talentId), eq(cardClaims.approved, true)))
+      ).flatMap((c) => c.sourceIds),
+    );
+    const idOf = new Map(kaynaklar.map((k) => [k.ref, k.id]));
+    const yeniInputs = inputs.filter((i) => !onayliKaynaklar.has(idOf.get(i.ref) ?? ''));
+    await db
+      .delete(cardClaims)
+      .where(and(eq(cardClaims.talentId, talentId), eq(cardClaims.approved, false)));
+    if (yeniInputs.length === 0) return;
+    const { draft, usage } = await runCardDrafter(llm, login, yeniInputs);
     await recordAgentRun(db, {
       agent: 'card_drafter',
       subjectType: 'talent',
@@ -91,9 +106,6 @@ export function createTalentService(
       outputSummary: { claims: draft.claims.length },
       usage,
     });
-    await db
-      .delete(cardClaims)
-      .where(and(eq(cardClaims.talentId, talentId), eq(cardClaims.approved, false)));
     const refToSource = new Map(kaynaklar.map((k) => [k.ref, k]));
     if (draft.claims.length) {
       await db.insert(cardClaims).values(
@@ -233,15 +245,32 @@ export function createTalentService(
         throw new AppError('github_login_missing', 'GitHub kullanıcı adı yok', 409);
 
       // Kurulum başına repo listesi; toplam üst sınır MAX_REPOS (en son itilenler önce gelir).
-      const repos: { installationId: string; fullName: string }[] = [];
+      const repos: { installationId: string; fullName: string; org: boolean }[] = [];
       for (const k of kurulumlar) {
         for (const r of await github.listRepos(k.installationId))
-          repos.push({ installationId: k.installationId, fullName: r.fullName });
+          repos.push({
+            installationId: k.installationId,
+            fullName: r.fullName,
+            org: k.accountType === 'org',
+          });
       }
       const secilen = repos.slice(0, MAX_REPOS);
       const repoInputs: { ref: string; signals: Record<string, unknown> }[] = [];
+      let atlanan = 0;
 
       for (const r of secilen) {
+        const signals = await github.extract(r.installationId, r.fullName, user.githubLogin);
+        // Org reposu yalnız kişinin commit'i varsa kanıttır: üyelik tek başına bir şey kanıtlamaz.
+        // Daha önce girmişse (eski kural) kaynak da silinir; bağlı taslak iddia redraft'ta düşer.
+        if (r.org && !(signals.ownCommits && signals.ownCommits > 0)) {
+          atlanan++;
+          await db
+            .delete(evidenceSources)
+            .where(
+              and(eq(evidenceSources.talentId, talent.id), eq(evidenceSources.ref, r.fullName)),
+            );
+          continue;
+        }
         const [kaynak] = await db
           .insert(evidenceSources)
           .values({
@@ -266,7 +295,6 @@ export function createTalentService(
               .limit(1)
           )[0]!.id;
 
-        const signals = await github.extract(r.installationId, r.fullName, user.githubLogin);
         await db
           .insert(evidenceSignals)
           .values({ sourceId, signals: signals as Record<string, unknown> });
@@ -282,7 +310,7 @@ export function createTalentService(
         .update(githubInstallations)
         .set({ lastSyncedAt: new Date() })
         .where(eq(githubInstallations.talentId, talent.id));
-      return this.card(userId);
+      return { ...(await this.card(userId)), skippedOrgRepos: atlanan };
     },
 
     /** Kurulumu kaldır: o hesabın repolarından gelen kaynaklar ve onaysız iddiaları düşer. */

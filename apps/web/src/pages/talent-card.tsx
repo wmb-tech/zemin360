@@ -85,11 +85,14 @@ export function TalentCardPage() {
     void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }));
   }, [card, params]);
 
+  const [note, setNote] = useState<string | null>(null);
   async function run(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
     setError(null);
     try {
-      await fn();
+      const r = (await fn()) as { skippedOrgRepos?: number } | undefined;
+      if (r?.skippedOrgRepos)
+        setNote(`${r.skippedOrgRepos} org reposu atlandı: commit'in olmayan repo kanıt sayılmaz.`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hata');
@@ -235,6 +238,7 @@ export function TalentCardPage() {
             </ul>
           </div>
         )}
+        {note && <p className="text-ink-soft mt-3 text-sm">{note}</p>}
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </section>
 
