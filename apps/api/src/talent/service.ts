@@ -360,6 +360,21 @@ export function createTalentService(
       return guncel;
     },
 
+    /** Toplu işlem: seçili iddiaları onayla / onayı kaldır / sil. Yalnız kişinin kendi iddiaları. */
+    async bulkClaims(userId: string, ids: string[], action: 'approve' | 'unapprove' | 'delete') {
+      const { talent } = await talentOf(userId);
+      const kosul = and(eq(cardClaims.talentId, talent.id), inArray(cardClaims.id, ids));
+      const etkilenen =
+        action === 'delete'
+          ? await db.delete(cardClaims).where(kosul).returning({ id: cardClaims.id })
+          : await db
+              .update(cardClaims)
+              .set({ approved: action === 'approve', updatedAt: new Date() })
+              .where(kosul)
+              .returning({ id: cardClaims.id });
+      return { ...(await this.card(userId)), affected: etkilenen.length };
+    },
+
     async deleteClaim(userId: string, claimId: string) {
       const { talent } = await talentOf(userId);
       const silinen = await db

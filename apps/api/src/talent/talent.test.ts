@@ -144,6 +144,21 @@ describe('genç kartı (doğrula)', () => {
     expect(onay.status).toBe(200);
     expect((await onay.json()).data.talent.cardStatus).toBe('approved');
 
+    // Toplu işlem: seçilenleri onayla / sil; başkasının iddia id'si etkilenmez (affected sayar).
+    const toplu = await app.request(
+      '/api/me/card/claims/bulk',
+      json(
+        { ids: [iddia.id, '00000000-0000-0000-0000-000000000000'], action: 'unapprove' },
+        cookie,
+      ),
+    );
+    expect(toplu.status).toBe(200);
+    expect((await toplu.json()).data.affected).toBe(1);
+    await app.request(
+      '/api/me/card/claims/bulk',
+      json({ ids: [iddia.id], action: 'approve' }, cookie),
+    );
+
     // Yeniden senkron onaylı iddiaya dokunmaz.
     const tekrar = (
       await (await app.request('/api/me/evidence/github/sync', json({}, cookie))).json()

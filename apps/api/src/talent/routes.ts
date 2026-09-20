@@ -52,6 +52,16 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
         const body = await parse(ClaimPatch, await c.req.json().catch(() => ({})));
         return ok(c, await svc.updateClaim(c.get('user').id, c.req.param('id'), body));
       })
+      .post('/card/claims/bulk', async (c) => {
+        const body = await parse(
+          z.object({
+            ids: z.array(z.string().uuid()).min(1).max(100),
+            action: z.enum(['approve', 'unapprove', 'delete']),
+          }),
+          await c.req.json().catch(() => ({})),
+        );
+        return ok(c, await svc.bulkClaims(c.get('user').id, body.ids, body.action));
+      })
       .delete('/card/claims/:id', async (c) => {
         await svc.deleteClaim(c.get('user').id, c.req.param('id'));
         return ok(c, { deleted: true });

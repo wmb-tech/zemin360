@@ -86,6 +86,15 @@ export function TalentCardPage() {
   }, [card, params]);
 
   const [note, setNote] = useState<string | null>(null);
+  const [secili, setSecili] = useState<Set<string>>(new Set());
+  async function toplu(action: 'approve' | 'unapprove' | 'delete') {
+    const ids = [...secili];
+    if (action === 'delete' && !window.confirm(`${ids.length} iddia silinsin mi?`)) return;
+    await run('bulk', () =>
+      api('/api/me/card/claims/bulk', { method: 'POST', body: JSON.stringify({ ids, action }) }),
+    );
+    setSecili(new Set());
+  }
   async function run(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
     setError(null);
@@ -279,8 +288,36 @@ export function TalentCardPage() {
           }
         />
 
-        <div className="text-ink-soft mt-6 text-xs font-semibold tracking-wide uppercase">
-          İddialar · {onayli}/{card.claims.length} onaylı
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
+            İddialar · {onayli}/{card.claims.length} onaylı
+          </div>
+          {card.claims.length > 1 && (
+            <div className="ml-auto flex flex-wrap gap-2 text-xs">
+              {secili.size > 0 ? (
+                <>
+                  <span className="text-ink-soft self-center">{secili.size} seçili</span>
+                  <BulkBtn label="Onayla" onClick={() => void toplu('approve')} />
+                  <BulkBtn label="Onayı kaldır" onClick={() => void toplu('unapprove')} />
+                  <BulkBtn label="Sil" danger onClick={() => void toplu('delete')} />
+                  <BulkBtn label="Seçimi bırak" onClick={() => setSecili(new Set())} />
+                </>
+              ) : (
+                <>
+                  <BulkBtn
+                    label="Tümünü seç"
+                    onClick={() => setSecili(new Set(card.claims.map((c) => c.id)))}
+                  />
+                  <BulkBtn
+                    label="Taslakları seç"
+                    onClick={() =>
+                      setSecili(new Set(card.claims.filter((c) => !c.approved).map((c) => c.id)))
+                    }
+                  />
+                </>
+              )}
+            </div>
+          )}
         </div>
         {card.claims.length === 0 && (
           <p className="text-ink-soft mt-2 text-sm">
@@ -291,7 +328,23 @@ export function TalentCardPage() {
           {card.claims.map((c) => (
             <li
               key={c.id}
-              className={`rounded-xl border p-3 ${c.approved ? 'border-[var(--color-verified)]' : 'border-line'}`}
+              onClick={(e) => {
+                // Metne tıklayınca seçime al/çıkar (checkbox ve düğmeler kendi işini yapar)
+                if ((e.target as HTMLElement).closest('input,button,a')) return;
+                setSecili((s) => {
+                  const n = new Set(s);
+                  if (n.has(c.id)) n.delete(c.id);
+                  else n.add(c.id);
+                  return n;
+                });
+              }}
+              className={`cursor-pointer rounded-xl border p-3 ${
+                secili.has(c.id)
+                  ? 'border-accent bg-accent-soft'
+                  : c.approved
+                    ? 'border-[var(--color-verified)]'
+                    : 'border-line'
+              }`}
             >
               <div className="flex items-start gap-3">
                 <input
@@ -625,5 +678,24 @@ function DocumentBlock({
         </span>
       </label>
     </div>
+  );
+}
+
+function BulkBtn({
+  label,
+  onClick,
+  danger,
+}: {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`border-line hover:bg-paper-2 rounded-lg border px-2 py-1 font-semibold ${danger ? 'text-red-600' : ''}`}
+    >
+      {label}
+    </button>
   );
 }
