@@ -7,8 +7,11 @@ import { AppError, ok } from '../lib/response';
 import type { AuthService, GithubProfile } from './service';
 import { newRawToken } from './tokens';
 import { INSTALL_STATE_COOKIE } from '../talent/routes';
+import { sessionTokenOf } from './middleware';
 
 export const SESSION_COOKIE = 'evidex_session';
+const OAUTH_CLIENT_COOKIE = 'evidex_oauth_client';
+export const MOBILE_SCHEME = 'evidex';
 const OAUTH_STATE_COOKIE = 'evidex_oauth_state';
 
 const MagicLinkBody = z.object({ email: z.string().email() });
@@ -101,6 +104,15 @@ export function authRoutes(deps: {
         path: '/',
         maxAge: 600,
       });
+      // Mobil (Expo) aynı akışı tarayıcı oturumunda yürütür; dönüş çerez değil derin link olur.
+      if (c.req.query('client') === 'mobile')
+        setCookie(c, OAUTH_CLIENT_COOKIE, 'mobile', {
+          httpOnly: true,
+          sameSite: 'Lax',
+          secure,
+          path: '/',
+          maxAge: 600,
+        });
       const url = new URL('https://github.com/login/oauth/authorize');
       url.searchParams.set('client_id', env.GITHUB_CLIENT_ID);
       url.searchParams.set('redirect_uri', `${env.API_ORIGIN}/api/auth/github/callback`);
@@ -115,8 +127,10 @@ export function authRoutes(deps: {
       // İki giriş yolu aynı callback'e düşer: düz OAuth ve App kurulumu (OAuth-during-install).
       const oauthState = getCookie(c, OAUTH_STATE_COOKIE);
       const installState = getCookie(c, INSTALL_STATE_COOKIE);
+      const mobil = getCookie(c, OAUTH_CLIENT_COOKIE) === 'mobile';
       deleteCookie(c, OAUTH_STATE_COOKIE, { path: '/' });
       deleteCookie(c, INSTALL_STATE_COOKIE, { path: '/' });
+      deleteCookie(c, OAUTH_CLIENT_COOKIE, { path: '/' });
       const beklenen = installationId ? installState : oauthState;
       // ⚠ state eşleşmezse CSRF: oturum açılmaz, sessizce yönlendirilmez.
       if (!code || !state || state !== beklenen)
@@ -130,11 +144,15 @@ export function authRoutes(deps: {
         setSession(c, sessionToken);
         return c.redirect(`${env.WEB_ORIGIN}/kanit?installed=1`);
       }
+      if (mobil) {
+        // Token uygulamaya derin linkle taşınır; SecureStore'da durur, Bearer ile gelir.
+        return c.redirect(`${MOBILE_SCHEME}://auth?token=${encodeURIComponent(sessionToken)}`);
+      }
       setSession(c, sessionToken);
       return c.redirect(`${env.WEB_ORIGIN}/`);
     })
     .get('/me', async (c) => {
-      const user = await auth.resolveSession(getCookie(c, SESSION_COOKIE));
+      const user = await auth.resolveSession(sessionTokenOf(c));
       if (!user) throw new AppError('unauthenticated', 'Oturum yok', 401);
       return ok(c, {
         id: user.id,
@@ -145,7 +163,7 @@ export function authRoutes(deps: {
       });
     })
     .post('/logout', async (c) => {
-      await auth.logout(getCookie(c, SESSION_COOKIE));
+      await auth.logout(sessionTokenOf(c));
       deleteCookie(c, SESSION_COOKIE, { path: '/' });
       return ok(c, { loggedOut: true });
     });

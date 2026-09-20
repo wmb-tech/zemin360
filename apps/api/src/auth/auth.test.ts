@@ -70,4 +70,34 @@ describe('kimlik', () => {
     await app.request('/api/auth/logout', { method: 'POST', headers: { cookie } });
     expect((await app.request('/api/auth/me', { headers: { cookie } })).status).toBe(401);
   });
+
+  it('mobil github girişi: çerez yerine derin link token; Bearer ile /me ve kart çalışır', async () => {
+    const { app } = testApp({
+      githubProfile: { id: 77, login: 'cem-mobil', name: 'Cem', email: 'cem@example.com' },
+    });
+    // Başlatma ucu GITHUB_CLIENT_ID ister (testte yok); `?client=mobile` çerezi elle verilir.
+    const res = await app.request('/api/auth/github/callback?code=abc&state=s3', {
+      headers: { cookie: 'evidex_oauth_state=s3; evidex_oauth_client=mobile' },
+      redirect: 'manual',
+    });
+    expect(res.status).toBe(302);
+    const yer = res.headers.get('location') ?? '';
+    expect(yer.startsWith('evidex://auth?token=')).toBe(true);
+    expect(cookieOf(res, 'evidex_session')).toBe(''); // mobilde oturum çerezi yazılmaz
+    const token = decodeURIComponent(yer.split('token=')[1]!);
+
+    const me = await app.request('/api/auth/me', { headers: { authorization: `Bearer ${token}` } });
+    expect(me.status).toBe(200);
+    expect((await me.json()).data.githubLogin).toBe('cem-mobil');
+    expect(
+      (await app.request('/api/me/card', { headers: { authorization: `Bearer ${token}` } })).status,
+    ).toBe(200);
+    await app.request('/api/auth/logout', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(
+      (await app.request('/api/auth/me', { headers: { authorization: `Bearer ${token}` } })).status,
+    ).toBe(401);
+  });
 });
