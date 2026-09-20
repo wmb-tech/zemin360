@@ -14,6 +14,7 @@ import {
 import type { ApprovalAction, CollaborationStatus } from '@evidex/shared';
 import type { EmailSender } from '../lib/email';
 import { AppError } from '../lib/response';
+import type { FollowUpPayload, FollowUpService } from '../followups/service';
 
 /**
  * ### Operatör servisi — onay kuyruğu ve yürütme (ADR-0004)
@@ -21,7 +22,7 @@ import { AppError } from '../lib/response';
  * yalnız o zaman yürütülür. Her karar denetim izine yazılır.
  * ⚠ Yürütme fonksiyonları yalnız bu servisten çağrılır; ajan doğrudan e-posta göndermez.
  */
-export function createOperatorService(db: Db, email: EmailSender) {
+export function createOperatorService(db: Db, email: EmailSender, followUp: FollowUpService) {
   async function audit(
     actorId: string,
     action: string,
@@ -84,7 +85,16 @@ export function createOperatorService(db: Db, email: EmailSender) {
         await db.insert(collaborations).values({ matchId: m.id }).onConflictDoNothing();
         return;
       }
-      case 'send_follow_up':
+      case 'send_follow_up': {
+        // Taslak ajanın; gönderim takip servisinde (tek kullanımlık linkler orada üretilir).
+        await followUp.send({
+          collaborationId: item.subjectId,
+          subject: String(payload.subject ?? 'Evidex takip'),
+          messageTalent: String(payload.messageTalent ?? ''),
+          messageOrganization: String(payload.messageOrganization ?? ''),
+        } satisfies FollowUpPayload);
+        return;
+      }
       case 'invite':
         throw new AppError('not_implemented', `${action} henüz yürütülmüyor`, 501);
     }

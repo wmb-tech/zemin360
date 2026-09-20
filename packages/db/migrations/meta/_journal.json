@@ -57,6 +57,13 @@
       "when": 1789902179023,
       "tag": "0007_challenges",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789903037375,
+      "tag": "0008_follow_ups",
+      "breakpoints": true
     }
   ]
 }

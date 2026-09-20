@@ -54,6 +54,9 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
     durationMs: Date.now() - started,
   });
 
+  /** Şemalı çıktı için düşünme bütçesi (token). Pro'da kapatılamaz; küçük tutulur. */
+  const THINKING_BUDGET = 1024;
+
   return {
     name: providerName,
     async complete(messages, o) {
@@ -72,16 +75,21 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
     async structured(messages, schema, o) {
       const started = Date.now();
       const { system, contents } = split(messages);
+      // ⚠ Gemini 2.5'te düşünme tokenleri maxOutputTokens'tan düşer; bütçeyi ayrıca ayırmazsak
+      // JSON yarıda kesilir ("Unterminated string"). Çağıranın maxTokens'ı cevap içindir.
       const res = await client.models.generateContent({
         model,
         contents,
         config: {
           ...(system ? { systemInstruction: system } : {}),
-          maxOutputTokens: o?.maxTokens ?? 2048,
+          maxOutputTokens: (o?.maxTokens ?? 2048) + THINKING_BUDGET,
+          thinkingConfig: { thinkingBudget: THINKING_BUDGET },
           responseMimeType: 'application/json',
           responseJsonSchema: z.toJSONSchema(schema),
         },
       });
+      if (res.candidates?.[0]?.finishReason === 'MAX_TOKENS')
+        throw new Error(`Model çıktısı token sınırında kesildi (${o?.schemaName ?? 'şema'})`);
       const text = res.text;
       if (!text) throw new Error('Model şemalı çıktı üretmedi');
       return { value: schema.parse(JSON.parse(text)), usage: usageOf(res.usageMetadata, started) };

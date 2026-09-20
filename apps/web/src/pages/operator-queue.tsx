@@ -123,5 +123,32 @@ function QueuePayload({ item }: { item: QueueItem }) {
       </div>
     );
   }
+  if (item.action === 'send_follow_up') {
+    return (
+      <div className="mt-1">
+        <div className="font-semibold">{String(p.subject ?? '')}</div>
+        {p.needTitle ? <div className="text-ink-soft text-xs">{String(p.needTitle)}</div> : null}
+        <div className="mt-2 grid max-w-2xl gap-3 md:grid-cols-2">
+          <div>
+            <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">Gence</div>
+            <p className="text-ink-soft mt-1 text-sm whitespace-pre-wrap">
+              {String(p.messageTalent ?? '')}
+            </p>
+          </div>
+          <div>
+            <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
+              Kuruma
+            </div>
+            <p className="text-ink-soft mt-1 text-sm whitespace-pre-wrap">
+              {String(p.messageOrganization ?? '')}
+            </p>
+          </div>
+        </div>
+        <p className="text-ink-soft mt-2 text-xs">
+          [link] yerine tek kullanımlık cevap linki girer.
+        </p>
+      </div>
+    );
+  }
   return <pre className="text-ink-soft mt-2 text-xs">{JSON.stringify(p, null, 2)}</pre>;
 }

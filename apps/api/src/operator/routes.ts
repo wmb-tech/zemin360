@@ -6,6 +6,7 @@ import type { MatchingService } from '../matching/service';
 import { AppError, ok } from '../lib/response';
 import type { OperatorService } from './service';
 import type { createMetricsService } from '../metrics/service';
+import type { FollowUpService } from '../followups/service';
 import { CollaborationStatus } from '@evidex/shared';
 
 const DecideBody = z.object({
@@ -28,32 +29,40 @@ export function operatorRoutes(
   ops: OperatorService,
   matching: MatchingService,
   metrics: ReturnType<typeof createMetricsService>,
+  followUp: FollowUpService,
 ) {
-  return new Hono()
-    .use('*', withRole(auth, 'operator'))
-    .get('/queue', async (c) => ok(c, await ops.queue()))
-    .post('/queue/:id', async (c) => {
-      const body = await parse(DecideBody, await c.req.json().catch(() => ({})));
-      return ok(
-        c,
-        await ops.decide(c.get('user').id, c.req.param('id'), body.decision, body.editedPayload),
-      );
-    })
-    .post('/needs/:id/match', async (c) => ok(c, await matching.runForNeed(c.req.param('id'))))
-    .get('/needs/:id/matches', async (c) => ok(c, await matching.matchesForNeed(c.req.param('id'))))
-    .get('/metrics', async (c) => ok(c, await metrics.summary()))
-    .post('/collaborations/:matchId/status', async (c) => {
-      const body = await parse(
-        z.object({ status: CollaborationStatus }),
-        await c.req.json().catch(() => ({})),
-      );
-      return ok(
-        c,
-        await ops.setCollaborationStatus(c.get('user').id, c.req.param('matchId'), body.status),
-      );
-    })
-    .post('/matches/:id/introduce', async (c) => {
-      const body = await parse(IntroBody, await c.req.json().catch(() => ({})));
-      return ok(c, await ops.proposeIntroduction(c.req.param('id'), body), 201);
-    });
+  return (
+    new Hono()
+      .use('*', withRole(auth, 'operator'))
+      .get('/queue', async (c) => ok(c, await ops.queue()))
+      .post('/queue/:id', async (c) => {
+        const body = await parse(DecideBody, await c.req.json().catch(() => ({})));
+        return ok(
+          c,
+          await ops.decide(c.get('user').id, c.req.param('id'), body.decision, body.editedPayload),
+        );
+      })
+      .post('/needs/:id/match', async (c) => ok(c, await matching.runForNeed(c.req.param('id'))))
+      .get('/needs/:id/matches', async (c) =>
+        ok(c, await matching.matchesForNeed(c.req.param('id'))),
+      )
+      .get('/metrics', async (c) => ok(c, await metrics.summary()))
+      .post('/collaborations/:matchId/status', async (c) => {
+        const body = await parse(
+          z.object({ status: CollaborationStatus }),
+          await c.req.json().catch(() => ({})),
+        );
+        return ok(
+          c,
+          await ops.setCollaborationStatus(c.get('user').id, c.req.param('matchId'), body.status),
+        );
+      })
+      // İzle (06): iş birliği listesi + takip taraması (zamanlayıcı da aynı fonksiyonu çağırır)
+      .get('/collaborations', async (c) => ok(c, await followUp.list()))
+      .post('/follow-ups/scan', async (c) => ok(c, await followUp.scan()))
+      .post('/matches/:id/introduce', async (c) => {
+        const body = await parse(IntroBody, await c.req.json().catch(() => ({})));
+        return ok(c, await ops.proposeIntroduction(c.req.param('id'), body), 201);
+      })
+  );
 }

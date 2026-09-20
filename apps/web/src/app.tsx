@@ -10,6 +10,8 @@ import { TalentCardPage } from './pages/talent-card';
 import { MetricsPage } from './pages/metrics';
 import { OperatorChallengesPage } from './pages/operator-challenges';
 import { TalentChallengesPage } from './pages/talent-challenges';
+import { CollaborationsPage } from './pages/collaborations';
+import { CheckinPage } from './pages/checkin';
 
 const NAV = {
   talent: [
@@ -60,15 +62,7 @@ function Routed() {
               path="/ag"
               element={<Placeholder title="Ağ" note="Gençler ve kurumlar; kart durumları." />}
             />
-            <Route
-              path="/isbirlikleri"
-              element={
-                <Placeholder
-                  title="İş birlikleri"
-                  note="Tanıştırıldı → görüşme → başladı → bitti."
-                />
-              }
-            />
+            <Route path="/isbirlikleri" element={<CollaborationsPage />} />
             <Route path="/olcum" element={<MetricsPage />} />
           </>
         )}
@@ -81,7 +75,11 @@ function Routed() {
 export function App() {
   return (
     <AuthProvider>
-      <Routed />
+      <Routes>
+        {/* Oturumsuz sayfalar: e-postadaki linkle gelenler */}
+        <Route path="/takip/:token" element={<CheckinPage />} />
+        <Route path="*" element={<Routed />} />
+      </Routes>
     </AuthProvider>
   );
 }

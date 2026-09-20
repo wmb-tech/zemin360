@@ -263,10 +263,38 @@ export const collaborations = pgTable('collaborations', {
     .references(() => matches.id, { onDelete: 'cascade' }),
   status: collaborationStatusEnum('status').default('introduced').notNull(),
   lastCheckinAt: timestamp('last_checkin_at', { withTimezone: true }),
+  lastFollowUpAt: timestamp('last_follow_up_at', { withTimezone: true }), // son takip sorusu
+  silentSince: timestamp('silent_since', { withTimezone: true }), // soru gitti, cevap yok
   talentFeedback: text('talent_feedback'),
   organizationFeedback: text('organization_feedback'),
   ...timestamps,
 });
+
+export const checkinSideEnum = pgEnum('checkin_side', ['talent', 'organization']);
+
+/**
+ * Takip sorusu kaydı (döngü adımı: izle 06). Her tur iki satır (genç + kurum), aynı `batchId`.
+ * Token e-postadaki linktir; giriş gerektirmez, tek kullanımlık. Cevap = durum + serbest metin;
+ * ajan metni yorumlar (`insight`), operatör yalnız bayraklı olanı okur.
+ */
+export const collaborationCheckins = pgTable(
+  'collaboration_checkins',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    collaborationId: uuid('collaboration_id')
+      .notNull()
+      .references(() => collaborations.id, { onDelete: 'cascade' }),
+    batchId: uuid('batch_id').notNull(),
+    side: checkinSideEnum('side').notNull(),
+    tokenHash: text('token_hash').notNull().unique(), // ham token yalnız e-postada (auth/tokens ile aynı ilke)
+    sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+    status: collaborationStatusEnum('status'),
+    feedback: text('feedback'),
+    insight: jsonb('insight').$type<Record<string, unknown>>(), // CheckinInsight
+  },
+  (t) => [index('collaboration_checkins_collab_idx').on(t.collaborationId)],
+);
 
 /* ---------- Ajan ve onay (ADR-0002, ADR-0004) ---------- */
 

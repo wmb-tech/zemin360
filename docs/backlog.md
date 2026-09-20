@@ -34,9 +34,9 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Kurum görünümü (API + ekran): önce özet, tanıştırma sonrası tam kart (KARAR-09)
 
 ## İzle (06)
-- [x] İş birliği kaydı ve durum geçişleri (operatör API) · [ ] kurum/genç bildirimi
-- [ ] Takip ajanı (`follow_up`): 3 gün sonra soru, cevabı işle, sessizi işaretle
-- [ ] Bitiş değerlendirmesi → referanslı kanıt (KARAR-10)
+- [x] İş birliği kaydı ve durum geçişleri (operatör API + ekran) · [ ] kurum/genç bildirimi
+- [x] Takip ajanı (`follow_up`): 3 gün sonra soru, cevabı işle, sessizi işaretle (ADR-0006)
+- [x] Bitiş değerlendirmesi → referanslı kanıt (KARAR-10)
 
 ## Canlı tut (04)
 - [ ] Kanıt yeniden okuma (zamanlanmış), kart taslağını yenile

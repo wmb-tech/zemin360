@@ -18,7 +18,10 @@ const AGENT_LABEL: Record<string, string> = {
   card_drafter: 'Kart taslağı',
   need_structurer: 'İhtiyaç yapılandırma',
   matcher: 'Eşleştirme',
-  follow_up: 'Takip',
+  follow_up: 'Takip sorusu',
+  checkin_interpreter: 'Takip cevabı yorumu',
+  challenge_designer: 'Meydan okuma tasarımı',
+  submission_evaluator: 'Teslim değerlendirme',
 };
 
 const pct = (a: number, b: number) => (b === 0 ? '—' : `%${Math.round((a / b) * 100)}`);

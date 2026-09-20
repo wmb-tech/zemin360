@@ -149,3 +149,36 @@ export const SubmissionEvaluation = z.object({
   evidenceClaim: z.string().min(10).max(240), // kişinin kartına girecek tek cümle
 });
 export type SubmissionEvaluation = z.infer<typeof SubmissionEvaluation>;
+
+/** Takip sorusu (döngü adımı: izle 06). İki tarafa ayrı, kısa, tek soru — ajan taslağı. */
+export const FollowUpDraft = z.object({
+  subject: z.string().min(5).max(120),
+  messageTalent: z.string().min(40).max(1200),
+  messageOrganization: z.string().min(40).max(1200),
+});
+export type FollowUpDraft = z.infer<typeof FollowUpDraft>;
+
+export const CheckinSide = z.enum(['talent', 'organization']);
+export type CheckinSide = z.infer<typeof CheckinSide>;
+
+/** Serbest metin cevabın ajan yorumu: operatörün okuması gereken şey var mı? */
+export const CheckinFlag = z.enum([
+  'no_contact', // taraflar hiç görüşememiş
+  'schedule', // zaman/takvim sorunu
+  'scope', // iş tanımı değişti/belirsiz
+  'payment', // ücret/ödeme sorunu
+  'communication', // iletişim kopuk
+  'positive', // olumlu ilerliyor
+  'ended', // bitmiş / bitmek üzere
+]);
+export type CheckinFlag = z.infer<typeof CheckinFlag>;
+
+export const CheckinInsight = z.object({
+  summary: z.string().min(5).max(300),
+  flags: z.array(CheckinFlag).max(4),
+  needsOperator: z.boolean(),
+  operatorNote: z.string().max(300).nullable(),
+  // Yalnız kurum "tamamlandı" dediğinde: kişinin kartına girecek tek cümle (KARAR-10)
+  referenceClaim: z.string().min(20).max(300).nullable(),
+});
+export type CheckinInsight = z.infer<typeof CheckinInsight>;
