@@ -90,9 +90,17 @@ export function TalentCardPage() {
     setBusy(key);
     setError(null);
     try {
-      const r = (await fn()) as { skippedOrgRepos?: number } | undefined;
+      const r = (await fn()) as { skippedOrgRepos?: number; unreadRepos?: number } | undefined;
+      const notlar: string[] = [];
       if (r?.skippedOrgRepos)
-        setNote(`${r.skippedOrgRepos} org reposu atlandı: commit'in olmayan repo kanıt sayılmaz.`);
+        notlar.push(
+          `${r.skippedOrgRepos} org reposu atlandı: commit'in olmayan repo kanıt sayılmaz.`,
+        );
+      if (r?.unreadRepos)
+        notlar.push(
+          `En son itilen 40 repo okundu; ${r.unreadRepos} eski repo okunmadı (GitHub'daki repo seçiminden daraltabilirsin).`,
+        );
+      if (notlar.length) setNote(notlar.join(' '));
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hata');
