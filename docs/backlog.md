@@ -34,7 +34,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [x] Kurum görünümü (API + ekran): önce özet, tanıştırma sonrası tam kart (KARAR-09)
 
 ## İzle (06)
-- [ ] İş birliği kaydı ve durum geçişleri
+- [x] İş birliği kaydı ve durum geçişleri (operatör API) · [ ] kurum/genç bildirimi
 - [ ] Takip ajanı (`follow_up`): 3 gün sonra soru, cevabı işle, sessizi işaretle
 - [ ] Bitiş değerlendirmesi → referanslı kanıt (KARAR-10)
 
@@ -51,7 +51,7 @@ Tek liste, tek dosya. İş bitince `[x]`. Sıra = öncelik. Döngü adımı para
 - [ ] Paylaşılabilir kart sayfası
 
 ## Ölçüm ve sunum
-- [ ] Ölçüm paneli (beş metrik)
+- [x] Ölçüm paneli (beş metrik, paydalı)
 - [ ] Açılış sayfası
 - [ ] Devir belgesi, 4 aylık yol haritası, eğitim planı
 - [ ] Demo senaryosu, üç prova

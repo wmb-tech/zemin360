@@ -11,7 +11,7 @@ import {
   talents,
   users,
 } from '@evidex/db';
-import type { ApprovalAction } from '@evidex/shared';
+import type { ApprovalAction, CollaborationStatus } from '@evidex/shared';
 import type { EmailSender } from '../lib/email';
 import { AppError } from '../lib/response';
 
@@ -138,6 +138,19 @@ export function createOperatorService(db: Db, email: EmailSender) {
         action: item.action,
       });
       return guncel!;
+    },
+
+    /** İş birliği durumu (döngü adımı 06): tanıştırıldı → görüşme → başladı → sürüyor → bitti/olmadı. */
+    async setCollaborationStatus(operatorId: string, matchId: string, status: CollaborationStatus) {
+      const [kayit] = await db
+        .update(collaborations)
+        .set({ status, lastCheckinAt: new Date(), updatedAt: new Date() })
+        .where(eq(collaborations.matchId, matchId))
+        .returning();
+      if (!kayit)
+        throw new AppError('not_found', 'İş birliği kaydı yok (tanıştırma yapılmamış)', 404);
+      await audit(operatorId, 'collaboration.status', 'match', matchId, { status });
+      return kayit;
     },
 
     /** Operatör bir eşleşme için tanıştırma önerir; e-posta taslağı kuyruğa düşer, onayla gider. */

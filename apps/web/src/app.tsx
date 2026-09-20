@@ -7,6 +7,7 @@ import { NeedDetailPage, NeedsListPage } from './pages/needs';
 import { CandidatesPage } from './pages/candidates';
 import { OperatorQueuePage } from './pages/operator-queue';
 import { TalentCardPage } from './pages/talent-card';
+import { MetricsPage } from './pages/metrics';
 
 const NAV = {
   talent: [
@@ -67,10 +68,7 @@ function Routed() {
                 />
               }
             />
-            <Route
-              path="/olcum"
-              element={<Placeholder title="Ölçüm" note="AI'ın katkısı: beş metrik." />}
-            />
+            <Route path="/olcum" element={<MetricsPage />} />
           </>
         )}
         <Route path="*" element={<Navigate to={home} replace />} />

@@ -191,6 +191,21 @@ describe('eşleştir + onay kuyruğu', () => {
     ).data;
     expect(adaylar.candidates[0].introduced).toBe(true);
     expect(adaylar.candidates[0].name).toBe('Ayşe Yılmaz');
+
+    // İzle (06): operatör görüşme oldu der; ölçüm paneli paydalarıyla döner.
+    const durum = await app.request(
+      `/api/operator/collaborations/${matchId}/status`,
+      json({ status: 'meeting' }, opCookie),
+    );
+    expect(durum.status).toBe(200);
+    const olcum = (
+      await (await app.request('/api/operator/metrics', { headers: { cookie: opCookie } })).json()
+    ).data;
+    expect(olcum.topFiveConversion.introduced).toBeGreaterThanOrEqual(1);
+    expect(olcum.topFiveConversion.reachedMeeting).toBeGreaterThanOrEqual(1);
+    expect(olcum.agentProposals.approved).toBeGreaterThanOrEqual(2);
+    expect(olcum.timeToIntroduction.needsWithIntroduction).toBeGreaterThanOrEqual(1);
+    expect(olcum.needClarity.approvedNeeds).toBeGreaterThanOrEqual(1);
   });
 
   it('reddedilen kuyruk kaydı yürütülmez: kısa liste yayınlanmaz, e-posta gitmez', async () => {

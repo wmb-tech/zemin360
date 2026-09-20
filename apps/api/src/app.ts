@@ -14,6 +14,7 @@ import { createLlmFromEnv } from './lib/llm';
 import { createMatchingService } from './matching/service';
 import { operatorRoutes } from './operator/routes';
 import { createOperatorService } from './operator/service';
+import { createMetricsService } from './metrics/service';
 import { talentRoutes } from './talent/routes';
 import { createTalentService } from './talent/service';
 import {
@@ -61,7 +62,15 @@ export function createApp(deps: AppDeps) {
   app.route('/api/health', health);
   const matching = createMatchingService(deps.db, llm);
   app.route('/api/needs', needRoutes(auth, createNeedService(deps.db, llm, matching), matching));
-  app.route('/api/operator', operatorRoutes(auth, createOperatorService(deps.db, email), matching));
+  app.route(
+    '/api/operator',
+    operatorRoutes(
+      auth,
+      createOperatorService(deps.db, email),
+      matching,
+      createMetricsService(deps.db),
+    ),
+  );
   app.route(
     '/api/auth',
     authRoutes({
