@@ -13,7 +13,7 @@ import {
   talents,
   users,
 } from '@evidex/db';
-import { runCardDrafter, type LlmProvider } from '@evidex/ai';
+import { MAX_CLAIMS, runCardDrafter, type LlmProvider } from '@evidex/ai';
 import type { DocumentEvidence, GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
 import { newRawToken } from '../auth/tokens';
 import { assertPublicUrl } from '@evidex/evidence';
@@ -120,11 +120,24 @@ export function createTalentService(
     await db
       .delete(cardClaims)
       .where(and(eq(cardClaims.talentId, talentId), eq(cardClaims.approved, false)));
-    if (yeniInputs.length === 0) return;
+    if (yeniInputs.length === 0) return { cardFull: false };
+    // Kart sınırı KARTIN TAMAMI içindir: onaylı maddeler yeri doldurur, yeni taslak kalan yere
+    // yazılır. Aksi hâlde her "yeniden oku" kartı büyütüyordu (7 onaylı + 10 yeni = 17 madde).
+    const onayliIddialar = await db
+      .select({ text: cardClaims.text })
+      .from(cardClaims)
+      .where(and(eq(cardClaims.talentId, talentId), eq(cardClaims.approved, true)));
+    const butce = MAX_CLAIMS - onayliIddialar.length;
+    // Kart doluysa yeni taslak yazılmaz: onaylı maddeleri kimse silemez, sınırı da aşamayız.
+    // Kişi yeni kanıtını göstermek isterse "Kartı yeniden yaz" ile hepsini birlikte yeniletir.
+    if (butce <= 0) return { cardFull: true };
     let draft: Awaited<ReturnType<typeof runCardDrafter>>['draft'];
     let usage: Awaited<ReturnType<typeof runCardDrafter>>['usage'];
     try {
-      ({ draft, usage } = await runCardDrafter(llm, login, yeniInputs));
+      ({ draft, usage } = await runCardDrafter(llm, login, yeniInputs, {
+        budget: butce,
+        existing: onayliIddialar.map((c) => c.text),
+      }));
     } catch (err) {
       // Ajan/model hatası kişinin kendi kartıyla ilgilidir ve gizli bir şey taşımaz; sebebi
       // göster ki "Beklenmeyen hata" ile kör kalınmasın (kaynaklar okunmuş kalır, tekrar denenir).
@@ -189,6 +202,7 @@ export function createTalentService(
         updatedAt: new Date(),
       })
       .where(eq(talents.id, talentId));
+    return { cardFull: false };
   }
 
   /**
@@ -500,7 +514,7 @@ export function createTalentService(
         opts.onProgress?.(++islenen, secilen.length);
       }
 
-      await redraft(talent.id, user.githubLogin);
+      const { cardFull } = await redraft(talent.id, user.githubLogin);
       await db
         .update(githubInstallations)
         .set({ lastSyncedAt: new Date() })
@@ -510,6 +524,7 @@ export function createTalentService(
         skippedOrgRepos: atlanan,
         unreadRepos: okunmayan,
         failedRepos: okunamayan,
+        cardFull,
       };
     },
 

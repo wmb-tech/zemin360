@@ -20,11 +20,19 @@ export const DraftClaim = z.object({
   periodEnd: z.string().nullable(),
 });
 
-export const CardDraft = z.object({
-  headline: z.string().min(3).max(80),
-  story: z.string().min(80).max(900),
-  claims: z.array(DraftClaim).min(1).max(10),
-});
+/** Kartın TAMAMINDAKİ üst sınır: onaylı + yeni taslak birlikte bunu aşmaz. */
+export const MAX_CLAIMS = 10;
+
+export const cardDraftSchema = (max: number = MAX_CLAIMS) =>
+  z.object({
+    headline: z.string().min(3).max(80),
+    story: z.string().min(80).max(900),
+    claims: z
+      .array(DraftClaim)
+      .min(1)
+      .max(Math.max(1, Math.min(max, MAX_CLAIMS))),
+  });
+export const CardDraft = cardDraftSchema();
 export type CardDraft = z.infer<typeof CardDraft>;
 
 const SYSTEM = `DİL: ÇIKTININ TAMAMI TÜRKÇE. Girdi sinyalleri (repo açıklamaları, README) İngilizce olsa bile
@@ -82,15 +90,26 @@ DİĞER
   yer aldım" YASAK).
 - Türkçe, düz metin, markdown yok; teknoloji adları olduğu gibi.`;
 
-export function buildCardMessages(login: string, repos: RepoSignalInput[]): LlmMessage[] {
+export function buildCardMessages(
+  login: string,
+  repos: RepoSignalInput[],
+  opts: { budget?: number; existing?: string[] } = {},
+): LlmMessage[] {
   const govde = repos
     .map((r) => `### ${r.ref}\n${JSON.stringify(r.signals, null, 1)}`)
     .join('\n\n');
+  const butce = opts.budget ?? MAX_CLAIMS;
+  // Kartta zaten onaylı maddeler varsa bütçe kalan yerdir; onaylı işler tekrar yazılmaz.
+  const mevcut = opts.existing?.length
+    ? `\n\nKARTTA ZATEN ONAYLI OLAN MADDELER (bunları TEKRARLAMA, aynı işi yeniden yazma):\n${opts.existing
+        .map((t) => `- ${t}`)
+        .join('\n')}`
+    : '';
   return [
     { role: 'system', content: SYSTEM },
     {
       role: 'user',
-      content: `GitHub kullanıcısı: ${login}\n\nREPOLAR VE SİNYALLER:\n${govde}\n\nKart taslağını üret.`,
+      content: `GitHub kullanıcısı: ${login}\n\nREPOLAR VE SİNYALLER:\n${govde}${mevcut}\n\nEN FAZLA ${butce} madde yaz (kartın toplam sınırı ${MAX_CLAIMS}; ${opts.existing?.length ?? 0} madde zaten onaylı). Kart taslağını üret.`,
     },
   ];
 }
@@ -102,9 +121,15 @@ export function looksEnglish(text: string) {
   return en > tr;
 }
 
-export async function runCardDrafter(llm: LlmProvider, login: string, repos: RepoSignalInput[]) {
-  const messages = buildCardMessages(login, repos);
-  let { value, usage } = await llm.structured(messages, CardDraft, {
+export async function runCardDrafter(
+  llm: LlmProvider,
+  login: string,
+  repos: RepoSignalInput[],
+  opts: { budget?: number; existing?: string[] } = {},
+) {
+  const schema = cardDraftSchema(opts.budget);
+  const messages = buildCardMessages(login, repos, opts);
+  let { value, usage } = await llm.structured(messages, schema, {
     schemaName: 'card_draft',
     maxTokens: 3000,
   });
@@ -121,7 +146,7 @@ export async function runCardDrafter(llm: LlmProvider, login: string, repos: Rep
             'Bu çıktı İngilizce. Aynı içeriği TAMAMEN TÜRKÇE yeniden yaz; teknoloji adları dışında İngilizce kelime kullanma.',
         },
       ],
-      CardDraft,
+      schema,
       { schemaName: 'card_draft', maxTokens: 3000 },
     );
     value = tekrar.value;

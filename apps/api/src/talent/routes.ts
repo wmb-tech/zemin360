@@ -115,6 +115,7 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
             skippedOrgRepos: k.skippedOrgRepos,
             unreadRepos: k.unreadRepos,
             failedRepos: k.failedRepos,
+            cardFull: k.cardFull,
           })),
         );
         if (!is) throw new AppError('job_running', 'Zaten koşan bir okuma var', 409);

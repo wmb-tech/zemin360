@@ -19,6 +19,7 @@ export interface JobState {
     skippedOrgRepos?: number | undefined;
     unreadRepos?: number | undefined;
     failedRepos?: number | undefined;
+    cardFull?: boolean | undefined;
   };
 }
 

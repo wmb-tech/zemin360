@@ -54,7 +54,12 @@ interface Job {
   read: number;
   total: number;
   message?: string;
-  result?: { skippedOrgRepos?: number; unreadRepos?: number; failedRepos?: number };
+  result?: {
+    skippedOrgRepos?: number;
+    unreadRepos?: number;
+    failedRepos?: number;
+    cardFull?: boolean;
+  };
 }
 interface Card {
   talent: {
@@ -174,6 +179,10 @@ export function TalentCardPage() {
       if (r.unreadRepos)
         notlar.push(
           `Bu turda ${is.read} repo okundu; ${r.unreadRepos} repo daha var. "Yeniden oku" sıradakileri getirir.`,
+        );
+      if (r.cardFull)
+        notlar.push(
+          'Kart dolu (10 madde): kaynaklar güncellendi ama yeni madde yazılmadı. Yeni işlerin de girsin istiyorsan "Kartı yeniden yaz".',
         );
       if (notlar.length) setNote(notlar.join(' '));
       break;
@@ -816,6 +825,12 @@ function Iddialar({
     <div className="relative space-y-10">
       {grup('Gözden geçir', taslak)}
       {grup('Onaylı', onayli)}
+      {onayli.length > 10 && (
+        <p className="bg-referenced-soft text-referenced rounded-[var(--radius-control)] px-4 py-3 text-sm">
+          Kartta {onayli.length} onaylı madde var; kartın sınırı 10. Bu liste eski turlardan
+          birikmiş: "Kartı yeniden yaz" hepsini tek seferde, birleştirilmiş hâlde çıkarır.
+        </p>
+      )}
       <p className="text-ink-soft border-line border-t pt-4 text-xs leading-relaxed">
         İddialar beğenmediğin bir dille yazıldıysa ya da işler birleştirilmediyse kartı sıfırdan
         yazdırabilirsin: mevcut tüm iddialar silinir, bütün repolar güncel bağlamla yeniden okunur

@@ -52,6 +52,35 @@ describe('card_drafter', () => {
     expect(kullanici).toContain('"manifestDescription": "Gisè Studio API"');
   });
 
+  it('bütçe: kartta onaylı madde varsa kalan yer kadar yazılır, onaylılar tekrarlanmaz', async () => {
+    const mesajlar = buildCardMessages('hazan111', [{ ref: 'a/b', signals: {} }], {
+      budget: 3,
+      existing: ['Bir sözleşme platformunu tek başına geliştirdi.'],
+    });
+    const kullanici = mesajlar.find((m) => m.role === 'user')!.content;
+    expect(kullanici).toContain('EN FAZLA 3 madde');
+    expect(kullanici).toContain('TEKRARLAMA');
+    expect(kullanici).toContain('Bir sözleşme platformunu tek başına geliştirdi.');
+
+    // Şema bütçeyi zorlar: 4 madde gelirse (3 sınırında) çıktı reddedilir.
+    const llm = createFakeProvider({
+      value: {
+        headline: 'Geliştirici',
+        story:
+          'Kanıta bağlı üç ürün geliştirdi; ikisi canlıda, biri ekiple yürütüldü. Toplam dört yıl süren düzenli katkı.',
+        claims: Array.from({ length: 4 }, (_, i) => ({
+          text: `Bir ürünün ${i + 1}. parçasını geliştirdi; canlıda, iki kişilik ekipte ana geliştirici olarak çalıştı.`,
+          sourceRefs: ['a/b'],
+          periodStart: null,
+          periodEnd: null,
+        })),
+      },
+    });
+    await expect(
+      runCardDrafter(llm, 'hazan111', [{ ref: 'a/b', signals: {} }], { budget: 3 }),
+    ).rejects.toThrow();
+  });
+
   it('dil sezgisi: İngilizce çıktıyı yakalar, Türkçeyi bırakır', () => {
     expect(
       looksEnglish(
