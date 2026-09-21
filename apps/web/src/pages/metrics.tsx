@@ -14,7 +14,15 @@ interface Metrics {
   timeToIntroduction: { needsWithIntroduction: number; avgHours: number | null };
   topFiveConversion: { introduced: number; reachedMeeting: number };
   agentProposals: { proposed: number; approved: number; edited: number; rejected: number };
-  agentRuns: { agent: string; runs: number; avg_ms: number | null }[];
+  agentRuns: {
+    agent: string;
+    runs: number;
+    avg_ms: number | null;
+    in_tokens: number;
+    out_tokens: number;
+    cost_usd: number;
+  }[];
+  spend: { totalUsd: number; last30dUsd: number; last30dRuns: number; model: string | null };
 }
 const AGENT_LABEL: Record<string, string> = {
   card_drafter: 'Kart taslağı',
@@ -35,6 +43,7 @@ function oran(pay: number, payda: number) {
 }
 
 /** Tam sayıysa ondalık gösterme ("0.0 soru" değil "0 soru"). */
+const dolar = (n: number) => (n >= 1 ? `$${n.toFixed(2)}` : n > 0 ? `$${n.toFixed(4)}` : '$0');
 const sayi = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 export function MetricsPage() {
@@ -116,8 +125,29 @@ export function MetricsPage() {
           </p>
         </Panel>
         <Panel className="p-5">
-          <Eyebrow>Ajan çalışmaları</Eyebrow>
-          <p className="text-ink-soft mt-1 text-xs">Operasyonel telemetri; sonuç metriği değil.</p>
+          <Eyebrow>Ajan çalışmaları ve tüketim</Eyebrow>
+          <p className="text-ink-soft mt-1 text-xs">
+            Operasyonel telemetri; sonuç metriği değil. Maliyet, sağlayıcının liste fiyatından
+            hesaplanan tahmindir (fatura değil).
+          </p>
+          <div className="border-line mt-3 flex flex-wrap gap-x-8 gap-y-2 border-y py-3">
+            <div>
+              <div className="text-ink tnum text-xl font-extrabold">
+                {dolar(m.spend.last30dUsd)}
+              </div>
+              <div className="text-ink-soft text-xs">son 30 gün · {m.spend.last30dRuns} çağrı</div>
+            </div>
+            <div>
+              <div className="text-ink tnum text-xl font-extrabold">{dolar(m.spend.totalUsd)}</div>
+              <div className="text-ink-soft text-xs">toplam</div>
+            </div>
+            {m.spend.model && (
+              <div>
+                <div className="text-ink text-xl font-extrabold">{m.spend.model}</div>
+                <div className="text-ink-soft text-xs">Vertex AI (Google Cloud)</div>
+              </div>
+            )}
+          </div>
           <table className="mt-3 w-full text-sm">
             <tbody>
               {m.agentRuns.map((r) => (
@@ -127,11 +157,21 @@ export function MetricsPage() {
                   <td className="text-ink-soft tnum py-2 text-right">
                     {r.avg_ms === null ? '—' : `${(r.avg_ms / 1000).toFixed(1)} sn`}
                   </td>
+                  <td className="text-ink-soft tnum py-2 text-right">
+                    {r.in_tokens + r.out_tokens > 0
+                      ? `${((r.in_tokens + r.out_tokens) / 1000).toFixed(1)}k token`
+                      : '—'}
+                  </td>
+                  <td className="text-ink tnum py-2 text-right font-semibold">
+                    {r.cost_usd > 0 ? dolar(r.cost_usd) : '—'}
+                  </td>
                 </tr>
               ))}
               {m.agentRuns.length === 0 && (
                 <tr>
-                  <td className="text-ink-soft py-2">Henüz çağrı yok.</td>
+                  <td className="text-ink-soft py-2" colSpan={5}>
+                    Henüz çağrı yok.
+                  </td>
                 </tr>
               )}
             </tbody>

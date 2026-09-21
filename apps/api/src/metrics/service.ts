@@ -61,9 +61,29 @@ export function createMetricsService(db: Db) {
 
       const ajanlar = (
         await db.execute(
-          sql`select agent, count(*)::int as runs, avg(duration_ms)::float as avg_ms from agent_runs group by agent`,
+          sql`select agent,
+                     count(*)::int as runs,
+                     avg(duration_ms)::float as avg_ms,
+                     sum(coalesce(input_tokens, 0))::int as in_tokens,
+                     sum(coalesce(output_tokens, 0))::int as out_tokens,
+                     sum(coalesce(cost_usd::numeric, 0))::float as cost_usd
+              from agent_runs group by agent`,
         )
-      ).rows as { agent: string; runs: number; avg_ms: number | null }[];
+      ).rows as {
+        agent: string;
+        runs: number;
+        avg_ms: number | null;
+        in_tokens: number;
+        out_tokens: number;
+        cost_usd: number;
+      }[];
+      // 30 günlük tüketim: "bu ay ne yiyor" sorusu aylık faturayla karşılaştırılabilsin.
+      const [son30] = (
+        await db.execute(sql`
+          select sum(coalesce(cost_usd::numeric, 0))::float as cost_usd,
+                 count(*)::int as runs
+          from agent_runs where created_at >= now() - interval '30 days'`)
+      ).rows as { cost_usd: number | null; runs: number }[];
 
       return {
         cardAccuracy: { approvedClaims: kart?.total ?? 0, unchangedClaims: kart?.unchanged ?? 0 },
@@ -87,6 +107,12 @@ export function createMetricsService(db: Db) {
           rejected: q.rejected ?? 0,
         },
         agentRuns: ajanlar,
+        spend: {
+          totalUsd: ajanlar.reduce((t, a) => t + (a.cost_usd ?? 0), 0),
+          last30dUsd: son30?.cost_usd ?? 0,
+          last30dRuns: son30?.runs ?? 0,
+          model: ajanlar.length > 0 ? 'gemini-2.5-pro' : null,
+        },
       };
     },
   };

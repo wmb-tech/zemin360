@@ -85,6 +85,13 @@
       "when": 1789992775878,
       "tag": "0011_error_log",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790017216668,
+      "tag": "0012_agent_run_tokens",
+      "breakpoints": true
     }
   ]
 }

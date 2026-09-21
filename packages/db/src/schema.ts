@@ -330,7 +330,10 @@ export const agentRuns = pgTable('agent_runs', {
   provider: text('provider').notNull(),
   model: text('model').notNull(),
   durationMs: integer('duration_ms').notNull(),
-  costUsd: text('cost_usd'), // numeric string; parasal hesap yapılmıyor, rapor için
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  // Liste fiyatından hesaplanan TAHMİNİ maliyet (fatura değil): ölçüm panelinde "AI ne yiyor".
+  costUsd: text('cost_usd'),
   // Sonraki insan eylemi: approved | edited | rejected | null (ölçüm paneli)
   humanOutcome: text('human_outcome'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

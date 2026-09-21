@@ -23,7 +23,7 @@ export const DraftClaim = z.object({
 export const CardDraft = z.object({
   headline: z.string().min(3).max(80),
   story: z.string().min(80).max(900),
-  claims: z.array(DraftClaim).min(1).max(7),
+  claims: z.array(DraftClaim).min(1).max(10),
 });
 export type CardDraft = z.infer<typeof CardDraft>;
 
@@ -35,11 +35,15 @@ Sen GİRVAK'ın kart yazım asistanısın. Bir gencin bağladığı kaynakların
 yapabiliyor" diyeceği bir yetkinlik kartı taslağı yazarsın. Kurallar:
 
 İDDİA = İŞ, REPO DEĞİL
-- En az 3, en fazla 7 iddia. Her iddia BİR ürünü/işi anlatır. Aynı ürünün parçaları (web + api +
+- En az 3, en fazla 10 iddia. Her iddia BİR ürünü/işi anlatır. Aynı ürünün parçaları (web + api +
   mobil + site), aynı türden denemeler, aynı müşteri için yapılan repolar TEK iddiada birleşir;
   sourceRefs'e hepsi yazılır. Önemsiz, boş, tek commit'lik ya da fork repolar tek başına iddia
   olmaz; bir birleşik iddianın parçası olabilir ya da hiç yazılmaz.
 - Sıra: en çok şey söyleyen iş en üstte (uzun süre × yüksek sahiplik × yakın tarih × canlıda).
+- KAPSAM: kişinin ciddi emek verdiği hiçbir ürün listeden DÜŞMESİN. Çok commit'li ya da uzun
+  süreli bir ürünü yer kalmadı diye atlama; küçük işleri birleştirerek ya da hiç yazmayarak yer aç.
+  Sınıra dayanıyorsan önce benzer küçük işleri tek maddede topla ("üç vitrin sitesi"), asıl ürünü
+  koru.
 
 ÜRÜNÜN NE OLDUĞUNU NEREDEN BİLİRSİN
 - YALNIZ description, readmeExcerpt, manifestDescription, topics ve homepage'den. Bunlar boşsa
