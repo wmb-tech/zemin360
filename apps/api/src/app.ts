@@ -174,7 +174,18 @@ export function createApp(deps: AppDeps) {
   app.onError((err, c) => {
     if (err instanceof AppError) return fail(c, err);
     console.error(err);
-    return fail(c, new AppError('internal', 'Beklenmeyen hata', 500));
+    // Oturumlu kullanıcıya hatanın sebebi gösterilir (kendi verisiyle ilgili; sır taşımaz).
+    // Anonim uçlarda yalnız genel mesaj — tablo/sorgu adları dışarı sızmasın.
+    const oturumlu = Boolean((c as unknown as { get(k: 'user'): unknown }).get('user'));
+    const sebep = err instanceof Error ? err.message : String(err);
+    return fail(
+      c,
+      new AppError(
+        'internal',
+        oturumlu ? `Beklenmeyen hata: ${sebep.slice(0, 300)}` : 'Beklenmeyen hata',
+        500,
+      ),
+    );
   });
 
   return { app, followUp, network };
