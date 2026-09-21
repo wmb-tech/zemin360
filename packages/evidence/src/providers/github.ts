@@ -184,6 +184,32 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
       }
       const has = (re: RegExp) => paths.some((p) => re.test(p));
 
+      // Bağlam: README'nin başı + manifest açıklaması. Kod değil, belge; kısa tutulur. Bunlar
+      // olmadan ajan ürünü repo ADINDAN tahmin ediyordu ("gise" → "gişe sistemi" — mimarlık
+      // stüdyosuydu). Rozet/HTML satırları atılır, ≤ 600 karakter saklanır.
+      let readmeExcerpt: string | undefined;
+      try {
+        const { data } = await gh.repos.getReadme({ owner, repo });
+        readmeExcerpt = readmeOzeti(Buffer.from(data.content, 'base64').toString('utf8'));
+      } catch {
+        /* README yok ya da erişim yok */
+      }
+      let manifestDescription: string | undefined;
+      if (has(/^package\.json$/)) {
+        try {
+          const { data } = await gh.repos.getContent({ owner, repo, path: 'package.json' });
+          if (!Array.isArray(data) && 'content' in data) {
+            const pkg = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) as {
+              description?: unknown;
+            };
+            if (typeof pkg.description === 'string' && pkg.description.trim())
+              manifestDescription = pkg.description.trim().slice(0, 200);
+          }
+        } catch {
+          /* okunamayan manifest bağlam değildir */
+        }
+      }
+
       const tools: string[] = [];
       if (has(/^package\.json$/)) tools.push('Node.js');
       if (has(/^(pnpm-lock\.yaml|yarn\.lock|package-lock\.json|bun\.lock)$/))
@@ -214,12 +240,26 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
         hasCi: has(/^\.github\/workflows\//),
         isPrivate: meta.private,
         description: meta.description ?? undefined,
+        ...(readmeExcerpt ? { readmeExcerpt } : {}),
+        ...(manifestDescription ? { manifestDescription } : {}),
         topics: meta.topics ?? [],
         stars: meta.stargazers_count,
         fork: meta.fork,
       };
     },
   };
+}
+
+/** README'den bağlam: rozet, HTML, boş satır ve kod blokları atılır; ilk 600 karakter. */
+export function readmeOzeti(raw: string): string | undefined {
+  const satirlar = raw
+    .replace(/```[\s\S]*?```/g, '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !/^!\[|^<|^\[!\[|^\|/.test(l))
+    .map((l) => l.replace(/^#+\s*/, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1'));
+  const metin = satirlar.join(' ').replace(/\s+/g, ' ').trim();
+  return metin ? metin.slice(0, 600) : undefined;
 }
 
 export type GithubEvidence = ReturnType<typeof createGithubEvidence>;

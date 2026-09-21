@@ -5,7 +5,16 @@ import type { MatchStrength } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { Enter, Live } from '../components/motion';
-import { Button, Empty, ErrorNote, Panel, Skeleton, StrengthBadge } from '../components/ui';
+import {
+  Button,
+  Empty,
+  ErrorNote,
+  Panel,
+  Skeleton,
+  Skills,
+  type SkillRow,
+  StrengthBadge,
+} from '../components/ui';
 
 interface Candidate {
   matchId: string;
@@ -13,6 +22,7 @@ interface Candidate {
   strength: MatchStrength;
   name: string;
   headline: string | null;
+  skills: SkillRow[];
   introduced: boolean;
   introRequested: boolean;
   reasoning: {
@@ -117,6 +127,16 @@ export function CandidatesPage() {
                 <p className="text-ink mt-3 max-w-[70ch] text-base leading-relaxed">
                   {c.reasoning.summaryForOrganization}
                 </p>
+                {c.skills.length > 0 && (
+                  <div className="bg-paper-2 mt-4 rounded-[var(--radius-control)] px-4 py-3">
+                    <div className="text-ink-soft text-xs font-bold tracking-wide uppercase">
+                      Yetkinlikler · kanıttan ölçülmüş
+                    </div>
+                    <div className="mt-2">
+                      <Skills skills={c.skills} />
+                    </div>
+                  </div>
+                )}
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div>
                     <div className="text-verified text-xs font-bold tracking-wide uppercase">

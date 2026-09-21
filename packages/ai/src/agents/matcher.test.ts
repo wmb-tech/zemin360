@@ -26,6 +26,9 @@ const adaylar: CandidateCard[] = [
     headline: null,
     story: null,
     city: 'İstanbul',
+    skills: [
+      { name: 'React Native', repos: 2, commits: 140, firstAt: '2026-01-01', lastAt: '2026-09-01' },
+    ],
     claims: [
       {
         id: K1,
@@ -71,6 +74,7 @@ describe('matcher', () => {
     const sistem = mesajlar.find((m) => m.role === 'system')!.content;
     expect(kullanici).toContain('"organizationCity": "İzmir"');
     expect(kullanici).toContain('Ayşe · İstanbul');
+    expect(kullanici).toContain('React Native (2 repo, 140 commit, 2026-01→2026-09)');
     expect(sistem).toContain('"onsite" ya da "hybrid"');
     expect(sistem).toContain('"remote" ihtiyaçta şehri hiç değerlendirme');
   });

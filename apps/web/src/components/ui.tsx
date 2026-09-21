@@ -286,3 +286,35 @@ export function Metin({ text, className = '' }: { text: string; className?: stri
     </div>
   );
 }
+
+export interface SkillRow {
+  name: string;
+  repos: number;
+  commits: number;
+  firstAt: string | null;
+  lastAt: string | null;
+  level: EvidenceLevel;
+}
+const ayKisa = (d: string | null) =>
+  d ? new Date(d).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : null;
+
+/**
+ * Yetkinlik seti: kanıttan ölçülmüş dil/araç satırları. Ajan yazmaz; her satır "kaç repo, kaç
+ * commit, hangi dönem" ile gelir. Sıfır satırda hiç çizilmez (boş başlık yok).
+ */
+export function Skills({ skills, compact = false }: { skills: SkillRow[]; compact?: boolean }) {
+  if (skills.length === 0) return null;
+  return (
+    <ul className={`grid gap-x-6 gap-y-1.5 ${compact ? '' : 'sm:grid-cols-2'}`}>
+      {skills.map((s) => (
+        <li key={s.name} className="flex items-baseline justify-between gap-3 text-sm">
+          <span className="text-ink font-semibold">{s.name}</span>
+          <span className="text-ink-soft tnum shrink-0 text-xs">
+            {s.repos} repo · {s.commits} commit
+            {s.firstAt && ` · ${ayKisa(s.firstAt)} → ${ayKisa(s.lastAt) ?? 'devam'}`}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}

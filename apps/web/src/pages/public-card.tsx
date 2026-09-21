@@ -4,7 +4,7 @@ import type { EvidenceLevel, EvidenceSourceKind } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { Enter } from '../components/motion';
-import { KIND, LEVEL, LevelBadge, Skeleton } from '../components/ui';
+import { KIND, LEVEL, LevelBadge, Skeleton, Skills, type SkillRow } from '../components/ui';
 
 interface PublicCard {
   name: string;
@@ -23,6 +23,7 @@ interface PublicCard {
     sourceCount: number;
   }[];
   sources: { kind: EvidenceSourceKind; verified: boolean }[];
+  skills: SkillRow[];
 }
 
 const SIRA: EvidenceLevel[] = ['verified', 'documented', 'referenced', 'declared'];
@@ -90,8 +91,21 @@ export function PublicCardPage() {
             )}
           </Enter>
 
+          {card.skills.length > 0 && (
+            <Enter i={1} as="section" className="mt-10">
+              <div className="text-ink-soft text-xs font-bold tracking-wide uppercase">
+                Yetkinlikler · kanıttan ölçülmüş
+              </div>
+              <p className="text-ink-soft mt-1 text-xs">
+                Onaylı iddiaların kaynaklarından otomatik: kaç repo, kaç commit, hangi dönem.
+              </p>
+              <div className="mt-3">
+                <Skills skills={card.skills} />
+              </div>
+            </Enter>
+          )}
           {gruplar.map((l, gi) => (
-            <Enter key={l} i={gi + 1} as="section" className="mt-10">
+            <Enter key={l} i={gi + 2} as="section" className="mt-10">
               <div className="flex items-baseline gap-3">
                 <LevelBadge level={l} />
                 <span className="text-ink-soft text-sm">

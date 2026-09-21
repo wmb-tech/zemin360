@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createFakeProvider } from '../provider';
-import { looksEnglish, runCardDrafter } from './cardDrafter';
+import { buildCardMessages, looksEnglish, runCardDrafter } from './cardDrafter';
 
 describe('card_drafter', () => {
   it('kaynağı olmayan iddia düşer, uydurma kaynak referansı atılır', async () => {
@@ -30,6 +30,26 @@ describe('card_drafter', () => {
     ]);
     expect(draft.claims).toHaveLength(1);
     expect(draft.claims[0]!.sourceRefs).toEqual(['ayse/kafe']);
+  });
+
+  it('istem: ürün bağlamı README/açıklamadan gelir, repo adından tahmin yasağı yazılı, yığın listesi yasak', () => {
+    const mesajlar = buildCardMessages('hazan111', [
+      {
+        ref: 'hazan111/gise-backend',
+        signals: {
+          languages: ['TypeScript'],
+          readmeExcerpt: 'Gisè Studio — mimarlık stüdyosu için e-ticaret ve içerik paneli.',
+          manifestDescription: 'Gisè Studio API',
+        },
+      },
+    ]);
+    const sistem = mesajlar.find((m) => m.role === 'system')!.content;
+    const kullanici = mesajlar.find((m) => m.role === 'user')!.content;
+    expect(sistem).toContain('REPO ADINDAN TAHMİN ETME');
+    expect(sistem).toContain('YIĞIN LİSTESİ YAZMA');
+    expect(sistem).toContain('İDDİA = İŞ, REPO DEĞİL');
+    expect(kullanici).toContain('mimarlık stüdyosu için e-ticaret');
+    expect(kullanici).toContain('"manifestDescription": "Gisè Studio API"');
   });
 
   it('dil sezgisi: İngilizce çıktıyı yakalar, Türkçeyi bırakır', () => {

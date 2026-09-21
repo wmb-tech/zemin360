@@ -25,6 +25,8 @@ import {
   LinkButton,
   Panel,
   Skeleton,
+  Skills,
+  type SkillRow,
   SourceChip,
 } from '../components/ui';
 
@@ -67,6 +69,7 @@ interface Card {
   user: { name: string; githubLogin: string | null };
   sources: Source[];
   claims: Claim[];
+  skills: SkillRow[];
 }
 
 const ay = (d: string | null) =>
@@ -267,6 +270,9 @@ export function TalentCardPage() {
         {zone === 'iddialar' && (
           <Iddialar
             card={card}
+            onRewrite={() =>
+              void run('rewrite', () => api('/api/me/card/rewrite', { method: 'POST' }))
+            }
             taslak={taslak}
             onayli={onayli}
             secili={secili}
@@ -618,6 +624,7 @@ function Iddialar({
   onDelete,
   onEdit,
   onBulk,
+  onRewrite,
 }: {
   card: Card;
   taslak: Claim[];
@@ -630,6 +637,7 @@ function Iddialar({
   onDelete: (c: Claim) => void;
   onEdit: (c: Claim, text: string) => Promise<boolean>;
   onBulk: (a: 'approve' | 'unapprove' | 'delete') => void;
+  onRewrite: () => void;
 }) {
   const toggleSel = (id: string) => {
     const n = new Set(secili);
@@ -694,6 +702,23 @@ function Iddialar({
     <div className="relative space-y-10">
       {grup('Gözden geçir', taslak)}
       {grup('Onaylı', onayli)}
+      <p className="text-ink-soft border-line border-t pt-4 text-xs leading-relaxed">
+        İddialar beğenmediğin bir dille yazıldıysa ya da işler birleştirilmediyse kartı sıfırdan
+        yazdırabilirsin: mevcut tüm iddialar silinir, bütün repolar güncel bağlamla yeniden okunur
+        (birkaç dakika sürebilir), yeni taslak çıkar; onaylı kart yeni taslağı onaylayana kadar
+        taslağa döner.{' '}
+        <button
+          onClick={() =>
+            window.confirm(
+              `${card.claims.length} iddia silinip kart yeniden yazılacak. Onaylı kart, yeni taslağı onaylayana kadar taslağa döner. Devam?`,
+            ) && onRewrite()
+          }
+          disabled={busy === 'rewrite'}
+          className="text-accent font-semibold hover:underline disabled:opacity-50"
+        >
+          {busy === 'rewrite' ? 'Yazılıyor…' : 'Kartı yeniden yaz'}
+        </button>
+      </p>
       {secili.size > 0 && (
         <div
           className="bg-ink text-surface sticky bottom-20 z-10 flex flex-wrap items-center gap-2 rounded-[var(--radius-panel)] px-4 py-3 shadow-lg md:bottom-4"
@@ -926,6 +951,19 @@ function Kart({
         }
         className="text-ink-soft mt-2 max-w-[70ch] leading-relaxed"
       />
+      {card.skills.length > 0 && (
+        <>
+          <h3 className="text-ink-soft mt-8 text-xs font-bold tracking-wide uppercase">
+            Yetkinlikler · kanıttan ölçülmüş
+          </h3>
+          <p className="text-ink-soft mt-1 text-xs">
+            Onaylı iddiaların kaynaklarından otomatik çıkar; elle yazılmaz, bu yüzden düzenlenmez.
+          </p>
+          <div className="mt-3">
+            <Skills skills={card.skills} />
+          </div>
+        </>
+      )}
       <h3 className="text-ink-soft mt-8 text-xs font-bold tracking-wide uppercase">
         Onaylı iddialar · {onayli.length}
       </h3>

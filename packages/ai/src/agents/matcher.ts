@@ -15,6 +15,14 @@ export interface CandidateCard {
   story: string | null;
   /** Şehir; yalnız yerinde/hibrit ihtiyaçlarda anlam taşır (gaps'e girer, eleme değil). */
   city: string | null;
+  /** Kanıttan türetilmiş yetkinlikler (ajan yazmaz): ad, repo sayısı, commit, dönem. */
+  skills: {
+    name: string;
+    repos: number;
+    commits: number;
+    firstAt: string | null;
+    lastAt: string | null;
+  }[];
   claims: {
     id: string;
     text: string;
@@ -38,6 +46,9 @@ GEREKÇELİ bir değerlendirme yaparsın. Kurallar:
 - "fits" maddeleri somut ve KANITA BAĞLI olsun: her madde ilgili iddia id'lerini (claimIds) taşısın.
   Kanıtı olmayan bir uyum yazma.
 - Kanıt seviyesine dikkat et: "beyan" seviyesindeki iddia tek başına strong yapmaz.
+- "Yetkinlikler" satırı makineyle ölçülmüştür (dil/araç × repo × commit × dönem); requiredSkills
+  ile burada eşleş; iddialardaki yığın cümlelerine değil. fits'te yetkinliğe dayanan madde için
+  claimIds'e o teknolojiyi taşıyan iddiaları yaz.
 - Zamanı hesaba kat: uzun süre sürdürülmüş iş, tek seferlik denemeden değerlidir.
 - "gaps" dürüst olsun: ihtiyacın istediği ama kartta olmayan şeyler.
 - summaryForOrganization: kurum temsilcisinin 20 saniyede okuyacağı, teknik olmayan 2–3 cümle.
@@ -61,7 +72,13 @@ export function buildMatchMessages(
             `  - [${k.id}] (${LEVEL_TR[k.level]}${k.periodStart ? `, ${k.periodStart}→${k.periodEnd ?? 'devam'}` : ''}) ${k.text}`,
         )
         .join('\n');
-      return `Aday ${c.talentId} — ${c.name}${c.headline ? ` · ${c.headline}` : ''}${c.city ? ` · ${c.city}` : ''}\n${c.story ? `  Hikâye: ${c.story}\n` : ''}  İddialar:\n${iddialar || '  (onaylı iddia yok)'}`;
+      const yetkinlik = c.skills
+        .map(
+          (s) =>
+            `${s.name} (${s.repos} repo, ${s.commits} commit${s.firstAt ? `, ${s.firstAt.slice(0, 7)}→${s.lastAt?.slice(0, 7) ?? '?'}` : ''})`,
+        )
+        .join('; ');
+      return `Aday ${c.talentId} — ${c.name}${c.headline ? ` · ${c.headline}` : ''}${c.city ? ` · ${c.city}` : ''}\n${c.story ? `  Hikâye: ${c.story}\n` : ''}${yetkinlik ? `  Yetkinlikler (kanıttan ölçülmüş): ${yetkinlik}\n` : ''}  İddialar:\n${iddialar || '  (onaylı iddia yok)'}`;
     })
     .join('\n\n');
   return [

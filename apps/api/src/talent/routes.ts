@@ -43,6 +43,7 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
         return ok(c, await svc.updateProfile(c.get('user').id, body));
       })
       .post('/card/approve', async (c) => ok(c, await svc.approveCard(c.get('user').id)))
+      .post('/card/rewrite', async (c) => ok(c, await svc.rewriteCard(c.get('user').id)))
       .post('/card/share', async (c) => {
         const body = await parse(
           z.object({ enabled: z.boolean() }),

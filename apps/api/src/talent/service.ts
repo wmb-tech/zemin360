@@ -20,6 +20,7 @@ import { assertPublicUrl } from '@evidex/evidence';
 import { MatchReasoning } from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
 import { AppError } from '../lib/response';
+import { skillsForTalent } from './skills';
 import { isSilentCard } from '../network/service';
 
 // Okuma üst sınırı: tüm kurulumlar birleşik, en son itilen önce. 20 yetmedi (ilk gerçek kullanıcı:
@@ -192,6 +193,7 @@ export function createTalentService(
         user: { name: user.name, githubLogin: user.githubLogin },
         sources,
         claims,
+        skills: await skillsForTalent(db, talent.id),
       };
     },
 
@@ -330,7 +332,7 @@ export function createTalentService(
     },
 
     /** Kurulumdaki repoları oku, sinyal çıkar, taslak iddiaları yenile. */
-    async syncGithub(userId: string) {
+    async syncGithub(userId: string, opts: { all?: boolean } = {}) {
       if (!github) throw new AppError('not_configured', 'GitHub App yapılandırılmamış', 503);
       const { talent, user } = await talentOf(userId);
       const kurulumlar = await db
@@ -354,26 +356,28 @@ export function createTalentService(
             pushedAt: r.pushedAt ?? '',
           });
       }
-      // Sıra: daha önce hiç okunmamış repolar önce (en son itilen başta), sonra okunmuşlar.
-      // Böylece her "yeniden oku" sıradaki MAX_REPOS yeni repoyu getirir; okunmuşlar haftalık
-      // yenilemede (canlı tut 04) tazelenir. Aksi hâlde 40+ repolu hesapta eski repolar hiç girmezdi.
-      const okunmus = new Set(
+      // Sıra: hiç okunmamış repolar önce (en son itilen başta), sonra en eski taranandan yeniye.
+      // Böylece kişinin "yeniden oku"su sıradaki yeni repoları getirir, haftalık yenileme (04)
+      // en bayat kaynakları tazeler; ikisi aynı fonksiyon. `all` ile üst sınır kalkar (kartı
+      // sıfırdan yazarken tüm kaynakların güncel bağlamı — README özeti — gerekir).
+      const taramalar = new Map(
         (
           await db
-            .select({ ref: evidenceSources.ref })
+            .select({ ref: evidenceSources.ref, at: evidenceSources.lastScannedAt })
             .from(evidenceSources)
             .where(
               and(eq(evidenceSources.talentId, talent.id), eq(evidenceSources.kind, 'github_repo')),
             )
-        ).map((k) => k.ref),
+        ).map((k) => [k.ref, k.at?.getTime() ?? 0]),
       );
+      const okunmus = new Set([...taramalar.keys()]);
       repos.sort((a, b) => {
-        const ao = okunmus.has(a.fullName) ? 1 : 0;
-        const bo = okunmus.has(b.fullName) ? 1 : 0;
-        if (ao !== bo) return ao - bo;
+        const at = taramalar.get(a.fullName) ?? -1;
+        const bt = taramalar.get(b.fullName) ?? -1;
+        if (at !== bt) return at - bt;
         return a.pushedAt < b.pushedAt ? 1 : a.pushedAt > b.pushedAt ? -1 : 0;
       });
-      const secilen = repos.slice(0, MAX_REPOS);
+      const secilen = opts.all ? repos : repos.slice(0, MAX_REPOS);
       const okunmayan =
         repos.filter((r) => !okunmus.has(r.fullName)).length -
         secilen.filter((r) => !okunmus.has(r.fullName)).length;
@@ -516,6 +520,31 @@ export function createTalentService(
       return this.card(userId);
     },
 
+    /**
+     * Kartı sıfırdan yaz: tüm iddialar (onaylılar dahil) silinir, tüm kaynaklardan yeni taslak
+     * çıkar. Kart onaylıysa taslağa DÖNER — onaysız iddiayla ağda kalmak gate'i deler. Kişi
+     * yeni taslağı onaylayınca aynı akışla tekrar ağa girer; eşleşmeler silinmez.
+     */
+    async rewriteCard(userId: string) {
+      const { talent, user } = await talentOf(userId);
+      await db.delete(cardClaims).where(eq(cardClaims.talentId, talent.id));
+      if (talent.cardStatus === 'approved')
+        await db
+          .update(talents)
+          .set({ cardStatus: 'draft', updatedAt: new Date() })
+          .where(eq(talents.id, talent.id));
+      const kurulum = await db
+        .select({ id: githubInstallations.id })
+        .from(githubInstallations)
+        .where(eq(githubInstallations.talentId, talent.id))
+        .limit(1);
+      // GitHub bağlıysa tüm repolar güncel sinyalle (README özeti dahil) yeniden okunur; sync
+      // sonunda redraft zaten koşar. Bağlı değilse mevcut sinyallerden yazılır.
+      if (kurulum.length > 0) return this.syncGithub(userId, { all: true });
+      await redraft(talent.id, user.githubLogin ?? user.name);
+      return this.card(userId);
+    },
+
     /** Kart onayı: en az bir onaylı iddia şart; onaysız kart ağa girmez. */
     async approveCard(userId: string) {
       const { talent } = await talentOf(userId);
@@ -583,6 +612,7 @@ export function createTalentService(
         silent: isSilentCard(satir.talent.lastSignalAt),
         claims,
         sources,
+        skills: await skillsForTalent(db, satir.talent.id),
       };
     },
 

@@ -14,7 +14,7 @@ export interface RepoSignalInput {
 }
 
 export const DraftClaim = z.object({
-  text: z.string().min(40).max(600), // 2–4 cümle: ne, hangi yığın, rol, süre, canlı/test durumu
+  text: z.string().min(40).max(400), // 2–3 cümle: ne, kime, rol/sahiplik, süre, canlı mı; yığın listesi yok
   sourceRefs: z.array(z.string()).min(1), // birleşik iddia birden çok kaynağa bağlanır
   periodStart: z.string().nullable(), // YYYY-MM-DD
   periodEnd: z.string().nullable(),
@@ -23,7 +23,7 @@ export const DraftClaim = z.object({
 export const CardDraft = z.object({
   headline: z.string().min(3).max(80),
   story: z.string().min(80).max(900),
-  claims: z.array(DraftClaim).min(1).max(10),
+  claims: z.array(DraftClaim).min(1).max(7),
 });
 export type CardDraft = z.infer<typeof CardDraft>;
 
@@ -34,24 +34,35 @@ Sen GİRVAK'ın kart yazım asistanısın. Bir gencin bağladığı kaynakların
 ürün) makine sinyallerini alırsın; ondan bir kurum temsilcisinin 1 dakikada okuyup "bu kişi ne
 yapabiliyor" diyeceği bir yetkinlik kartı taslağı yazarsın. Kurallar:
 
-İDDİA SAYISI VE BİRLEŞTİRME
-- En az 4, en fazla 10 iddia. Repo başına iddia YAZMA; iş başına iddia yaz. Aynı türden birden çok
-  repo (üç vitrin sitesi, iki deneme reposu, aynı ürünün web+api+mobil parçaları) TEK iddiada
-  birleşir ve sourceRefs'e hepsi yazılır. Önemsiz, boş, tek commit'lik ya da fork repolar iddia
-  olmaz; ancak bir birleşik iddianın parçası olabilir.
+İDDİA = İŞ, REPO DEĞİL
+- En az 3, en fazla 7 iddia. Her iddia BİR ürünü/işi anlatır. Aynı ürünün parçaları (web + api +
+  mobil + site), aynı türden denemeler, aynı müşteri için yapılan repolar TEK iddiada birleşir;
+  sourceRefs'e hepsi yazılır. Önemsiz, boş, tek commit'lik ya da fork repolar tek başına iddia
+  olmaz; bir birleşik iddianın parçası olabilir ya da hiç yazılmaz.
 - Sıra: en çok şey söyleyen iş en üstte (uzun süre × yüksek sahiplik × yakın tarih × canlıda).
 
-HER İDDİANIN İÇİ (2–4 cümle, 40–600 karakter)
-- Ne yapıldı (ürün/iş, kime), hangi yığınla (diller + araçlar sinyalden), rol ve sahiplik
-  (ownCommits ve authorshipRatio'dan: "tek başına", "iki kişilik ekipte ana geliştirici (%72)",
-  "üç kişilik ekipte katkı (%28, 40 commit)"), süre ve dönem, canlıda mı (deployed/homepage),
-  test/CI/Docker var mı. Sayıları sinyalden al; olmayan sayıyı uydurma.
+ÜRÜNÜN NE OLDUĞUNU NEREDEN BİLİRSİN
+- YALNIZ description, readmeExcerpt, manifestDescription, topics ve homepage'den. Bunlar boşsa
+  ürünün alanını REPO ADINDAN TAHMİN ETME ("gise" → "gişe sistemi" gibi uydurma OLMAZ; o repo bir
+  mimarlık stüdyosunun sitesiydi). Alan bilinmiyorsa teknik olarak tarif et: "bir web uygulamasının
+  backend'i ve yönetim paneli". Kod dili/araçlar sinyalden, ürünün amacı yalnız belgeden.
+
+HER İDDİANIN İÇİ (2–3 cümle, 40–400 karakter)
+- Ne yapıldı ve kime/ne için; rol ve sahiplik (ownCommits ve authorshipRatio'dan: "tek başına",
+  "iki kişilik ekipte ana geliştirici (%72)", "üç kişilik ekipte katkı (%28, 40 commit)"); süre
+  ve dönem; canlıda mı (deployed/homepage). Sayıları sinyalden al; olmayan sayıyı uydurma.
+- YIĞIN LİSTESİ YAZMA. "TypeScript, Docker ve GitHub Actions kullandı", "test ve CI kurdu" gibi
+  cümleler iddiaya GİRMEZ; bunlar karttaki yetkinlik bölümünde sinyalden otomatik çıkar. Bir
+  teknoloji ancak işin kendisini ayırt ediyorsa geçer ("Expo ile mağaza içi sipariş uygulaması").
 - Kanıta dayanmayan sıfat yok ("uzman", "ileri düzey"). Abartma yok; küçük işi küçük yaz.
 
 GİZLİLİK
-- isPrivate: true olan repoların ADINI ve description'daki ürün adını iddiaya YAZMA; işi tarif et
-  ("bir sözleşme yönetim platformu", "bir stok takip ürünü"). Kurumun/ekibin özel reposu kişinin
-  kartından dışarı sızmamalı. Herkese açık repo adı yazılabilir ama gerekmez.
+- isPrivate: true olan repoların ADINI ve description/readmeExcerpt/manifestDescription'daki ÜRÜN
+  ADINI iddiaya YAZMA ("Halqa'yı geliştirdi" OLMAZ → "geleneksel sanatlar için galeri, akademi ve
+  müzayede platformu"). İşi alanıyla tarif et; kurumun/ekibin özel reposu kişinin kartından dışarı
+  sızmamalı. Herkese açık repo ya da canlı üründe ad yazılabilir ama gerekmez.
+- Teknoloji adıyla biten dolgu cümle yazma ("Proje Next.js tabanlıdır." gibi); yığın zaten
+  yetkinlik bölümünde ölçülü olarak var.
 
 KAYNAK TÜRLERİ
 - kind: "document" belgedir (docType, issuer, years, excerptLines): belgenin söylediğini aktar,
@@ -62,8 +73,9 @@ DİĞER
 - Zaman aralığı: ownFirstCommitAt/ownLastCommitAt varsa onlardan, yoksa firstActivityAt/
   lastActivityAt; YYYY-MM-DD; bilinmiyorsa null. Birleşik iddiada en erken–en geç.
 - headline: 3–8 kelime, kurumun anlayacağı konum ("Full-stack web ve mobil geliştirici").
-- story: 3–5 cümle, kanıttan türeyen somut bir özet: kaç projede, hangi yığınlarla, ekip/tek,
-  canlıda kaç iş, hangi dönem. Genel geçer cümle yok ("çeşitli projelerde yer aldım" YASAK).
+- story: 3–4 cümle, kanıttan türeyen somut bir özet: kaç ürün, ekip/tek, canlıda kaç iş, hangi
+  dönem, ne tür işler. Yığın listesi burada da yok. Genel geçer cümle yok ("çeşitli projelerde
+  yer aldım" YASAK).
 - Türkçe, düz metin, markdown yok; teknoloji adları olduğu gibi.`;
 
 export function buildCardMessages(login: string, repos: RepoSignalInput[]): LlmMessage[] {

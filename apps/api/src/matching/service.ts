@@ -12,6 +12,7 @@ import {
 import { runIntroducer, runMatcher, type CandidateCard, type LlmProvider } from '@evidex/ai';
 import type { MatchReasoning, NeedCard } from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
+import { skillsForTalent } from '../talent/skills';
 import { AppError } from '../lib/response';
 
 const MAX_CANDIDATES = 15;
@@ -50,8 +51,11 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         ),
       );
 
+    const yetkinlikler = new Map<string, CandidateCard['skills']>();
+    for (const s of satirlar) yetkinlikler.set(s.talentId, await skillsForTalent(db, s.talentId));
     const kartlar: CandidateCard[] = satirlar.map((s) => ({
       ...s,
+      skills: yetkinlikler.get(s.talentId) ?? [],
       claims: iddialar
         .filter((i) => i.talentId === s.talentId)
         .map((i) => ({
@@ -165,12 +169,18 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
           introducedAt: matches.introducedAt,
           name: users.name,
           headline: talents.headline,
+          talentId: talents.id,
         })
         .from(matches)
         .innerJoin(talents, eq(talents.id, matches.talentId))
         .innerJoin(users, eq(users.id, talents.userId))
         .where(eq(matches.needId, needId))
         .orderBy(matches.rank);
+      // Yetkinlikler kimlik açmaz (dil/araç × repo × commit); tanıştırma öncesi de görünür.
+      const yetkinlikler = new Map<string, Awaited<ReturnType<typeof skillsForTalent>>>();
+      for (const s of satirlar)
+        if (!yetkinlikler.has(s.talentId))
+          yetkinlikler.set(s.talentId, (await skillsForTalent(db, s.talentId)).slice(0, 8));
       return {
         published: true as const,
         candidates: satirlar.map((s) => ({
@@ -180,6 +190,7 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
           // Tanıştırma öncesi yalnız ilk ad; tam kart tanıştırma sonrası.
           name: s.introducedAt ? s.name : (s.name.split(' ')[0] ?? s.name),
           headline: s.headline,
+          skills: yetkinlikler.get(s.talentId) ?? [],
           reasoning: s.reasoning,
           introduced: Boolean(s.introducedAt),
           introRequested: istekte.has(s.matchId),
