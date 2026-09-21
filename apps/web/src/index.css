@@ -1,22 +1,50 @@
 @import 'tailwindcss';
 
 /*
- * Tasarım tokenleri — tek yer. Renkler oklch; koyu tema sonraki adım.
- * Kanıt seviyeleri için dört renk: kart okunurken seviye bir bakışta ayrılmalı.
+ * Tasarım tokenleri — tek yer (docs/redesign/02-design-system.md).
+ * Yön: lavanta-gri kanvas, beyaza yakın çalışma yüzeyi, koyu metin, tek mor vurgu.
+ * Kanıt seviyeleri ve eşleşme gücü her zaman ETİKETLE birlikte; renk tek başına anlam taşımaz.
+ * Mobil karşılıkları apps/mobile/src/lib/theme.ts (hex referans).
  */
 @theme {
   --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
-  --color-ink: oklch(0.22 0.02 270);
-  --color-ink-soft: oklch(0.45 0.02 270);
-  --color-paper: oklch(0.99 0.003 90);
-  --color-paper-2: oklch(0.965 0.006 90);
-  --color-line: oklch(0.9 0.01 270);
-  --color-accent: oklch(0.52 0.19 275);
-  --color-accent-soft: oklch(0.94 0.04 275);
-  --color-verified: oklch(0.55 0.15 150);
-  --color-documented: oklch(0.6 0.13 235);
-  --color-referenced: oklch(0.62 0.15 55);
-  --color-declared: oklch(0.6 0.01 270);
+
+  --color-ink: oklch(0.272 0.045 274);
+  --color-ink-soft: oklch(0.499 0.034 273);
+  --color-paper: oklch(0.978 0.011 281);
+  --color-surface: oklch(0.998 0.002 280);
+  --color-paper-2: oklch(0.958 0.02 280);
+  --color-line: oklch(0.912 0.021 277);
+  --color-accent: oklch(0.503 0.214 278);
+  --color-accent-strong: oklch(0.428 0.197 277);
+  --color-accent-soft: oklch(0.958 0.02 280);
+
+  --color-verified: oklch(0.515 0.106 163);
+  --color-verified-soft: oklch(0.969 0.015 165);
+  --color-documented: oklch(0.497 0.113 248);
+  --color-documented-soft: oklch(0.966 0.013 244);
+  --color-referenced: oklch(0.549 0.122 58);
+  --color-referenced-soft: oklch(0.968 0.02 77);
+  --color-declared: oklch(0.521 0.027 267);
+  --color-declared-soft: oklch(0.967 0.004 271);
+  --color-negative: oklch(0.544 0.15 13);
+  --color-negative-soft: oklch(0.97 0.015 8);
+
+  /* Köşe dili: kontrol / panel / öne çıkan tek alan */
+  --radius-control: 10px;
+  --radius-panel: 16px;
+  --radius-feature: 24px;
+
+  /* Hareket tokenleri (docs/redesign/03-motion-system.md) */
+  --duration-instant: 90ms;
+  --duration-quick: 160ms;
+  --duration-standard: 240ms;
+  --duration-emphasis: 360ms;
+  --duration-page: 520ms;
+  --duration-stagger: 55ms;
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-state: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 html {
@@ -26,4 +54,125 @@ html {
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01';
+}
+
+/* Sayısal sütunlar (tarih, sayı) hizalı kalsın */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Odak: anında, kalıcı, animasyonsuz */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/*
+ * Sayfa girişi: rota başına BİR kez, veri geldikten sonra. Bölgeler `--i` ile kademeli
+ * (55 ms), son başlangıç ≤ 220 ms; yalnız transform + opacity. Fetch sonrası yeniden oynamaz
+ * (sınıf yalnız ilk render'da verilir, bkz. components/motion.tsx).
+ */
+@keyframes region-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--enter-y, 8px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.region-enter {
+  animation: region-enter var(--duration-page) var(--ease-enter) both;
+  animation-delay: calc(var(--i, 0) * var(--duration-stagger));
+}
+
+/* Yerel durum değişimi: satır onaylandı, alan güncellendi */
+@keyframes settle-highlight {
+  from {
+    background-color: var(--color-accent-soft);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.settle {
+  animation: settle-highlight var(--duration-emphasis) var(--ease-state) both;
+}
+
+/* Detay paneli girişi (8–12 px, 360 ms) */
+@keyframes pane-enter {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.pane-enter {
+  animation: pane-enter var(--duration-emphasis) var(--ease-enter) both;
+}
+
+/* Basış: %2 sıkışma, 90 ms */
+.pressable {
+  transition:
+    transform var(--duration-instant) var(--ease-state),
+    background-color var(--duration-quick) var(--ease-state),
+    border-color var(--duration-quick) var(--ease-state),
+    color var(--duration-quick) var(--ease-state);
+}
+.pressable:active {
+  transform: scale(0.98);
+}
+
+/* Açılır bölüm: yükseklik değil grid satırı */
+.disclose {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-standard) var(--ease-state);
+}
+.disclose[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+.disclose > * {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .region-enter,
+  .pane-enter {
+    animation-duration: 100ms;
+    animation-delay: 0ms;
+    transform: none;
+  }
+  @keyframes region-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pane-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  .settle {
+    animation: none;
+  }
+  .pressable,
+  .disclose {
+    transition: none;
+  }
+  .pressable:active {
+    transform: none;
+  }
 }

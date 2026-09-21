@@ -91,9 +91,15 @@ export function authRoutes(deps: {
         return ok(c, { sent: true });
       })
       .get('/magic/:token', async (c) => {
-        const { sessionToken } = await auth.consumeMagicLink(c.req.param('token'));
-        setSession(c, sessionToken);
-        return c.redirect(`${env.WEB_ORIGIN}/`);
+        // Tarayıcıdan gelen bir tıklama: JSON hata yerine giriş sayfasına okunur durumla dön.
+        try {
+          const { sessionToken } = await auth.consumeMagicLink(c.req.param('token'));
+          setSession(c, sessionToken);
+          return c.redirect(`${env.WEB_ORIGIN}/`);
+        } catch (e) {
+          if (e instanceof AppError) return c.redirect(`${env.WEB_ORIGIN}/giris?hata=${e.code}`);
+          throw e;
+        }
       })
       .get('/github', (c) => {
         if (!env.GITHUB_CLIENT_ID)

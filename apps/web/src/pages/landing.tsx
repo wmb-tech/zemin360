@@ -1,78 +1,88 @@
 import { Link } from 'react-router';
+import { ArrowRight } from 'lucide-react';
+import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { useAuth } from '../lib/auth';
-import { THRESHOLDS } from '@evidex/shared';
+import { useTitle } from '../lib/title';
+import { Enter } from '../components/motion';
+import { LEVEL, LevelBadge } from '../components/ui';
 
 /**
- * Açılış sayfası (oturumsuz `/`). Ürünü altı ihtiyaç alanının diliyle anlatır; jüri ve GİRVAK
- * için ilk ekran. Süs yok: döngü, üç rol, AI'ın yeri, ölçüm. Tasarımda emoji yok.
+ * Açılış (oturumsuz `/`) ve "Nasıl çalışır" (oturumlu, kabuk içinde). Ürünün dilini ürünün
+ * malzemesiyle anlatır: örnek kart parçası gerçek bileşenlerle çizilir, döngü numaralı liste,
+ * roller üç sütun metin. Pazarlama düzeni yok; süs yok; emoji yok (docs/redesign/04 §E).
  */
 const LOOP = [
-  { n: '01', ad: 'Keşfet', ne: 'Meydan okumalar, keşif ajanı, kulüp kanalı, paylaşılabilir kart.' },
+  ['Keşfet', 'Meydan okumalar, keşif ajanı, kulüp kanalı, paylaşılabilir kart.'],
+  ['Doğrula', 'GitHub App ile repo sinyali, canlı ürün, kurum referansı. Kod saklanmaz.'],
+  ['Eşleştir', 'Skor yok. "Şu kanıt var, uyuyor; şu eksik." Tanıştırmaya kadar ilk ad.'],
+  [
+    'Canlı tut',
+    `Kanıt ${THRESHOLDS.evidenceRefreshAfterDays} günde bir yeniden okunur; ${THRESHOLDS.silentCardAfterDays} gün sessiz kart uyarır.`,
+  ],
+  ['Tanımla', 'Kurum derdini yazar; ajan en çok yedi soruyla ihtiyaç kartı çıkarır.'],
+  [
+    'İzle',
+    `${THRESHOLDS.followUpAfterDays} gün sonra iki tarafa tek soru; cevap, çelişki, sessizlik tek ekranda.`,
+  ],
+] as const;
+
+/** Örnek kart parçası — gerçek bir kartın diliyle, üç seviye. */
+const ORNEK: { level: EvidenceLevel; text: string; meta: string }[] = [
   {
-    n: '02',
-    ad: 'Doğrula',
-    ne: 'GitHub App ile repo sinyali, canlı ürün, kurum referansı. Kod saklanmaz.',
+    level: 'verified',
+    text: 'Restoran adisyon uygulamasının React Native mobil istemcisini tek başına yazdı; 14 ay boyunca düzenli commit.',
+    meta: '2 kaynak · GitHub, canlı ürün',
   },
   {
-    n: '05',
-    ad: 'Tanımla',
-    ne: 'Kurum derdini yazar; ajan en çok yedi soruyla ihtiyaç kartı çıkarır.',
+    level: 'referenced',
+    text: 'E-ticaret mağazası için ürün listesi ve sepet ekranlarını üç haftada teslim etti; kurum "tamamlandı" dedi.',
+    meta: '1 kaynak · kurum referansı',
   },
   {
-    n: '03',
-    ad: 'Eşleştir',
-    ne: 'Skor yok. "Şu kanıt var, uyuyor; şu eksik." Tanıştırmaya kadar ilk ad.',
-  },
-  {
-    n: '06',
-    ad: 'İzle',
-    ne: `${THRESHOLDS.followUpAfterDays} gün sonra iki tarafa tek soru; cevap, çelişki, sessizlik tek ekranda.`,
-  },
-  {
-    n: '04',
-    ad: 'Canlı tut',
-    ne: `Kanıt ${THRESHOLDS.evidenceRefreshAfterDays} günde bir yeniden okunur; ${THRESHOLDS.silentCardAfterDays} gün sessiz kart uyarır.`,
+    level: 'declared',
+    text: 'Bir ödeme altyapısı entegrasyonunda çalıştığını belirtiyor.',
+    meta: 'henüz kanıtsız',
   },
 ];
 
-const LEVELS = [
-  { cls: 'bg-verified', ad: 'Doğrulanmış', ne: 'sahipliği makineyle doğrulanmış kaynak' },
-  { cls: 'bg-documented', ad: 'Belgeli', ne: 'belgeyle destekli' },
-  {
-    cls: 'bg-referenced',
-    ad: 'Referanslı',
-    ne: 'platformda izlenen iş birliğinden kurum değerlendirmesi',
-  },
-  { cls: 'bg-declared', ad: 'Beyan', ne: 'kişinin sözü, henüz kanıtsız' },
-];
+const AJANLAR = [
+  ['Kart taslağı', 'sinyal → kaynağa bağlı iddialar'],
+  ['İhtiyaç yapılandırma', 'metin + cevaplar → kart, sıradaki soru'],
+  ['Eşleştirme', 'kart + adaylar → gerekçeli sıralama'],
+  ['Tanıştırma', 'ihtiyaç + gerekçe → e-posta taslağı'],
+  ['Takip', 'bağlam → iki tarafa tek soru; cevap → özet, bayrak'],
+  ['Meydan okuma', 'ihtiyaç → görev + rubrik; teslim → puan, bant'],
+  ['Keşif', 'ihtiyaç + herkese açık profiller → gerekçeli davet'],
+] as const;
 
 export function LandingPage() {
   const { me } = useAuth();
-  // Giriş yapmış kullanıcı "Nasıl çalışır" olarak görür: kabuk zaten var, ikinci başlık yok.
+  useTitle(me ? 'Nasıl çalışır' : 'Beyan değil kanıt');
   const giris = me ? '/' : '/giris';
+
   return (
     <div className={me ? '' : 'min-h-screen'}>
       {!me && (
-        <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <span className="text-lg font-extrabold tracking-tight">Evidex</span>
-          <nav className="flex items-center gap-5 text-sm">
-            <a href="#dongu" className="text-ink-soft hover:text-ink">
+        <header className="mx-auto flex h-16 w-full max-w-[1120px] items-center justify-between px-4 md:px-8">
+          <span className="text-ink text-lg font-extrabold tracking-tight">Evidex</span>
+          <nav className="flex items-center gap-5 text-sm font-semibold" aria-label="Üst menü">
+            <a href="#dongu" className="text-ink-soft hover:text-ink hidden sm:inline">
               Döngü
             </a>
-            <a href="#ai" className="text-ink-soft hover:text-ink">
+            <a href="#ai" className="text-ink-soft hover:text-ink hidden sm:inline">
               Yapay zekânın yeri
             </a>
             <a
               href="https://github.com/wmb-tech/zemin360"
               target="_blank"
               rel="noreferrer"
-              className="text-ink-soft hover:text-ink"
+              className="text-ink-soft hover:text-ink hidden sm:inline"
             >
               Kaynak kod
             </a>
             <Link
               to="/giris"
-              className="bg-ink text-paper rounded-lg px-3 py-1.5 font-semibold hover:opacity-90"
+              className="bg-ink text-paper pressable inline-flex min-h-10 items-center rounded-[var(--radius-control)] px-4"
             >
               Giriş
             </Link>
@@ -80,134 +90,155 @@ export function LandingPage() {
         </header>
       )}
 
-      <section className="mx-auto max-w-6xl px-4 pt-16 pb-20">
-        <div className="text-accent text-xs font-semibold tracking-wide uppercase">
-          GİRVAK gençlik ağı için
-        </div>
-        <h1 className="mt-3 max-w-3xl text-5xl leading-[1.05] font-extrabold tracking-tight">
-          Beyan değil kanıt.
-          <br />
-          Skor değil gerekçe.
-        </h1>
-        <p className="text-ink-soft mt-6 max-w-2xl text-lg leading-relaxed">
-          Genç kendini anlatmaz, kanıtını bağlar. Kurum ilan yazmaz, derdini söyler. Yapay zekâ
-          kartı yazar, soruyu sorar, eşleşmeyi gerekçelendirir; her dışa dönük adımı GİRVAK onaylar.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            to={giris}
-            className="bg-accent text-paper rounded-lg px-5 py-2.5 text-sm font-semibold hover:opacity-90"
-          >
-            {me ? 'Uygulamaya dön' : 'Kartını aç'}
-          </Link>
-          <a
-            href="#dongu"
-            className="border-line hover:bg-paper-2 rounded-lg border px-5 py-2.5 text-sm font-semibold"
-          >
-            Nasıl çalışır
-          </a>
-        </div>
+      {/* Giriş bölümü: sol metin, sağ örnek kart parçası */}
+      <section className="mx-auto grid w-full max-w-[1120px] gap-10 px-4 pt-12 pb-16 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:px-8 md:pt-20 md:pb-24">
+        <Enter i={0} as="div">
+          <div className="text-accent text-xs font-bold tracking-wide uppercase">
+            GİRVAK gençlik ağı için
+          </div>
+          <h1 className="text-ink mt-3 text-[40px] leading-[1.02] font-extrabold tracking-[-0.04em] md:text-[56px]">
+            Beyan değil kanıt.
+            <br />
+            Skor değil gerekçe.
+          </h1>
+          <p className="text-ink-soft mt-6 max-w-[52ch] text-lg leading-relaxed">
+            Genç kendini anlatmaz, kanıtını bağlar. Kurum ilan yazmaz, derdini söyler. Yapay zekâ
+            kartı yazar, soruyu sorar, eşleşmeyi gerekçelendirir; her dışa dönük adımı GİRVAK
+            onaylar.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              to={giris}
+              className="bg-accent text-paper pressable inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] px-5 text-sm font-semibold hover:opacity-90"
+            >
+              {me ? 'Uygulamaya dön' : 'Kartını aç'} <ArrowRight size={16} aria-hidden />
+            </Link>
+            <a
+              href="#dongu"
+              className="border-line bg-surface hover:bg-paper-2 pressable inline-flex min-h-11 items-center rounded-[var(--radius-control)] border px-5 text-sm font-semibold"
+            >
+              Nasıl çalışır
+            </a>
+          </div>
+        </Enter>
 
-        <div className="mt-14 grid gap-3 md:grid-cols-4">
-          {LEVELS.map((l) => (
-            <div key={l.ad} className="border-line rounded-xl border p-4">
-              <span
-                className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold text-white ${l.cls}`}
-              >
-                {l.ad}
-              </span>
-              <p className="text-ink-soft mt-2 text-sm">{l.ne}</p>
+        <Enter i={1} as="div" y={12}>
+          <div className="bg-surface border-line rounded-[var(--radius-feature)] border p-6 shadow-[0_1px_0_var(--color-line)]">
+            <div className="text-ink-soft flex items-center justify-between text-xs font-bold tracking-wide uppercase">
+              <span>Örnek kart parçası</span>
+              <span>Onaylı</span>
+            </div>
+            <ul className="border-line mt-4 divide-y divide-[var(--color-line)] border-y">
+              {ORNEK.map((c) => (
+                <li key={c.level} className="py-3">
+                  <div className="flex items-center gap-2">
+                    <LevelBadge level={c.level} />
+                    <span className="text-ink-soft text-xs">{c.meta}</span>
+                  </div>
+                  <p className="text-ink mt-1.5 text-sm leading-relaxed">{c.text}</p>
+                </li>
+              ))}
+            </ul>
+            <p className="text-ink-soft mt-3 text-xs leading-relaxed">
+              Her iddianın seviyesi görünür. "Doğrulanmış" ile "beyan" aynı satırda aynı ağırlığı
+              taşımaz; kurum hangisine güveneceğini tahmin etmez.
+            </p>
+          </div>
+        </Enter>
+      </section>
+
+      {/* Seviye sözlüğü — tek satır, kart değil */}
+      <section className="border-line border-t">
+        <div className="mx-auto grid w-full max-w-[1120px] gap-x-8 gap-y-4 px-4 py-8 sm:grid-cols-2 md:grid-cols-4 md:px-8">
+          {(Object.keys(LEVEL) as EvidenceLevel[]).map((k) => (
+            <div key={k}>
+              <LevelBadge level={k} />
+              <p className="text-ink-soft mt-2 text-sm leading-relaxed">{LEVEL[k].note}</p>
             </div>
           ))}
         </div>
-        <p className="text-ink-soft mt-3 text-xs">
-          Her iddianın seviyesi görünür. "Doğrulanmış" ile "beyan" aynı satırda aynı ağırlığı
-          taşımaz.
-        </p>
       </section>
 
+      {/* Döngü — numaralı liste, iki sütun */}
       <section id="dongu" className="border-line border-t">
-        <div className="mx-auto max-w-6xl px-4 py-16">
-          <h2 className="text-2xl font-bold tracking-tight">Altı ihtiyaç alanı, tek döngü</h2>
-          <p className="text-ink-soft mt-2 max-w-2xl">
-            Keşfet, doğrula, tanımla, eşleştir, izle, canlı tut. Biten iş birliği referans olur;
-            referans yeni eşleşmeyi besler.
+        <div className="mx-auto w-full max-w-[1120px] px-4 py-16 md:px-8">
+          <h2 className="text-ink text-[28px] font-extrabold tracking-[-0.03em]">
+            Altı ihtiyaç alanı, tek döngü
+          </h2>
+          <p className="text-ink-soft mt-2 max-w-[60ch] leading-relaxed">
+            Biten iş birliği referans olur; referans yeni eşleşmeyi besler. Hiçbir adım ayrı bir
+            araç değil, aynı kaydın devamı.
           </p>
-          <ol className="mt-8 grid gap-4 md:grid-cols-3">
-            {LOOP.map((s) => (
-              <li key={s.n} className="border-line rounded-2xl border p-5">
-                <div className="text-accent font-mono text-xs font-semibold">{s.n}</div>
-                <div className="mt-1 text-lg font-bold">{s.ad}</div>
-                <p className="text-ink-soft mt-1 text-sm leading-relaxed">{s.ne}</p>
+          <ol className="mt-8 grid gap-x-10 gap-y-6 md:grid-cols-2">
+            {LOOP.map(([ad, ne], i) => (
+              <li key={ad} className="border-line flex gap-4 border-t pt-4">
+                <span className="text-accent tnum w-8 shrink-0 text-sm font-bold">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <div>
+                  <div className="text-ink font-bold">{ad}</div>
+                  <p className="text-ink-soft mt-1 text-sm leading-relaxed">{ne}</p>
+                </div>
               </li>
             ))}
           </ol>
         </div>
       </section>
 
+      {/* Üç rol — metin sütunları */}
       <section className="border-line border-t">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-3">
-          <div>
-            <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">Genç</div>
-            <h3 className="mt-2 text-xl font-bold">Kanıtını bağla, kartını onayla</h3>
-            <p className="text-ink-soft mt-2 text-sm leading-relaxed">
-              GitHub ile gir, hangi repoları göstereceğini sen seç. Sistem sinyal çıkarır, ajan
-              taslak yazar, sen onaylarsın. Kanıtın yoksa gerçek bir ihtiyaçtan türetilmiş 24–48
-              saatlik meydan okumaya katıl; teslimin karta doğrulanmış kanıt olarak girer.
-            </p>
-          </div>
-          <div>
-            <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">Kurum</div>
-            <h3 className="mt-2 text-xl font-bold">Derdini söyle, gerekçeli aday gör</h3>
-            <p className="text-ink-soft mt-2 text-sm leading-relaxed">
-              İlan yok. Ajan sorar, ihtiyaç kartı çıkar, sen düzeltip onaylarsın. Adaylar "neden
-              uyuyor, ne eksik" ile gelir; tanıştırılmak istediğini tıkla, GİRVAK onaylayınca
-              e-posta iki tarafa gider.
-            </p>
-          </div>
-          <div>
-            <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
-              GİRVAK
+        <div className="mx-auto grid w-full max-w-[1120px] gap-10 px-4 py-16 md:grid-cols-3 md:px-8">
+          {[
+            [
+              'Genç',
+              'Kanıtını bağla, kartını onayla',
+              'GitHub ile gir, hangi repoların okunacağını sen seç. Sistem sinyal çıkarır, ajan taslak yazar, sen onaylarsın. Kanıtın yoksa gerçek bir ihtiyaçtan türetilmiş 24–48 saatlik meydan okumaya katıl; teslimin karta doğrulanmış kanıt olarak girer.',
+            ],
+            [
+              'Kurum',
+              'Derdini söyle, gerekçeli aday gör',
+              'İlan yok. Ajan sorar, ihtiyaç kartı çıkar, sen düzeltip onaylarsın. Adaylar "neden uyuyor, ne eksik" ile gelir; tanıştırılmak istediğini işaretle, GİRVAK onaylayınca e-posta iki tarafa gider.',
+            ],
+            [
+              'GİRVAK',
+              'Tek kuyruk, tek ekran',
+              'Ajanın yapmak istediği her dışa dönük şey onay kuyruğunda bekler. İş birlikleri, sessiz kartlar, keşif ve ölçüm ayrı ekranlarda; hiçbir mesaj sen onaylamadan gitmez.',
+            ],
+          ].map(([rol, baslik, metin]) => (
+            <div key={rol}>
+              <div className="text-ink-soft text-xs font-bold tracking-wide uppercase">{rol}</div>
+              <h3 className="text-ink mt-2 text-xl font-bold tracking-[-0.02em]">{baslik}</h3>
+              <p className="text-ink-soft mt-2 leading-relaxed">{metin}</p>
             </div>
-            <h3 className="mt-2 text-xl font-bold">Tek kuyruk, tek ekran</h3>
-            <p className="text-ink-soft mt-2 text-sm leading-relaxed">
-              Ajanın yapmak istediği her dışa dönük şey onay kuyruğunda bekler. İş birlikleri,
-              sessiz kartlar, keşif ve ölçüm ayrı ekranlarda; hiçbir mesaj sen onaylamadan gitmez.
-            </p>
-          </div>
+          ))}
         </div>
       </section>
 
+      {/* Yapay zekânın yeri — tablo */}
       <section id="ai" className="border-line border-t">
-        <div className="mx-auto max-w-6xl px-4 py-16">
-          <h2 className="text-2xl font-bold tracking-tight">Yapay zekânın yeri</h2>
-          <p className="text-ink-soft mt-2 max-w-2xl">
+        <div className="mx-auto w-full max-w-[1120px] px-4 py-16 md:px-8">
+          <h2 className="text-ink text-[28px] font-extrabold tracking-[-0.03em]">
+            Yapay zekânın yeri
+          </h2>
+          <p className="text-ink-soft mt-2 max-w-[60ch] leading-relaxed">
             Dokuz ajan, her biri şemalı çıktı üretir ve her çağrı kaydedilir. Hiçbiri bir insana
             doğrudan yazmaz; öneri kuyruğa düşer, operatör onaylar, düzeltir ya da reddeder. Ölçüm
-            paneli bu üç sayıyı gösterir: kart doğruluğu, ihtiyaç netliği, önerilerin akıbeti.
+            paneli kart doğruluğunu, ihtiyaç netliğini ve önerilerin akıbetini gösterir.
           </p>
-          <div className="mt-8 grid gap-3 text-sm md:grid-cols-3">
-            {[
-              ['Kart taslağı', 'sinyal → kaynağa bağlı iddialar'],
-              ['İhtiyaç yapılandırma', 'metin + cevaplar → kart, sıradaki soru'],
-              ['Eşleştirme', 'kart + adaylar → gerekçeli sıralama'],
-              ['Tanıştırma', 'ihtiyaç + gerekçe → e-posta taslağı'],
-              ['Takip', 'bağlam → iki tarafa tek soru; cevap → özet, bayrak'],
-              ['Meydan okuma', 'ihtiyaç → görev + rubrik; teslim → puan, bant'],
-              ['Keşif', 'ihtiyaç + herkese açık profiller → gerekçeli davet'],
-            ].map(([ad, ne]) => (
-              <div key={ad} className="border-line flex items-baseline gap-3 rounded-xl border p-3">
-                <span className="font-semibold">{ad}</span>
-                <span className="text-ink-soft">{ne}</span>
+          <dl className="border-line mt-8 divide-y divide-[var(--color-line)] border-y">
+            {AJANLAR.map(([ad, ne]) => (
+              <div key={ad} className="grid gap-1 py-3 sm:grid-cols-[220px_1fr]">
+                <dt className="text-ink font-semibold">{ad}</dt>
+                <dd className="text-ink-soft">{ne}</dd>
               </div>
             ))}
-          </div>
+          </dl>
         </div>
       </section>
 
       {!me && (
         <footer className="border-line border-t">
-          <div className="text-ink-soft mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-8 text-xs">
+          <div className="text-ink-soft mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-3 px-4 py-8 text-xs md:px-8">
             <span>
               Evidex · Zemin360 Hackathon 2026 · GİRVAK · İstanbul Kalkınma Ajansı · İstanbul Bilgi
               Üniversitesi

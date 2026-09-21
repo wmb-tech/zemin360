@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
-import { Skeleton } from '../components/skeleton';
+import { Enter } from '../components/motion';
+import { ErrorNote, Eyebrow, Panel, Skeleton } from '../components/ui';
 
 interface Metrics {
   cardAccuracy: { approvedClaims: number; unchangedClaims: number };
@@ -15,99 +16,116 @@ interface Metrics {
   agentProposals: { proposed: number; approved: number; edited: number; rejected: number };
   agentRuns: { agent: string; runs: number; avg_ms: number | null }[];
 }
-
 const AGENT_LABEL: Record<string, string> = {
   card_drafter: 'Kart taslağı',
   need_structurer: 'İhtiyaç yapılandırma',
   matcher: 'Eşleştirme',
+  introducer: 'Tanıştırma taslağı',
   follow_up: 'Takip sorusu',
   checkin_interpreter: 'Takip cevabı yorumu',
   challenge_designer: 'Meydan okuma tasarımı',
   submission_evaluator: 'Teslim değerlendirme',
-  introducer: 'Tanıştırma taslağı',
   scout: 'Keşif',
 };
 
-const pct = (a: number, b: number) => (b === 0 ? '—' : `%${Math.round((a / b) * 100)}`);
-const num = (n: number | null, digits = 1) => (n === null ? '—' : n.toFixed(digits));
+/** Payda ve örneklem her zaman görünür; 0/0 = "yeterli veri yok", %0 değil. */
+function oran(pay: number, payda: number) {
+  if (payda === 0) return { deger: 'Yeterli veri yok', alt: '0/0', kucuk: true };
+  return { deger: `%${Math.round((pay / payda) * 100)}`, alt: `${pay}/${payda}`, kucuk: payda < 5 };
+}
 
-/**
- * Ölçüm paneli: AI'ın katkısı sayıyla. Her kutuda payda görünür — "%100 (1/1)" ile
- * "%100 (40/40)" aynı şey değildir, panel bunu gizlemez.
- */
+/** Tam sayıysa ondalık gösterme ("0.0 soru" değil "0 soru"). */
+const sayi = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
 export function MetricsPage() {
   useTitle('Ölçüm');
   const [m, setM] = useState<Metrics | null>(null);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    void api<Metrics>('/api/operator/metrics').then(setM);
+    void api<Metrics>('/api/operator/metrics')
+      .then(setM)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Yüklenemedi'));
   }, []);
-  if (!m) return <Skeleton />;
+  if (error) return <ErrorNote>{error}</ErrorNote>;
+  if (!m) return <Skeleton rows={5} />;
 
-  const onerilen = m.agentProposals.approved + m.agentProposals.edited + m.agentProposals.rejected;
+  const karar = m.agentProposals.approved + m.agentProposals.edited + m.agentProposals.rejected;
+  const kart = oran(m.cardAccuracy.unchangedClaims, m.cardAccuracy.approvedClaims);
+  const donus = oran(m.topFiveConversion.reachedMeeting, m.topFiveConversion.introduced);
+  const onay = oran(m.agentProposals.approved + m.agentProposals.edited, karar);
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Ölçüm</h1>
-      <p className="text-ink-soft mt-2 max-w-prose">
-        Yapay zekânın katkısı, dört ürün metriği ve ajan önerilerinin akıbetiyle ölçülür. Sayaç yok;
-        her sayı tablolardan türetilir.
-      </p>
+      <Enter i={0} as="header">
+        <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
+          Ölçüm
+        </h1>
+        <p className="text-ink-soft mt-1 max-w-[65ch]">
+          Yapay zekânın katkısı dört ürün metriği ve önerilerin akıbetiyle ölçülür. Sayaç yok; her
+          sayı tablolardan türetilir ve paydasıyla gösterilir.
+        </p>
+      </Enter>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Tile
+      <Enter i={1} as="section" className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Olcum
           label="Kart doğruluğu"
-          value={pct(m.cardAccuracy.unchangedClaims, m.cardAccuracy.approvedClaims)}
-          sub={`${m.cardAccuracy.unchangedClaims}/${m.cardAccuracy.approvedClaims} iddia ajanın yazdığı gibi onaylandı`}
+          deger={kart.deger}
+          payda={`${kart.alt} iddia ajanın yazdığı gibi onaylandı`}
+          kucuk={kart.kucuk}
         />
-        <Tile
+        <Olcum
           label="İhtiyaç netliği"
-          value={num(m.needClarity.avgQuestionsToApproval)}
-          sub={`ortalama soru sayısı · ilk taslakta ${num(m.needClarity.avgInitialMissingFields)} eksik alan · ${m.needClarity.approvedNeeds} onaylı ihtiyaç`}
-        />
-        <Tile
-          label="İhtiyaçtan tanıştırmaya"
-          value={
-            m.timeToIntroduction.avgHours === null
-              ? '—'
-              : `${num(m.timeToIntroduction.avgHours, 0)} sa`
+          deger={
+            m.needClarity.avgQuestionsToApproval === null
+              ? 'Yeterli veri yok'
+              : `${sayi(m.needClarity.avgQuestionsToApproval)} soru`
           }
-          sub={`${m.timeToIntroduction.needsWithIntroduction} ihtiyaçta ilk tanıştırma`}
+          payda={`${m.needClarity.approvedNeeds} onaylı ihtiyaç · ilk taslakta ortalama ${m.needClarity.avgInitialMissingFields === null ? '—' : sayi(m.needClarity.avgInitialMissingFields)} eksik alan`}
+          kucuk={m.needClarity.approvedNeeds < 5}
         />
-        <Tile
+        <Olcum
+          label="İhtiyaçtan tanıştırmaya"
+          deger={
+            m.timeToIntroduction.avgHours === null
+              ? 'Yeterli veri yok'
+              : `${Math.round(m.timeToIntroduction.avgHours)} saat`
+          }
+          payda={`${m.timeToIntroduction.needsWithIntroduction} ihtiyaçta ilk tanıştırma`}
+          kucuk={m.timeToIntroduction.needsWithIntroduction < 5}
+        />
+        <Olcum
           label="İlk beşten görüşme"
-          value={pct(m.topFiveConversion.reachedMeeting, m.topFiveConversion.introduced)}
-          sub={`${m.topFiveConversion.reachedMeeting}/${m.topFiveConversion.introduced} tanıştırılan ilk-beş aday görüşmeye döndü`}
+          deger={donus.deger}
+          payda={`${donus.alt} tanıştırılan ilk-beş aday görüşmeye döndü`}
+          kucuk={donus.kucuk}
         />
-      </div>
+      </Enter>
 
-      <div className="mt-10 grid gap-8 md:grid-cols-2">
-        <section className="border-line rounded-2xl border p-5">
-          <h2 className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
-            Ajan önerilerinin akıbeti
-          </h2>
-          <div className="mt-3 flex items-end gap-6">
-            <Big n={m.agentProposals.approved} label="onaylandı" cls="text-verified" />
-            <Big n={m.agentProposals.edited} label="düzeltildi" cls="text-documented" />
-            <Big n={m.agentProposals.rejected} label="reddedildi" cls="text-referenced" />
-            <Big n={m.agentProposals.proposed} label="bekliyor" cls="text-declared" />
+      <Enter i={2} as="section" className="mt-6 grid items-start gap-4 lg:grid-cols-2">
+        <Panel className="p-5">
+          <Eyebrow>Ajan önerilerinin akıbeti</Eyebrow>
+          <div className="mt-3 grid grid-cols-4 gap-3">
+            <Sayi n={m.agentProposals.approved} label="onaylandı" cls="text-verified" />
+            <Sayi n={m.agentProposals.edited} label="düzeltildi" cls="text-documented" />
+            <Sayi n={m.agentProposals.rejected} label="reddedildi" cls="text-negative" />
+            <Sayi n={m.agentProposals.proposed} label="bekliyor" cls="text-declared" />
           </div>
-          <p className="text-ink-soft mt-3 text-xs">
-            Onay oranı {pct(m.agentProposals.approved + m.agentProposals.edited, onerilen)} (
-            {m.agentProposals.approved + m.agentProposals.edited}/{onerilen})
+          <p className="text-ink-soft tnum mt-3 text-sm">
+            Onay oranı <b className="text-ink">{onay.deger}</b> ({onay.alt})
+            {onay.kucuk && ' · küçük örneklem'}
           </p>
-        </section>
-        <section className="border-line rounded-2xl border p-5">
-          <h2 className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
-            Ajan çalışmaları
-          </h2>
+        </Panel>
+        <Panel className="p-5">
+          <Eyebrow>Ajan çalışmaları</Eyebrow>
+          <p className="text-ink-soft mt-1 text-xs">Operasyonel telemetri; sonuç metriği değil.</p>
           <table className="mt-3 w-full text-sm">
             <tbody>
               {m.agentRuns.map((r) => (
                 <tr key={r.agent} className="border-line border-t">
-                  <td className="py-2">{AGENT_LABEL[r.agent] ?? r.agent}</td>
-                  <td className="py-2 text-right tabular-nums">{r.runs} çağrı</td>
-                  <td className="text-ink-soft py-2 text-right tabular-nums">
-                    {r.avg_ms === null ? '—' : `${Math.round(r.avg_ms)} ms`}
+                  <td className="text-ink py-2">{AGENT_LABEL[r.agent] ?? r.agent}</td>
+                  <td className="tnum py-2 text-right">{r.runs} çağrı</td>
+                  <td className="text-ink-soft tnum py-2 text-right">
+                    {r.avg_ms === null ? '—' : `${(r.avg_ms / 1000).toFixed(1)} sn`}
                   </td>
                 </tr>
               ))}
@@ -118,26 +136,42 @@ export function MetricsPage() {
               )}
             </tbody>
           </table>
-        </section>
-      </div>
+        </Panel>
+      </Enter>
     </div>
   );
 }
 
-function Tile({ label, value, sub }: { label: string; value: string; sub: string }) {
+function Olcum({
+  label,
+  deger,
+  payda,
+  kucuk,
+}: {
+  label: string;
+  deger: string;
+  payda: string;
+  kucuk: boolean;
+}) {
   return (
-    <div className="border-line rounded-2xl border p-5">
-      <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">{label}</div>
-      <div className="mt-2 text-3xl font-extrabold tracking-tight tabular-nums">{value}</div>
-      <div className="text-ink-soft mt-1 text-xs">{sub}</div>
-    </div>
+    <Panel className="p-5">
+      <Eyebrow>{label}</Eyebrow>
+      <div
+        className={`tnum mt-2 font-extrabold tracking-[-0.02em] ${deger.startsWith('Yeterli') ? 'text-ink-soft text-lg' : 'text-ink text-[28px]'}`}
+      >
+        {deger}
+      </div>
+      <div className="text-ink-soft tnum mt-1 text-sm">{payda}</div>
+      {kucuk && !deger.startsWith('Yeterli') && (
+        <div className="text-declared mt-1 text-xs">Küçük örneklem; eğilim değil sayım.</div>
+      )}
+    </Panel>
   );
 }
-
-function Big({ n, label, cls }: { n: number; label: string; cls: string }) {
+function Sayi({ n, label, cls }: { n: number; label: string; cls: string }) {
   return (
     <div>
-      <div className={`text-2xl font-extrabold tabular-nums ${cls}`}>{n}</div>
+      <div className={`tnum text-2xl font-extrabold ${cls}`}>{n}</div>
       <div className="text-ink-soft text-xs">{label}</div>
     </div>
   );

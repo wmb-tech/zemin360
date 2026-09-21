@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import { AlertTriangle, Check, ChevronDown, Clock, MessageSquare } from 'lucide-react';
 import type { CheckinInsight, CollaborationStatus } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
+import { Enter, Live } from '../components/motion';
+import { Button, Empty, ErrorNote, Eyebrow, Panel, Skeleton } from '../components/ui';
 
 interface Round {
   side: 'talent' | 'organization';
@@ -37,6 +40,7 @@ const STATUS: Record<CollaborationStatus, string> = {
   completed: 'Tamamlandı',
   did_not_happen: 'Olmadı',
 };
+const SIRA: CollaborationStatus[] = ['introduced', 'meeting', 'started', 'ongoing', 'completed'];
 const FLAG: Record<string, string> = {
   no_contact: 'görüşülemedi',
   schedule: 'takvim',
@@ -49,178 +53,242 @@ const FLAG: Record<string, string> = {
 const tarih = (s: string | null) => (s ? new Date(s).toLocaleDateString('tr-TR') : '—');
 
 /**
- * Operatörün "İş birlikleri" ekranı (izle 06). Her satır bir tanıştırma; ajan sorar, taraflar
- * cevaplar, operatör yalnız bayraklı/çelişkili/sessiz olana bakar. Durumu elle de değiştirebilir.
+ * İş birlikleri (izle 06). Satır: taraflar, durum, son cevap, istisna (çelişki ≠ sessizlik).
+ * Açılınca iki tarafın cevabı, zaman çizgisi, elle durum değişimi (denetim izine düşer).
+ * Referans: yalnız onaylı kurum + tamamlandı (KARAR-10) — satırda açıkça yazılır.
  */
 export function CollaborationsPage() {
   useTitle('İş birlikleri');
   const [list, setList] = useState<Collaboration[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const [live, setLive] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
   async function load() {
     setList(await api<Collaboration[]>('/api/operator/collaborations'));
   }
   useEffect(() => {
-    void load();
+    void load().catch((e: unknown) => setError(e instanceof Error ? e.message : 'Yüklenemedi'));
   }, []);
 
   async function scan() {
     setBusy('scan');
-    setNote(null);
+    setError(null);
     try {
       const r = await api<{ proposed: number; silent: number }>('/api/operator/follow-ups/scan', {
         method: 'POST',
       });
-      setNote(`${r.proposed} takip önerisi kuyruğa düştü · ${r.silent} sessiz işaretlendi`);
+      setLive(`${r.proposed} takip önerisi kuyruğa düştü · ${r.silent} sessiz işaretlendi.`);
       await load();
-    } catch (err) {
-      setNote(err instanceof Error ? err.message : 'Hata');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Tarama koşmadı');
     } finally {
       setBusy(null);
     }
   }
-
   async function setStatus(c: Collaboration, status: CollaborationStatus) {
     setBusy(c.id);
+    setError(null);
     try {
       await api(`/api/operator/collaborations/${c.matchId}/status`, {
         method: 'POST',
         body: JSON.stringify({ status }),
       });
+      setLive(
+        `${c.talentName} · ${c.organizationName}: durum "${STATUS[status]}" olarak kaydedildi; denetim izine yazıldı.`,
+      );
       await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Durum kaydedilemedi');
     } finally {
       setBusy(null);
     }
   }
 
-  const dikkat = list?.filter((c) => c.conflict || c.needsOperator || c.silentSince) ?? [];
+  if (error && !list) return <ErrorNote>{error}</ErrorNote>;
+  if (!list) return <Skeleton rows={5} />;
+  const dikkat = list.filter((c) => c.conflict || c.needsOperator || c.silentSince);
 
   return (
     <div>
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <Live message={live} />
+      <Enter i={0} as="header" className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">İş birlikleri</h1>
-          <p className="text-ink-soft mt-2 max-w-prose text-sm">
+          <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
+            İş birlikleri
+          </h1>
+          <p className="text-ink-soft mt-1 max-w-[65ch]">
             Tanıştırmadan 3 gün sonra ajan iki tarafa sorar; cevaplar buraya düşer. Sen yalnız
             bayraklı, çelişkili ve sessiz olanlara bakarsın. Zamanlayıcı saatte bir tarar.
           </p>
         </div>
-        <button
-          disabled={busy === 'scan'}
-          onClick={() => void scan()}
-          className="bg-accent text-paper rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
-        >
-          {busy === 'scan' ? 'Taranıyor…' : 'Şimdi tara'}
-        </button>
-      </div>
-      {note && <p className="text-ink-soft mt-3 text-sm">{note}</p>}
-
+        <Button pending={busy === 'scan'} pendingText="Taranıyor…" onClick={() => void scan()}>
+          Şimdi tara
+        </Button>
+      </Enter>
+      {live && <p className="text-verified mt-3 text-sm font-semibold">{live}</p>}
+      {error && <ErrorNote>{error}</ErrorNote>}
       {dikkat.length > 0 && (
-        <p className="border-referenced text-referenced mt-4 rounded-lg border px-3 py-2 text-sm">
-          {dikkat.length} iş birliği dikkat istiyor.
+        <p className="bg-referenced-soft text-referenced mt-4 inline-flex items-center gap-2 rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold">
+          <AlertTriangle size={16} aria-hidden /> {dikkat.length} iş birliği dikkat istiyor
         </p>
       )}
 
-      <ul className="mt-6 divide-y divide-[var(--color-line)]">
-        {list?.length === 0 && (
-          <li className="text-ink-soft py-6 text-sm">
-            Henüz tanıştırma yok. Tanıştırma onaylanınca iş birliği kaydı burada açılır.
-          </li>
-        )}
-        {list?.map((c) => (
-          <li key={c.id} className="py-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setOpen(open === c.id ? null : c.id)}
-                className="text-left font-semibold hover:underline"
-              >
-                {c.talentName} · {c.organizationName}
-              </button>
-              <span className="bg-paper-2 rounded px-2 py-0.5 text-xs font-semibold">
-                {STATUS[c.status]}
-              </span>
-              {c.conflict && <Etiket cls="text-referenced border-referenced">çelişki</Etiket>}
-              {c.needsOperator && <Etiket cls="text-accent border-accent">bayrak</Etiket>}
-              {c.silentSince && (
-                <Etiket cls="text-declared border-declared">sessiz · {tarih(c.silentSince)}</Etiket>
-              )}
-              <span className="text-ink-soft ml-auto text-xs">
-                {c.needTitle ?? 'İhtiyaç'} · tanıştırma {tarih(c.introducedAt)} · {c.rounds} tur
-              </span>
-            </div>
-
-            {open === c.id && (
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                {c.lastRound.length === 0 && (
-                  <p className="text-ink-soft text-sm">Henüz takip sorusu gönderilmedi.</p>
-                )}
-                {c.lastRound.map((r) => (
-                  <div key={r.side} className="border-line rounded-xl border p-3 text-sm">
-                    <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">
-                      {r.side === 'talent' ? 'Genç' : 'Kurum'} · gönderildi {tarih(r.sentAt)}
-                    </div>
-                    {r.answeredAt ? (
-                      <>
-                        <div className="mt-1 font-semibold">{r.status && STATUS[r.status]}</div>
-                        {r.feedback && <p className="mt-1">{r.feedback}</p>}
-                        {r.insight && (
-                          <div className="bg-paper-2 mt-2 rounded-lg p-2 text-xs">
-                            <span className="text-ink-soft">Ajan: </span>
-                            {r.insight.summary}
-                            {r.insight.flags.length > 0 && (
-                              <span className="text-ink-soft">
-                                {' '}
-                                · {r.insight.flags.map((f) => FLAG[f] ?? f).join(', ')}
-                              </span>
-                            )}
-                            {r.insight.operatorNote && (
-                              <div className="text-accent mt-1 font-semibold">
-                                {r.insight.operatorNote}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="text-ink-soft mt-1">Cevap bekleniyor</div>
+      <Enter i={1} as="section" className="mt-6">
+        {list.length === 0 ? (
+          <Empty title="Henüz tanıştırma yok">
+            Tanıştırma onaylanınca iş birliği kaydı burada açılır; üç gün sonra ilk takip sorusu
+            gider.
+          </Empty>
+        ) : (
+          <ul className="bg-surface border-line divide-y divide-[var(--color-line)] rounded-[var(--radius-panel)] border">
+            {list.map((c) => {
+              const acik = open === c.id;
+              return (
+                <li key={c.id}>
+                  <button
+                    onClick={() => setOpen(acik ? null : c.id)}
+                    aria-expanded={acik}
+                    className="hover:bg-paper-2/60 flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left"
+                  >
+                    <ChevronDown
+                      size={16}
+                      className={`text-ink-soft transition-transform duration-[var(--duration-quick)] ${acik ? 'rotate-180' : ''}`}
+                      aria-hidden
+                    />
+                    <span className="text-ink font-semibold">
+                      {c.talentName} · {c.organizationName}
+                    </span>
+                    <span className="bg-paper-2 text-ink rounded-md px-2 py-0.5 text-xs font-bold">
+                      {STATUS[c.status]}
+                    </span>
+                    {c.conflict && (
+                      <Etiket cls="bg-referenced-soft text-referenced">
+                        Çelişki — taraflar farklı durum dedi
+                      </Etiket>
                     )}
+                    {c.needsOperator && (
+                      <Etiket cls="bg-accent-soft text-accent-strong">
+                        Bayrak — ajan operatör istedi
+                      </Etiket>
+                    )}
+                    {c.silentSince && (
+                      <Etiket cls="bg-declared-soft text-declared">
+                        Sessiz — {tarih(c.silentSince)}'den beri cevap yok
+                      </Etiket>
+                    )}
+                    <span className="text-ink-soft tnum ml-auto text-xs">
+                      {c.needTitle ?? 'İhtiyaç'} · tanıştırma {tarih(c.introducedAt)} · {c.rounds}{' '}
+                      tur
+                    </span>
+                  </button>
+                  <div className="disclose" data-open={acik}>
+                    <div>
+                      <div className="border-line grid items-start gap-4 border-t px-4 py-4 lg:grid-cols-[1fr_1fr]">
+                        <div className="lg:col-span-2">
+                          <Eyebrow>Zaman çizgisi</Eyebrow>
+                          <ol className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                            {SIRA.map((s, i) => {
+                              const gecti =
+                                c.status === 'did_not_happen'
+                                  ? i === 0
+                                  : SIRA.indexOf(c.status) >= i;
+                              return (
+                                <li key={s} className="flex items-center gap-2">
+                                  <span
+                                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold ${gecti ? 'bg-verified-soft text-verified' : 'bg-paper-2 text-ink-soft'}`}
+                                  >
+                                    {gecti && <Check size={12} aria-hidden />}
+                                    {STATUS[s]}
+                                  </span>
+                                  {i < SIRA.length - 1 && <span className="text-ink-soft">→</span>}
+                                </li>
+                              );
+                            })}
+                            {c.status === 'did_not_happen' && (
+                              <li className="bg-negative-soft text-negative rounded-md px-2 py-0.5 font-semibold">
+                                Gerçekleşmedi
+                              </li>
+                            )}
+                          </ol>
+                        </div>
+                        {c.lastRound.length === 0 && (
+                          <p className="text-ink-soft text-sm lg:col-span-2">
+                            <Clock size={14} className="mr-1 inline" aria-hidden />
+                            Henüz takip sorusu gönderilmedi; tarama 3 gün sonra öneri üretir.
+                          </p>
+                        )}
+                        {c.lastRound.map((r) => (
+                          <Panel key={r.side} className="p-4 text-sm">
+                            <Eyebrow>
+                              {r.side === 'talent' ? 'Genç' : 'Kurum'} · gönderildi{' '}
+                              {tarih(r.sentAt)}
+                            </Eyebrow>
+                            {r.answeredAt ? (
+                              <>
+                                <div className="text-ink mt-1 font-bold">
+                                  {r.status && STATUS[r.status]}
+                                </div>
+                                {r.feedback && <p className="text-ink mt-1">{r.feedback}</p>}
+                                {r.insight && (
+                                  <div className="bg-paper-2 mt-2 rounded-[var(--radius-control)] p-3 text-xs">
+                                    <span className="text-ink-soft inline-flex items-center gap-1">
+                                      <MessageSquare size={12} aria-hidden /> Ajan:
+                                    </span>{' '}
+                                    {r.insight.summary}
+                                    {r.insight.flags.length > 0 && (
+                                      <span className="text-ink-soft">
+                                        {' '}
+                                        · {r.insight.flags.map((f) => FLAG[f] ?? f).join(', ')}
+                                      </span>
+                                    )}
+                                    {r.insight.operatorNote && (
+                                      <div className="text-accent-strong mt-1 font-semibold">
+                                        {r.insight.operatorNote}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-ink-soft mt-1">Cevap bekleniyor</div>
+                            )}
+                          </Panel>
+                        ))}
+                        <div className="lg:col-span-2">
+                          <Eyebrow>Durumu elle değiştir</Eyebrow>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {(Object.keys(STATUS) as CollaborationStatus[]).map((s) => (
+                              <Button
+                                key={s}
+                                size="sm"
+                                disabled={busy === c.id || s === c.status}
+                                onClick={() => void setStatus(c, s)}
+                              >
+                                {STATUS[s]}
+                              </Button>
+                            ))}
+                          </div>
+                          <p className="text-ink-soft mt-2 text-xs">
+                            {c.organizationApproved
+                              ? 'Kurum GİRVAK onaylı: "tamamlandı" + kurum notu gencin kartına referans olarak düşer.'
+                              : 'Kurum GİRVAK onaylı değil: "tamamlandı" dese de referans üretmez (KARAR-10). Onayı Ağ → Kurumlar\'da ver.'}{' '}
+                            Başladı/bitti/olmadı iki tarafa e-postayla bildirilir.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ))}
-                <div className="md:col-span-2">
-                  <div className="text-ink-soft text-xs">Durumu elle değiştir</div>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {(Object.keys(STATUS) as CollaborationStatus[]).map((s) => (
-                      <button
-                        key={s}
-                        disabled={busy === c.id || s === c.status}
-                        onClick={() => void setStatus(c, s)}
-                        className="border-line hover:bg-paper-2 rounded-lg border px-2 py-1 text-xs disabled:opacity-40"
-                      >
-                        {STATUS[s]}
-                      </button>
-                    ))}
-                  </div>
-                  {!c.organizationApproved && (
-                    <p className="text-ink-soft mt-2 text-xs">
-                      Kurum GİRVAK onaylı değil: "tamamlandı" dese de referans üretmez (KARAR-10).
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Enter>
     </div>
   );
 }
-
 function Etiket({ cls, children }: { cls: string; children: React.ReactNode }) {
-  return (
-    <span className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${cls}`}>
-      {children}
-    </span>
-  );
+  return <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${cls}`}>{children}</span>;
 }

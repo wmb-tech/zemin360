@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../lib/auth';
 import { c } from '../lib/theme';
+import { Enter } from '../lib/motion';
 import { Button, Soft } from '../ui';
 
 /** Genç için tek giriş: GitHub (KARAR-07). Kurum ve operatör web'de. */
@@ -22,8 +23,10 @@ export function LoginScreen() {
   }
   return (
     <View style={s.wrap}>
-      <Text style={s.brand}>Evidex</Text>
-      <Text style={s.tag}>Beyan değil kanıt. Skor değil gerekçe.</Text>
+      <Enter i={0}>
+        <Text style={s.brand}>Evidex</Text>
+        <Text style={s.tag}>Beyan değil kanıt. Skor değil gerekçe.</Text>
+      </Enter>
       <Soft style={{ marginTop: 16 }}>
         Kendini anlatma; kanıtını bağla. GitHub ile gir, hangi repoları göstereceğini sen seç. Kod
         saklanmaz, yalnız sinyal çıkarılır.

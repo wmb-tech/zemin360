@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import type { EvidenceLevel, EvidenceSourceKind } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
+import { Enter } from '../components/motion';
+import { KIND, LEVEL, LevelBadge, Skeleton } from '../components/ui';
 
 interface PublicCard {
   name: string;
@@ -23,34 +25,14 @@ interface PublicCard {
   sources: { kind: EvidenceSourceKind; verified: boolean }[];
 }
 
-const LEVEL: Record<EvidenceLevel, { label: string; cls: string; note: string }> = {
-  verified: {
-    label: 'Doğrulanmış',
-    cls: 'bg-verified',
-    note: 'kaynağın sahibi olduğu makine ile doğrulandı',
-  },
-  documented: { label: 'Belgeli', cls: 'bg-documented', note: 'belgeyle destekli' },
-  referenced: {
-    label: 'Referanslı',
-    cls: 'bg-referenced',
-    note: 'platformda izlenen iş birliğinden kurum değerlendirmesi',
-  },
-  declared: { label: 'Beyan', cls: 'bg-declared', note: 'kişinin beyanı, henüz kanıtsız' },
-};
-const KIND: Record<EvidenceSourceKind, string> = {
-  github_repo: 'GitHub deposu',
-  live_url: 'Canlı site',
-  document: 'Belge',
-  network_reference: 'Kurum referansı',
-  challenge_submission: 'Meydan okuma teslimi',
-};
+const SIRA: EvidenceLevel[] = ['verified', 'documented', 'referenced', 'declared'];
 const ay = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : null;
+  d ? new Date(d).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' }) : null;
 
 /**
- * Herkese açık kart (keşfet 01). Gencin paylaştığı link; oturum yok. Kişisel kimlik (e-posta,
- * GitHub adı) yok; yalnız onaylı iddialar ve kanıt seviyeleri. Her seviyenin ne anlama geldiği
- * yazılır — okuyan kurum "doğrulanmış" ile "beyan" farkını tahmin etmez.
+ * Herkese açık kart — kanıt dosyası (keşfet 01). Oturum yok; kişisel kimlik (e-posta, GitHub adı)
+ * yok; yalnız onaylı iddialar ve seviyeleri. İddialar seviyeye göre gruplanır: okuyan kurum
+ * "doğrulanmış" ile "beyan"ı aynı yığında görmez. Seviye sözlüğü sayfanın parçası, ipucu değil.
  */
 export function PublicCardPage() {
   useTitle('Kart');
@@ -66,71 +48,136 @@ export function PublicCardPage() {
 
   if (error)
     return (
-      <div className="mx-auto max-w-xl px-4 py-16">
-        <div className="text-ink-soft text-xs font-semibold tracking-wide uppercase">Evidex</div>
-        <h1 className="mt-2 text-2xl font-bold">Bu kart kapalı.</h1>
-        <p className="text-ink-soft mt-2 text-sm">Sahibi paylaşımı kapatmış ya da link yanlış.</p>
-      </div>
+      <Kabuk>
+        <h1 className="text-ink mt-2 text-2xl font-bold tracking-[-0.02em]">Bu kart kapalı</h1>
+        <p className="text-ink-soft mt-2 max-w-[55ch] leading-relaxed">
+          Sahibi paylaşımı kapatmış ya da bağlantı yanlış. Evidex kartları yalnız sahibinin açtığı
+          sürece görünür.
+        </p>
+        <Link
+          to="/"
+          className="text-accent mt-6 inline-block text-sm font-semibold hover:underline"
+        >
+          Evidex nedir?
+        </Link>
+      </Kabuk>
     );
-  if (!card) return null;
+  if (!card)
+    return (
+      <Kabuk>
+        <Skeleton rows={6} />
+      </Kabuk>
+    );
 
   const kinds = [...new Set(card.sources.map((s) => s.kind))];
+  const sayim = Object.fromEntries(
+    SIRA.map((l) => [l, card.claims.filter((c) => c.level === l).length]),
+  ) as Record<EvidenceLevel, number>;
+  const gruplar = SIRA.filter((l) => sayim[l] > 0);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <div className="text-ink-soft flex items-center justify-between text-xs font-semibold tracking-wide uppercase">
-        <span>Evidex · kanıta dayalı kart</span>
-        {card.cardApprovedAt && <span>onaylı {ay(card.cardApprovedAt)}</span>}
-      </div>
-      <h1 className="mt-3 text-3xl font-extrabold tracking-tight">{card.name}</h1>
-      {card.headline && <p className="mt-1 text-lg">{card.headline}</p>}
-      {card.city && <p className="text-ink-soft mt-1 text-sm">{card.city}</p>}
-      {card.story && <p className="mt-5 max-w-prose leading-relaxed">{card.story}</p>}
-      {card.silent && (
-        <p className="text-ink-soft mt-4 text-xs">
-          Kanıtlarda son etkinlik {ay(card.lastSignalAt) ?? '—'}; kart bir süredir sessiz.
-        </p>
-      )}
+    <Kabuk wide>
+      <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_260px]">
+        <div>
+          <Enter i={0} as="header">
+            <h1 className="text-ink text-[32px] leading-tight font-extrabold tracking-[-0.035em] md:text-[40px]">
+              {card.name}
+            </h1>
+            {card.headline && <p className="text-ink mt-2 text-lg">{card.headline}</p>}
+            {card.city && <p className="text-ink-soft mt-1 text-sm">{card.city}</p>}
+            {card.story && (
+              <p className="text-ink mt-5 max-w-[65ch] leading-relaxed">{card.story}</p>
+            )}
+          </Enter>
 
-      <h2 className="text-ink-soft mt-10 text-xs font-semibold tracking-wide uppercase">
-        Onaylı iddialar · {card.claims.length}
-      </h2>
-      <ul className="mt-3 space-y-3">
-        {card.claims.map((c) => (
-          <li key={c.id} className="border-line rounded-xl border p-4">
-            <p className="text-sm leading-relaxed">{c.text}</p>
-            <div className="text-ink-soft mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <span
-                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold text-white ${LEVEL[c.level].cls}`}
-                title={LEVEL[c.level].note}
-              >
-                {LEVEL[c.level].label}
-              </span>
-              {c.periodStart && (
-                <span>
-                  {ay(c.periodStart)} → {ay(c.periodEnd) ?? 'devam'}
+          {gruplar.map((l, gi) => (
+            <Enter key={l} i={gi + 1} as="section" className="mt-10">
+              <div className="flex items-baseline gap-3">
+                <LevelBadge level={l} />
+                <span className="text-ink-soft text-sm">
+                  {sayim[l]} iddia · {LEVEL[l].note.toLowerCase()}
                 </span>
-              )}
-              <span>{c.sourceCount} kaynak</span>
-            </div>
-          </li>
-        ))}
-      </ul>
+              </div>
+              <ul className="border-line mt-3 divide-y divide-[var(--color-line)] border-y">
+                {card.claims
+                  .filter((c) => c.level === l)
+                  .map((c) => (
+                    <li key={c.id} className="py-4">
+                      <p className="text-ink leading-relaxed">{c.text}</p>
+                      <div className="text-ink-soft tnum mt-1.5 flex flex-wrap gap-x-3 text-xs">
+                        {c.periodStart && (
+                          <span>
+                            {ay(c.periodStart)} – {ay(c.periodEnd) ?? 'sürüyor'}
+                          </span>
+                        )}
+                        <span>{c.sourceCount} kaynak</span>
+                      </div>
+                    </li>
+                  ))}
+              </ul>
+            </Enter>
+          ))}
+        </div>
 
-      {kinds.length > 0 && (
-        <p className="text-ink-soft mt-6 text-xs">
-          Kaynaklar: {kinds.map((k) => KIND[k]).join(' · ')}. Kod ya da belge saklanmaz; yalnız
-          sinyal çıkarılır ve sahiplik doğrulanır.
-        </p>
-      )}
-      <div className="border-line mt-10 border-t pt-4 text-xs">
-        <span className="text-ink-soft">Seviye sözlüğü — </span>
-        {(Object.keys(LEVEL) as EvidenceLevel[]).map((k) => (
-          <span key={k} className="text-ink-soft mr-3">
-            <b>{LEVEL[k].label}:</b> {LEVEL[k].note}
-          </span>
-        ))}
+        <Enter i={1} as="aside" className="md:pt-2">
+          <dl className="text-sm">
+            <div className="border-line border-b py-3">
+              <dt className="text-ink-soft text-xs font-bold tracking-wide uppercase">Kart</dt>
+              <dd className="text-ink mt-1">
+                {card.cardApprovedAt ? `Onaylı · ${ay(card.cardApprovedAt)}` : 'Onaylı'}
+              </dd>
+            </div>
+            <div className="border-line border-b py-3">
+              <dt className="text-ink-soft text-xs font-bold tracking-wide uppercase">
+                Son kanıt etkinliği
+              </dt>
+              <dd className={`mt-1 ${card.silent ? 'text-referenced' : 'text-ink'}`}>
+                {ay(card.lastSignalAt) ?? '—'}
+                {card.silent && ' · bir süredir sessiz'}
+              </dd>
+            </div>
+            {kinds.length > 0 && (
+              <div className="border-line border-b py-3">
+                <dt className="text-ink-soft text-xs font-bold tracking-wide uppercase">
+                  Kaynak türleri
+                </dt>
+                <dd className="text-ink mt-1">{kinds.map((k) => KIND[k]).join(' · ')}</dd>
+              </div>
+            )}
+            <div className="py-3">
+              <dt className="text-ink-soft text-xs font-bold tracking-wide uppercase">
+                Seviyeler ne demek
+              </dt>
+              <dd className="mt-2 space-y-2">
+                {SIRA.map((k) => (
+                  <div key={k} className="flex items-start gap-2">
+                    <LevelBadge level={k} />
+                    <span className="text-ink-soft text-xs leading-relaxed">{LEVEL[k].note}</span>
+                  </div>
+                ))}
+              </dd>
+            </div>
+          </dl>
+          <p className="text-ink-soft mt-4 text-xs leading-relaxed">
+            Kod ya da belge saklanmaz; yalnız sinyal çıkarılır, sahiplik doğrulanır. Kartın iletişim
+            bilgisi yok: tanıştırma GİRVAK üzerinden yapılır.
+          </p>
+        </Enter>
       </div>
+    </Kabuk>
+  );
+}
+
+function Kabuk({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
+  return (
+    <div className={`mx-auto px-4 py-10 md:py-14 ${wide ? 'max-w-[1040px]' : 'max-w-[640px]'}`}>
+      <div className="text-ink-soft mb-8 flex items-center justify-between text-xs font-bold tracking-wide uppercase">
+        <Link to="/" className="text-ink text-base font-extrabold tracking-tight normal-case">
+          Evidex
+        </Link>
+        <span>Kanıta dayalı kart</span>
+      </div>
+      {children}
     </div>
   );
 }

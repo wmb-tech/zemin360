@@ -16,6 +16,7 @@ import { THRESHOLDS, type EvidenceLevel, type EvidenceSourceKind } from '@evidex
 import { API_ORIGIN, api, tokenStore } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { c, LEVEL } from '../lib/theme';
+import { Enter } from '../lib/motion';
 import { Badge, Button, Card, H1, Label, Soft } from '../ui';
 
 interface Claim {
@@ -126,183 +127,196 @@ export function CardScreen() {
         />
       }
     >
-      <View style={s.top}>
-        <View style={{ flex: 1 }}>
-          <H1>{card.user.name}</H1>
-          <Soft>
-            {card.talent.headline ?? 'Başlık henüz yok'}
-            {card.user.githubLogin ? ` · @${card.user.githubLogin}` : ''}
-          </Soft>
-        </View>
-        <Pressable onPress={() => void logout()}>
-          <Text style={{ color: c.inkSoft, textDecorationLine: 'underline' }}>Çıkış</Text>
-        </Pressable>
-      </View>
-
-      <View style={s.status}>
-        <Badge
-          text={approved ? 'Kart onaylı · ağda' : 'Taslak'}
-          color={approved ? c.verified : c.declared}
-        />
-        {card.talent.silent && (
-          <Text style={s.silent}>
-            Sessiz: {THRESHOLDS.silentCardAfterDays} günden uzun süredir yeni etkinlik yok.
-          </Text>
-        )}
-      </View>
-
-      {card.talent.story && <Text style={s.story}>{card.talent.story}</Text>}
-
-      <Label>Kaynaklar · {card.sources.length}</Label>
-      <Card style={{ marginTop: 8 }}>
-        {card.sources.length === 0 && (
-          <Soft>Henüz kaynak yok. GitHub'ı bağla; sistem repolarından sinyal çıkarsın.</Soft>
-        )}
-        {card.sources.map((src) => (
-          <View key={src.id} style={s.srcRow}>
-            <Text style={s.srcKind}>{KIND[src.kind]}</Text>
-            <Text style={s.srcRef} numberOfLines={1}>
-              {src.ref}
-            </Text>
-            <Text style={{ color: src.ownershipVerified ? c.verified : c.declared, fontSize: 11 }}>
-              {src.ownershipVerified ? 'doğrulandı' : 'beyan'}
-            </Text>
+      <Enter i={0}>
+        <View style={s.top}>
+          <View style={{ flex: 1 }}>
+            <H1>{card.user.name}</H1>
+            <Soft>
+              {card.talent.headline ?? 'Başlık henüz yok'}
+              {card.user.githubLogin ? ` · @${card.user.githubLogin}` : ''}
+            </Soft>
           </View>
-        ))}
-        <View style={{ marginTop: 12, gap: 8 }}>
-          {card.talent.githubConnected ? (
-            <Button
-              title={busy === 'sync' ? 'Okunuyor…' : 'GitHub sinyallerini yenile'}
-              kind="ghost"
-              disabled={busy === 'sync'}
-              onPress={() =>
-                void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }))
-              }
-            />
-          ) : (
-            <Button
-              title="GitHub'ı bağla (tarayıcıda)"
-              kind="ink"
-              onPress={() => void installGithub()}
-            />
+          <Pressable onPress={() => void logout()}>
+            <Text style={{ color: c.inkSoft, textDecorationLine: 'underline' }}>Çıkış</Text>
+          </Pressable>
+        </View>
+
+        <View style={s.status}>
+          <Badge
+            text={approved ? 'Kart onaylı · ağda' : 'Taslak'}
+            color={approved ? c.verified : c.declared}
+            bg={approved ? c.verifiedSoft : c.declaredSoft}
+          />
+          {card.talent.silent && (
+            <Text style={s.silent}>
+              Sessiz: {THRESHOLDS.silentCardAfterDays} günden uzun süredir yeni etkinlik yok.
+            </Text>
           )}
         </View>
-      </Card>
 
-      <View style={{ marginTop: 22 }}>
-        <Label>
-          İddialar · {onayli}/{card.claims.length} onaylı
-        </Label>
-      </View>
-      {card.claims.length === 0 && (
-        <Soft style={{ marginTop: 8 }}>
-          Kaynak bağlayınca ajan taslak yazar; her satırı sen onaylarsın.
-        </Soft>
-      )}
-      {card.claims.map((cl) => (
-        <Card key={cl.id} style={{ marginTop: 8, opacity: cl.approved ? 1 : 0.92 }}>
-          <Text style={s.claim}>{cl.text}</Text>
-          <View style={s.meta}>
-            <Badge text={LEVEL[cl.level].label} color={LEVEL[cl.level].color} />
-            {cl.periodStart && (
-              <Text style={s.metaText}>
-                {ay(cl.periodStart)} → {ay(cl.periodEnd) ?? 'devam'}
+        {card.talent.story && <Text style={s.story}>{card.talent.story}</Text>}
+      </Enter>
+
+      <Enter i={1}>
+        <Label>Kaynaklar · {card.sources.length}</Label>
+        <Card style={{ marginTop: 8 }}>
+          {card.sources.length === 0 && (
+            <Soft>Henüz kaynak yok. GitHub'ı bağla; sistem repolarından sinyal çıkarsın.</Soft>
+          )}
+          {card.sources.map((src) => (
+            <View key={src.id} style={s.srcRow}>
+              <Text style={s.srcKind}>{KIND[src.kind]}</Text>
+              <Text style={s.srcRef} numberOfLines={1}>
+                {src.ref}
               </Text>
+              <Text
+                style={{ color: src.ownershipVerified ? c.verified : c.declared, fontSize: 11 }}
+              >
+                {src.ownershipVerified ? 'doğrulandı' : 'beyan'}
+              </Text>
+            </View>
+          ))}
+          <View style={{ marginTop: 12, gap: 8 }}>
+            {card.talent.githubConnected ? (
+              <Button
+                title={busy === 'sync' ? 'Okunuyor…' : 'GitHub sinyallerini yenile'}
+                kind="ghost"
+                disabled={busy === 'sync'}
+                onPress={() =>
+                  void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }))
+                }
+              />
+            ) : (
+              <Button
+                title="GitHub'ı bağla (tarayıcıda)"
+                kind="ink"
+                onPress={() => void installGithub()}
+              />
             )}
-            <Text style={s.metaText}>{cl.sourceIds.length} kaynak</Text>
           </View>
-          <View style={s.actions}>
-            {!cl.approved ? (
+        </Card>
+      </Enter>
+      <Enter i={2}>
+        <View style={{ marginTop: 22 }}>
+          <Label>
+            İddialar · {onayli}/{card.claims.length} onaylı
+          </Label>
+        </View>
+        {card.claims.length === 0 && (
+          <Soft style={{ marginTop: 8 }}>
+            Kaynak bağlayınca ajan taslak yazar; her satırı sen onaylarsın.
+          </Soft>
+        )}
+        {card.claims.map((cl) => (
+          <Card key={cl.id} style={{ marginTop: 8, opacity: cl.approved ? 1 : 0.92 }}>
+            <Text style={s.claim}>{cl.text}</Text>
+            <View style={s.meta}>
+              <Badge
+                text={LEVEL[cl.level].label}
+                color={LEVEL[cl.level].color}
+                bg={LEVEL[cl.level].bg}
+              />
+              {cl.periodStart && (
+                <Text style={s.metaText}>
+                  {ay(cl.periodStart)} → {ay(cl.periodEnd) ?? 'devam'}
+                </Text>
+              )}
+              <Text style={s.metaText}>{cl.sourceIds.length} kaynak</Text>
+            </View>
+            <View style={s.actions}>
+              {!cl.approved ? (
+                <Pressable
+                  disabled={busy === cl.id}
+                  onPress={() =>
+                    void run(cl.id, () =>
+                      api(`/api/me/card/claims/${cl.id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ approved: true }),
+                      }),
+                    )
+                  }
+                >
+                  <Text style={s.approve}>Onayla</Text>
+                </Pressable>
+              ) : (
+                <Text style={{ color: c.verified, fontSize: 12, fontWeight: '700' }}>Onaylı</Text>
+              )}
               <Pressable
                 disabled={busy === cl.id}
                 onPress={() =>
-                  void run(cl.id, () =>
-                    api(`/api/me/card/claims/${cl.id}`, {
-                      method: 'PATCH',
-                      body: JSON.stringify({ approved: true }),
-                    }),
-                  )
+                  Alert.alert('İddiayı sil?', cl.text, [
+                    { text: 'Vazgeç', style: 'cancel' },
+                    {
+                      text: 'Sil',
+                      style: 'destructive',
+                      onPress: () =>
+                        void run(cl.id, () =>
+                          api(`/api/me/card/claims/${cl.id}`, { method: 'DELETE' }),
+                        ),
+                    },
+                  ])
                 }
               >
-                <Text style={s.approve}>Onayla</Text>
+                <Text style={{ color: c.inkSoft, fontSize: 12 }}>Sil</Text>
               </Pressable>
-            ) : (
-              <Text style={{ color: c.verified, fontSize: 12, fontWeight: '700' }}>Onaylı</Text>
-            )}
-            <Pressable
-              disabled={busy === cl.id}
-              onPress={() =>
-                Alert.alert('İddiayı sil?', cl.text, [
-                  { text: 'Vazgeç', style: 'cancel' },
-                  {
-                    text: 'Sil',
-                    style: 'destructive',
-                    onPress: () =>
-                      void run(cl.id, () =>
-                        api(`/api/me/card/claims/${cl.id}`, { method: 'DELETE' }),
-                      ),
-                  },
-                ])
-              }
-            >
-              <Text style={{ color: c.inkSoft, fontSize: 12 }}>Sil</Text>
-            </Pressable>
-          </View>
-        </Card>
-      ))}
-
-      <View style={{ marginTop: 22, gap: 10 }}>
-        {!approved && (
-          <>
-            <Button
-              title="Kartı onayla ve ağa gir"
-              disabled={onayli === 0 || busy === 'approve'}
-              onPress={() =>
-                void run('approve', () => api('/api/me/card/approve', { method: 'POST' }))
-              }
-            />
-            {onayli === 0 && <Soft>En az bir iddiayı onaylaman gerekiyor.</Soft>}
-          </>
-        )}
-        {approved && (
-          <Card>
-            <Label>Paylaşılabilir kart</Label>
-            <Soft style={{ marginTop: 4 }}>
-              Linki bilen görür: yalnız onaylı iddialar; e-posta ve GitHub adı yok.
-            </Soft>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-              <Button
-                title={card.talent.publicSlug ? 'Kapat' : 'Aç'}
-                kind="ghost"
-                disabled={busy === 'share'}
-                onPress={() =>
-                  void run('share', () =>
-                    api('/api/me/card/share', {
-                      method: 'POST',
-                      body: JSON.stringify({ enabled: !card.talent.publicSlug }),
-                    }),
-                  )
-                }
-              />
-              {card.talent.publicSlug && (
-                <Button
-                  title="Paylaş"
-                  onPress={() =>
-                    void Share.share({
-                      message: `${API_ORIGIN.replace(':3100', ':5100')}/k/${card.talent.publicSlug}`,
-                    })
-                  }
-                />
-              )}
             </View>
           </Card>
-        )}
-        <Pressable onPress={() => void RNLinking.openURL('https://github.com/wmb-tech/zemin360')}>
-          <Soft style={{ textAlign: 'center', marginTop: 8 }}>
-            {me?.email} · Evidex açık kaynak
-          </Soft>
-        </Pressable>
-      </View>
+        ))}
+      </Enter>
+      <Enter i={3}>
+        <View style={{ marginTop: 22, gap: 10 }}>
+          {!approved && (
+            <>
+              <Button
+                title="Kartı onayla ve ağa gir"
+                disabled={onayli === 0 || busy === 'approve'}
+                onPress={() =>
+                  void run('approve', () => api('/api/me/card/approve', { method: 'POST' }))
+                }
+              />
+              {onayli === 0 && <Soft>En az bir iddiayı onaylaman gerekiyor.</Soft>}
+            </>
+          )}
+          {approved && (
+            <Card>
+              <Label>Paylaşılabilir kart</Label>
+              <Soft style={{ marginTop: 4 }}>
+                Linki bilen görür: yalnız onaylı iddialar; e-posta ve GitHub adı yok.
+              </Soft>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                <Button
+                  title={card.talent.publicSlug ? 'Kapat' : 'Aç'}
+                  kind="ghost"
+                  disabled={busy === 'share'}
+                  onPress={() =>
+                    void run('share', () =>
+                      api('/api/me/card/share', {
+                        method: 'POST',
+                        body: JSON.stringify({ enabled: !card.talent.publicSlug }),
+                      }),
+                    )
+                  }
+                />
+                {card.talent.publicSlug && (
+                  <Button
+                    title="Paylaş"
+                    onPress={() =>
+                      void Share.share({
+                        message: `${API_ORIGIN.replace(':3100', ':5100')}/k/${card.talent.publicSlug}`,
+                      })
+                    }
+                  />
+                )}
+              </View>
+            </Card>
+          )}
+          <Pressable onPress={() => void RNLinking.openURL('https://github.com/wmb-tech/zemin360')}>
+            <Soft style={{ textAlign: 'center', marginTop: 8 }}>
+              {me?.email} · Evidex açık kaynak
+            </Soft>
+          </Pressable>
+        </View>
+      </Enter>
     </ScrollView>
   );
 }

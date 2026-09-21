@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
-import { c } from './lib/theme';
+import { c, radius } from './lib/theme';
 
 /** Küçük, tekrar eden parçalar: başlık, yumuşak metin, düğme, rozet, kart. Kit değil; yeter. */
 export function H1({ children }: { children: ReactNode }) {
@@ -15,10 +15,10 @@ export function Label({ children }: { children: ReactNode }) {
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   return <View style={[s.card, style]}>{children}</View>;
 }
-export function Badge({ text, color }: { text: string; color: string }) {
+export function Badge({ text, color, bg }: { text: string; color: string; bg?: string }) {
   return (
-    <View style={[s.badge, { backgroundColor: color }]}>
-      <Text style={s.badgeText}>{text}</Text>
+    <View style={[s.badge, { backgroundColor: bg ?? color }]}>
+      <Text style={[s.badgeText, bg ? { color } : null]}>{text}</Text>
     </View>
   );
 }
@@ -68,7 +68,14 @@ const s = StyleSheet.create({
   },
   badge: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start' },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  btn: { borderRadius: 10, paddingHorizontal: 16, paddingVertical: 11, alignItems: 'center' },
-  btnGhost: { borderWidth: 1, borderColor: c.line },
+  btn: {
+    borderRadius: radius.control,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnGhost: { borderWidth: 1, borderColor: c.line, backgroundColor: c.surface },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

@@ -30,7 +30,7 @@ export function NeedPicker({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value, needs.find((n) => n.id === e.target.value) ?? null)}
-      className="border-line focus:border-accent bg-paper w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+      className="border-line bg-surface focus:border-accent w-full rounded-[var(--radius-control)] border px-3.5 py-2.5 text-base outline-none"
     >
       <option value="">{placeholder}</option>
       {needs.map((n) => (
