@@ -35,6 +35,21 @@ const MAX_REPOS = 40;
  * ⚠ Ham kod hiçbir yerde tutulmaz; evidence_signals yalnız makine sinyali (ADR-0003).
  */
 /** Kaynak sinyallerindeki en yeni etkinlik tarihi (GitHub lastActivityAt, teslim lastCommitAt). Canlı URL tarih taşımaz. */
+/**
+ * Sinyalleri veritabanı sınırında temizle: metin alanlarındaki NUL/C0 karakterleri Postgres'in
+ * jsonb'ı reddetmesine yol açar (bir UTF-16 README tüm senkronu düşürdü). Sağlayıcı ne verirse
+ * versin, yazmadan önce temizlenir.
+ */
+function temizSinyal<T>(v: T): T {
+  if (typeof v === 'string')
+    // eslint-disable-next-line no-control-regex
+    return v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '') as T;
+  if (Array.isArray(v)) return v.map(temizSinyal) as T;
+  if (v && typeof v === 'object')
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, temizSinyal(x)])) as T;
+  return v;
+}
+
 function sonEtkinlik(inputs: { signals: Record<string, unknown> }[]): Date | null {
   let en: Date | null = null;
   for (const i of inputs) {
@@ -426,58 +441,57 @@ export function createTalentService(
 
       let okunamayan = 0;
       for (const r of secilen) {
-        let signals: Awaited<ReturnType<typeof github.extract>>;
+        // Tek bozuk repo (boş, arşivli, izinsiz, bozuk kodlama) tüm koşuyu düşürmesin: okuma VE
+        // yazma aynı korumanın içinde; sayılır, geçilir.
         try {
-          signals = await github.extract(r.installationId, r.fullName, user.githubLogin);
-        } catch (err) {
-          // Tek bozuk repo (boş, arşivli, izin) 60 reponun okumasını düşürmesin; sayılır, geçilir.
-          okunamayan++;
-          console.error(`[sync] repo okunamadı ${r.fullName}`, err);
-          continue;
-        }
-        // Org reposu yalnız kişinin commit'i varsa kanıttır: üyelik tek başına bir şey kanıtlamaz.
-        // Daha önce girmişse (eski kural) kaynak da silinir; bağlı taslak iddia redraft'ta düşer.
-        if (r.org && !(signals.ownCommits && signals.ownCommits > 0)) {
-          atlanan++;
-          await db
-            .delete(evidenceSources)
-            .where(
-              and(eq(evidenceSources.talentId, talent.id), eq(evidenceSources.ref, r.fullName)),
-            );
-          continue;
-        }
-        const [kaynak] = await db
-          .insert(evidenceSources)
-          .values({
-            talentId: talent.id,
-            kind: 'github_repo',
-            ref: r.fullName,
-            ownershipVerified: true,
-            ownershipMethod: 'github_app',
-            lastScannedAt: new Date(),
-          })
-          .onConflictDoNothing()
-          .returning();
-        const sourceId =
-          kaynak?.id ??
-          (
+          const signals = await github.extract(r.installationId, r.fullName, user.githubLogin);
+          // Org reposu yalnız kişinin commit'i varsa kanıttır: üyelik tek başına bir şey kanıtlamaz.
+          // Daha önce girmişse (eski kural) kaynak da silinir; bağlı taslak iddia redraft'ta düşer.
+          if (r.org && !(signals.ownCommits && signals.ownCommits > 0)) {
+            atlanan++;
             await db
-              .select({ id: evidenceSources.id })
-              .from(evidenceSources)
+              .delete(evidenceSources)
               .where(
                 and(eq(evidenceSources.talentId, talent.id), eq(evidenceSources.ref, r.fullName)),
-              )
-              .limit(1)
-          )[0]!.id;
+              );
+            continue;
+          }
+          const [kaynak] = await db
+            .insert(evidenceSources)
+            .values({
+              talentId: talent.id,
+              kind: 'github_repo',
+              ref: r.fullName,
+              ownershipVerified: true,
+              ownershipMethod: 'github_app',
+              lastScannedAt: new Date(),
+            })
+            .onConflictDoNothing()
+            .returning();
+          const sourceId =
+            kaynak?.id ??
+            (
+              await db
+                .select({ id: evidenceSources.id })
+                .from(evidenceSources)
+                .where(
+                  and(eq(evidenceSources.talentId, talent.id), eq(evidenceSources.ref, r.fullName)),
+                )
+                .limit(1)
+            )[0]!.id;
 
-        await db
-          .insert(evidenceSignals)
-          .values({ sourceId, signals: signals as Record<string, unknown> });
-        await db
-          .update(evidenceSources)
-          .set({ lastScannedAt: new Date() })
-          .where(eq(evidenceSources.id, sourceId));
-        repoInputs.push({ ref: r.fullName, signals: signals as Record<string, unknown> });
+          await db
+            .insert(evidenceSignals)
+            .values(temizSinyal({ sourceId, signals: signals as Record<string, unknown> }));
+          await db
+            .update(evidenceSources)
+            .set({ lastScannedAt: new Date() })
+            .where(eq(evidenceSources.id, sourceId));
+          repoInputs.push({ ref: r.fullName, signals: signals as Record<string, unknown> });
+        } catch (err) {
+          okunamayan++;
+          console.error(`[sync] repo işlenemedi ${r.fullName}`, err);
+        }
       }
 
       await redraft(talent.id, user.githubLogin);
@@ -724,7 +738,7 @@ export function createTalentService(
       const signals = await liveUrl.extract(kaynak.ref);
       await db
         .insert(evidenceSignals)
-        .values({ sourceId: kaynak.id, signals: signals as Record<string, unknown> });
+        .values(temizSinyal({ sourceId: kaynak.id, signals: signals as Record<string, unknown> }));
       await db
         .update(evidenceSources)
         .set({
@@ -768,9 +782,12 @@ export function createTalentService(
         .onConflictDoNothing()
         .returning();
       if (!kaynak) throw new AppError('already_added', 'Bu belge zaten ekli', 409);
-      await db
-        .insert(evidenceSignals)
-        .values({ sourceId: kaynak.id, signals: signals as unknown as Record<string, unknown> });
+      await db.insert(evidenceSignals).values(
+        temizSinyal({
+          sourceId: kaynak.id,
+          signals: signals as unknown as Record<string, unknown>,
+        }),
+      );
       await redraft(talent.id, user.githubLogin ?? user.name);
       return this.card(userId);
     },

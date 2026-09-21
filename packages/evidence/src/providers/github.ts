@@ -190,7 +190,7 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
       let readmeExcerpt: string | undefined;
       try {
         const { data } = await gh.repos.getReadme({ owner, repo });
-        readmeExcerpt = readmeOzeti(Buffer.from(data.content, 'base64').toString('utf8'));
+        readmeExcerpt = readmeOzeti(metinCoz(Buffer.from(data.content, 'base64')));
       } catch {
         /* README yok ya da erişim yok */
       }
@@ -199,11 +199,11 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
         try {
           const { data } = await gh.repos.getContent({ owner, repo, path: 'package.json' });
           if (!Array.isArray(data) && 'content' in data) {
-            const pkg = JSON.parse(Buffer.from(data.content, 'base64').toString('utf8')) as {
+            const pkg = JSON.parse(metinCoz(Buffer.from(data.content, 'base64'))) as {
               description?: unknown;
             };
             if (typeof pkg.description === 'string' && pkg.description.trim())
-              manifestDescription = pkg.description.trim().slice(0, 200);
+              manifestDescription = temizMetin(pkg.description).trim().slice(0, 200);
           }
         } catch {
           /* okunamayan manifest bağlam değildir */
@@ -250,9 +250,27 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
   };
 }
 
+/**
+ * Depo dosyası → metin. UTF-16 (BOM'lu) dosyalar utf8 okununca her karakterin arasına NUL
+ * bırakır; Postgres jsonb/text NUL kabul etmez ve tüm senkron düşer (61 repoluk koşu buna
+ * takıldı). BOM'a bakıp doğru kodlamayla çöz.
+ */
+export function metinCoz(buf: Buffer): string {
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) return buf.toString('utf16le', 2);
+  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff)
+    return buf.swap16().toString('utf16le', 2);
+  return buf.toString('utf8');
+}
+
+/** NUL ve diğer C0 kontrol karakterleri (sekme/yeni satır hariç) temizlenir. */
+export function temizMetin(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
+}
+
 /** README'den bağlam: rozet, HTML, boş satır ve kod blokları atılır; ilk 600 karakter. */
 export function readmeOzeti(raw: string): string | undefined {
-  const satirlar = raw
+  const satirlar = temizMetin(raw)
     .replace(/```[\s\S]*?```/g, '')
     .split('\n')
     .map((l) => l.trim())

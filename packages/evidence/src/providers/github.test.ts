@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { readmeOzeti } from './github';
+import { metinCoz, readmeOzeti, temizMetin } from './github';
 
 describe('README özeti (ürün bağlamı)', () => {
   it('rozet, HTML, kod bloğu ve tablo satırlarını atar; başlık işaretlerini soyar; 600 karakterde keser', () => {
@@ -28,5 +28,18 @@ ${'x'.repeat(700)}`;
 
   it('içeriksiz README undefined döner', () => {
     expect(readmeOzeti('![only](badge.svg)\n\n')).toBeUndefined();
+  });
+});
+
+describe('kodlama ve kontrol karakterleri', () => {
+  it('UTF-16LE (BOM) README doğru çözülür; utf8 okunsa NUL kalırdı', () => {
+    const buf = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('WMB Adisyon', 'utf16le')]);
+    expect(metinCoz(buf)).toBe('WMB Adisyon');
+    expect(buf.toString('utf8')).toContain('\u0000');
+  });
+
+  it('NUL ve C0 karakterleri temizlenir (Postgres jsonb bunları reddeder)', () => {
+    expect(temizMetin('WMB\u0000-\u0001Adisyon')).toBe('WMB-Adisyon');
+    expect(readmeOzeti('Ba\u0000şlık\n\nMetin')).toBe('Başlık Metin');
   });
 });
