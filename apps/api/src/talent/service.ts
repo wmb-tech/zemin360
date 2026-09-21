@@ -106,7 +106,20 @@ export function createTalentService(
       .delete(cardClaims)
       .where(and(eq(cardClaims.talentId, talentId), eq(cardClaims.approved, false)));
     if (yeniInputs.length === 0) return;
-    const { draft, usage } = await runCardDrafter(llm, login, yeniInputs);
+    let draft: Awaited<ReturnType<typeof runCardDrafter>>['draft'];
+    let usage: Awaited<ReturnType<typeof runCardDrafter>>['usage'];
+    try {
+      ({ draft, usage } = await runCardDrafter(llm, login, yeniInputs));
+    } catch (err) {
+      // Ajan/model hatası kişinin kendi kartıyla ilgilidir ve gizli bir şey taşımaz; sebebi
+      // göster ki "Beklenmeyen hata" ile kör kalınmasın (kaynaklar okunmuş kalır, tekrar denenir).
+      console.error('[card_drafter] taslak yazılamadı', err);
+      throw new AppError(
+        'draft_failed',
+        `Kaynaklar okundu ama taslak yazılamadı: ${err instanceof Error ? err.message : String(err)}. Tekrar dene; sürerse GİRVAK'a yaz.`,
+        502,
+      );
+    }
     await recordAgentRun(db, {
       agent: 'card_drafter',
       subjectType: 'talent',
@@ -115,6 +128,15 @@ export function createTalentService(
       outputSummary: { claims: draft.claims.length },
       usage,
     });
+    // Model tarih alanını bazen "2026-09" ya da "2026" yazar; Postgres date bunu reddeder ve
+    // bütün taslak 500 olur. Ay/yıl → ilk gün, geçersiz → null.
+    const tarih = (v: string | null): string | null => {
+      if (!v) return null;
+      const m = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/.exec(v.trim());
+      if (!m) return null;
+      const iso = `${m[1]}-${m[2] ?? '01'}-${m[3] ?? '01'}`;
+      return Number.isNaN(Date.parse(iso)) ? null : iso;
+    };
     const refToSource = new Map(kaynaklar.map((k) => [k.ref, k]));
     if (draft.claims.length) {
       await db.insert(cardClaims).values(
@@ -134,8 +156,8 @@ export function createTalentService(
                 ? ('documented' as const)
                 : ('declared' as const),
             sourceIds: srcs.map((x) => x.id),
-            periodStart: c.periodStart,
-            periodEnd: c.periodEnd,
+            periodStart: tarih(c.periodStart),
+            periodEnd: tarih(c.periodEnd),
             approved: false,
           };
         }),
