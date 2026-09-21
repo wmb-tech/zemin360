@@ -3,12 +3,14 @@ import { cors } from 'hono/cors';
 import { serveStatic } from 'hono/bun';
 import { existsSync } from 'node:fs';
 import { logger } from 'hono/logger';
-import type { Db } from '@evidex/db';
+import { errorLog, type Db } from '@evidex/db';
+import { desc } from 'drizzle-orm';
 import { authRoutes } from './auth/routes';
 import { createAuthService, type GithubProfile } from './auth/service';
 import { createEmailSenderFromEnv, type EmailSender } from './lib/email';
 import type { Env } from './lib/env';
-import { AppError, fail } from './lib/response';
+import { AppError, fail, ok } from './lib/response';
+import { withRole } from './auth/middleware';
 import { health } from './routes/health';
 import { needRoutes } from './needs/routes';
 import { createNeedService } from './needs/service';
@@ -123,6 +125,15 @@ export function createApp(deps: AppDeps) {
       scouting,
     ),
   );
+  // Hata kayıtları: yalnız operatör; son 50 kayıt, sebep + yığın (sunucu loguna erişimsiz teşhis).
+  app.route(
+    '/api/operator/errors',
+    new Hono()
+      .use('*', withRole(auth, 'operator'))
+      .get('/', async (c) =>
+        ok(c, await deps.db.select().from(errorLog).orderBy(desc(errorLog.createdAt)).limit(50)),
+      ),
+  );
   // Takip cevabı: giriş yok, e-postadaki tek kullanımlık token yetkidir.
   app.route('/api/checkin', checkinRoutes(followUp));
   const network = createNetworkService(deps.db, talent);
@@ -174,17 +185,23 @@ export function createApp(deps: AppDeps) {
   app.onError((err, c) => {
     if (err instanceof AppError) return fail(c, err);
     console.error(err);
-    // Oturumlu kullanıcıya hatanın sebebi gösterilir (kendi verisiyle ilgili; sır taşımaz).
-    // Anonim uçlarda yalnız genel mesaj — tablo/sorgu adları dışarı sızmasın.
-    const oturumlu = Boolean((c as unknown as { get(k: 'user'): unknown }).get('user'));
-    const sebep = err instanceof Error ? err.message : String(err);
+    // Sebep istemciye gitmez (bilgi sızıntısı); kayıt + kimlik gider, operatör kayıttan okur.
+    const errorId = crypto.randomUUID();
+    const kullanici = (c as unknown as { get(k: 'user'): { id?: string } | undefined }).get('user');
+    void deps.db
+      .insert(errorLog)
+      .values({
+        id: errorId,
+        userId: kullanici?.id ?? null,
+        method: c.req.method,
+        path: new URL(c.req.url).pathname,
+        message: err instanceof Error ? err.message.slice(0, 2000) : String(err).slice(0, 2000),
+        stack: err instanceof Error ? (err.stack?.slice(0, 8000) ?? null) : null,
+      })
+      .catch((e: unknown) => console.error('[error_log] yazılamadı', e));
     return fail(
       c,
-      new AppError(
-        'internal',
-        oturumlu ? `Beklenmeyen hata: ${sebep.slice(0, 300)}` : 'Beklenmeyen hata',
-        500,
-      ),
+      new AppError('internal', `Beklenmeyen hata (kayıt ${errorId.slice(0, 8)})`, 500, { errorId }),
     );
   });
 

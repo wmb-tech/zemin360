@@ -365,6 +365,20 @@ export const auditLog = pgTable('audit_log', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * Beklenmeyen hata kaydı: istemciye yalnız `errorId` gider, sebep burada durur; operatör
+ * /api/operator/errors ile okur. Sunucu loguna erişim olmadan da teşhis mümkün olsun diye.
+ */
+export const errorLog = pgTable('error_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  method: text('method').notNull(),
+  path: text('path').notNull(),
+  message: text('message').notNull(),
+  stack: text('stack'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 /* ---------- Meydan okuma (döngü adımı: keşfet 01) ---------- */
 
 export const challenges = pgTable(

@@ -78,6 +78,13 @@
       "when": 1789933348887,
       "tag": "0010_github_installations",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789992775878,
+      "tag": "0011_error_log",
+      "breakpoints": true
     }
   ]
 }

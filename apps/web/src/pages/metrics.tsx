@@ -138,7 +138,63 @@ export function MetricsPage() {
           </table>
         </Panel>
       </Enter>
+      <Enter i={3} as="section" className="mt-6">
+        <Hatalar />
+      </Enter>
     </div>
+  );
+}
+
+interface HataKaydi {
+  id: string;
+  userId: string | null;
+  method: string;
+  path: string;
+  message: string;
+  stack: string | null;
+  createdAt: string;
+}
+/** Son beklenmeyen hatalar: kullanıcı yalnız kayıt kimliğini görür, sebep burada okunur. */
+function Hatalar() {
+  const [liste, setListe] = useState<HataKaydi[] | null>(null);
+  const [acik, setAcik] = useState<string | null>(null);
+  useEffect(() => {
+    void api<HataKaydi[]>('/api/operator/errors')
+      .then(setListe)
+      .catch(() => setListe([]));
+  }, []);
+  if (!liste || liste.length === 0) return null;
+  return (
+    <Panel className="p-5">
+      <Eyebrow>Son beklenmeyen hatalar · {liste.length}</Eyebrow>
+      <p className="text-ink-soft mt-1 text-xs">
+        Kullanıcı ekranında yalnız "kayıt xxxxxxxx" görünür; sebep ve yığın burada.
+      </p>
+      <ul className="mt-3 divide-y divide-[var(--color-line)]">
+        {liste.map((h) => (
+          <li key={h.id} className="py-2 text-sm">
+            <button
+              onClick={() => setAcik(acik === h.id ? null : h.id)}
+              className="flex w-full flex-wrap items-baseline gap-x-3 text-left"
+            >
+              <span className="text-ink-soft tnum font-mono text-xs">{h.id.slice(0, 8)}</span>
+              <span className="text-ink-soft tnum text-xs">
+                {new Date(h.createdAt).toLocaleString('tr-TR')}
+              </span>
+              <span className="text-ink font-mono text-xs">
+                {h.method} {h.path}
+              </span>
+              <span className="text-negative">{h.message}</span>
+            </button>
+            {acik === h.id && h.stack && (
+              <pre className="bg-paper-2 text-ink-soft mt-2 overflow-x-auto rounded-[var(--radius-control)] p-3 text-xs whitespace-pre-wrap">
+                {h.stack}
+              </pre>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Panel>
   );
 }
 
