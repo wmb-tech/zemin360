@@ -16,6 +16,7 @@ const ClaimPatch = z.object({
 const ProfilePatch = z.object({
   headline: z.string().min(3).max(80).optional(),
   story: z.string().min(20).max(700).optional(),
+  city: z.string().min(2).max(60).optional(),
 });
 export const INSTALL_STATE_COOKIE = 'evidex_install_state';
 

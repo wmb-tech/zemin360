@@ -12,9 +12,9 @@ kullanıcı bir adımı bitirince "şimdi ne olacak" göremiyor. Sıra = etki. `
 - [x] Menü: "Kartım" ve "Kanıt" aynı sayfa. → Ana sayfa · Kartım · Meydan okumalar.
 - [x] Logo tıklanınca ana sayfa; giriş yapmışken açılış sayfasına ("Nasıl çalışır") ulaşılabilsin.
 - [x] Kart onayı sonrası yönlendirme + "ağdasın" mesajı.
-- [ ] Kaynak listesi yalnız bu tur okunan repoları gösteriyor; karttaki tüm repo kaynakları
-  gösterilmeli (40 sınırı turdan tura farklı repo getirebiliyor).
-- [ ] Şehir alanı (eşleşme filtresi için) ve kart üstünde kısa profil düzenleme.
+- [x] Kaynak listesi yalnız bu tur okunan repoları gösteriyor; karttaki tüm repo kaynakları
+  gösterilmeli (40 sınırı turdan tura farklı repo getirebiliyor). → kaynaklar kalıcı; her "yeniden oku" önce okunmamış 40 repoyu getirir, okunmuşlar haftalık yenilemede tazelenir.
+- [x] Şehir alanı (eşleşme filtresi için) ve kart üstünde kısa profil düzenleme. → şehir kartta düzenlenir; eşleştirici yerinde/hibritte kurum şehriyle karşılaştırıp gaps'e yazar (eleme değil).
 - [x] Paylaşılabilir linkte "kopyala".
 
 ## Kurum
@@ -23,12 +23,12 @@ kullanıcı bir adımı bitirince "şimdi ne olacak" göremiyor. Sıra = etki. `
   girişte zorunlu ad.
 - [x] İhtiyaç listesinde durum rozeti, aday sayısı, "adaylar" linki; onaylı ihtiyaçta kısa liste
   durumu ("GİRVAK inceliyor" / "N aday").
-- [ ] İhtiyaç detayında onay adımında alanları düzeltme (KARAR: kurum onaylarken düzeltir).
+- [x] İhtiyaç detayında onay adımında alanları düzeltme (KARAR: kurum onaylarken düzeltir).
 
 ## Operatör
 - [x] İhtiyaçlar sayfası (API var: `/api/operator/needs`): kurum, durum, eşleşme sayıları,
   "eşleştirmeyi yeniden koş", meydan okuma/keşif kısayolları.
-- [ ] Kuyrukta "Düzenle" (edit) — API var, ekranda yok.
+- [x] Kuyrukta "Düzenle" (edit) — API var, ekranda yok.
 
 ## Genel
 - [x] Sayfalar yüklenirken `null` dönüyor (boş ekran anı) → iskelet.

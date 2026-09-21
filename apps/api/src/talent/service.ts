@@ -180,6 +180,7 @@ export function createTalentService(
           id: talent.id,
           headline: talent.headline,
           story: talent.story,
+          city: talent.city,
           cardStatus: talent.cardStatus,
           githubConnected: installations.length > 0,
           installations,
@@ -353,9 +354,29 @@ export function createTalentService(
             pushedAt: r.pushedAt ?? '',
           });
       }
-      repos.sort((a, b) => (a.pushedAt < b.pushedAt ? 1 : a.pushedAt > b.pushedAt ? -1 : 0));
+      // Sıra: daha önce hiç okunmamış repolar önce (en son itilen başta), sonra okunmuşlar.
+      // Böylece her "yeniden oku" sıradaki MAX_REPOS yeni repoyu getirir; okunmuşlar haftalık
+      // yenilemede (canlı tut 04) tazelenir. Aksi hâlde 40+ repolu hesapta eski repolar hiç girmezdi.
+      const okunmus = new Set(
+        (
+          await db
+            .select({ ref: evidenceSources.ref })
+            .from(evidenceSources)
+            .where(
+              and(eq(evidenceSources.talentId, talent.id), eq(evidenceSources.kind, 'github_repo')),
+            )
+        ).map((k) => k.ref),
+      );
+      repos.sort((a, b) => {
+        const ao = okunmus.has(a.fullName) ? 1 : 0;
+        const bo = okunmus.has(b.fullName) ? 1 : 0;
+        if (ao !== bo) return ao - bo;
+        return a.pushedAt < b.pushedAt ? 1 : a.pushedAt > b.pushedAt ? -1 : 0;
+      });
       const secilen = repos.slice(0, MAX_REPOS);
-      const okunmayan = repos.length - secilen.length;
+      const okunmayan =
+        repos.filter((r) => !okunmus.has(r.fullName)).length -
+        secilen.filter((r) => !okunmus.has(r.fullName)).length;
       const repoInputs: { ref: string; signals: Record<string, unknown> }[] = [];
       let atlanan = 0;
 
@@ -481,7 +502,11 @@ export function createTalentService(
 
     async updateProfile(
       userId: string,
-      patch: { headline?: string | undefined; story?: string | undefined },
+      patch: {
+        headline?: string | undefined;
+        story?: string | undefined;
+        city?: string | undefined;
+      },
     ) {
       const { talent } = await talentOf(userId);
       await db

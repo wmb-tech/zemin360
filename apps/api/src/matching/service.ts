@@ -30,6 +30,7 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         name: users.name,
         headline: talents.headline,
         story: talents.story,
+        city: talents.city,
       })
       .from(talents)
       .innerJoin(users, eq(users.id, talents.userId))
@@ -87,7 +88,12 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
       const kart = need.card as NeedCard;
 
       const adaylar = await loadCandidates(kart);
-      const { results, usage } = await runMatcher(llm, kart, adaylar);
+      const [kurum] = await db
+        .select({ city: organizations.city })
+        .from(organizations)
+        .where(eq(organizations.id, need.organizationId))
+        .limit(1);
+      const { results, usage } = await runMatcher(llm, kart, adaylar, kurum?.city ?? null);
       if (usage) {
         await recordAgentRun(db, {
           agent: 'matcher',

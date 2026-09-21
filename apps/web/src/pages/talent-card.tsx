@@ -51,6 +51,7 @@ interface Card {
     id: string;
     headline: string | null;
     story: string | null;
+    city: string | null;
     cardStatus: 'draft' | 'approved';
     githubConnected: boolean;
     installations: {
@@ -125,7 +126,9 @@ export function TalentCardPage() {
           `${r.skippedOrgRepos} org reposu atlandı: commit'in olmayan repo kanıt sayılmaz.`,
         );
       if (r?.unreadRepos)
-        notlar.push(`En son itilen 40 repo okundu; ${r.unreadRepos} eski repo okunmadı.`);
+        notlar.push(
+          `Bu turda 40 repo okundu; ${r.unreadRepos} repo daha var. "Yeniden oku" sıradakileri getirir.`,
+        );
       if (notlar.length) setNote(notlar.join(' '));
       await load();
       return true;
@@ -899,6 +902,17 @@ function Kart({
           )
         }
         className="mt-3 text-lg font-semibold"
+      />
+      <Duzenlenebilir
+        value={card.talent.city}
+        placeholder="Şehir — yerinde/hibrit ihtiyaçlarda eşleşme gerekçesine girer"
+        busy={busy === 'city'}
+        onSave={(v) =>
+          void run('city', () =>
+            api('/api/me/card', { method: 'PATCH', body: JSON.stringify({ city: v }) }),
+          )
+        }
+        className="text-ink-soft mt-1 text-sm"
       />
       <Duzenlenebilir
         value={card.talent.story}

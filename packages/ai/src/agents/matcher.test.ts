@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { createFakeProvider } from '../provider';
-import { runMatcher, type CandidateCard } from './matcher';
+import { buildMatchMessages, runMatcher, type CandidateCard } from './matcher';
 
 const need = {
   title: 'Mobil uygulama',
@@ -25,6 +25,7 @@ const adaylar: CandidateCard[] = [
     name: 'Ayşe',
     headline: null,
     story: null,
+    city: 'İstanbul',
     claims: [
       {
         id: K1,
@@ -62,6 +63,16 @@ describe('matcher', () => {
     const { results } = await runMatcher(llm, need, adaylar);
     expect(results).toHaveLength(1);
     expect(results[0]!.fits[0]!.claimIds).toEqual([K1]);
+  });
+
+  it('konum: kurum şehri ve aday şehri istem metnine girer, kural yerinde/hibritle sınırlı', () => {
+    const mesajlar = buildMatchMessages({ ...need, workMode: 'hybrid' }, adaylar, 'İzmir');
+    const kullanici = mesajlar.find((m) => m.role === 'user')!.content;
+    const sistem = mesajlar.find((m) => m.role === 'system')!.content;
+    expect(kullanici).toContain('"organizationCity": "İzmir"');
+    expect(kullanici).toContain('Ayşe · İstanbul');
+    expect(sistem).toContain('"onsite" ya da "hybrid"');
+    expect(sistem).toContain('"remote" ihtiyaçta şehri hiç değerlendirme');
   });
 
   it('aday yoksa modele hiç gitmez', async () => {

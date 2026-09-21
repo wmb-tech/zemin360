@@ -13,6 +13,8 @@ export interface CandidateCard {
   name: string;
   headline: string | null;
   story: string | null;
+  /** Şehir; yalnız yerinde/hibrit ihtiyaçlarda anlam taşır (gaps'e girer, eleme değil). */
+  city: string | null;
   claims: {
     id: string;
     text: string;
@@ -39,11 +41,18 @@ GEREKÇELİ bir değerlendirme yaparsın. Kurallar:
 - Zamanı hesaba kat: uzun süre sürdürülmüş iş, tek seferlik denemeden değerlidir.
 - "gaps" dürüst olsun: ihtiyacın istediği ama kartta olmayan şeyler.
 - summaryForOrganization: kurum temsilcisinin 20 saniyede okuyacağı, teknik olmayan 2–3 cümle.
+- Konum: ihtiyaç workMode "onsite" ya da "hybrid" ise adayın şehri ile kurumun şehrini karşılaştır;
+  farklıysa bunu "gaps"e açıkça yaz ("kurum İzmir'de, aday İstanbul'da; hibrit çalışma için mesafe var").
+  Şehir eşleşmesi tek başına strength'i yükseltmez; "remote" ihtiyaçta şehri hiç değerlendirme.
 - Uygun olmayan adayı listeden ÇIKARMA; weak olarak ve gerekçesiyle ver — karar operatörün.
 - Sıralama: strong → possible → weak; aynı seviyede kanıt gücüne göre.`;
 
-export function buildMatchMessages(need: NeedCard, candidates: CandidateCard[]): LlmMessage[] {
-  const ihtiyac = JSON.stringify(need, null, 1);
+export function buildMatchMessages(
+  need: NeedCard,
+  candidates: CandidateCard[],
+  organizationCity: string | null = null,
+): LlmMessage[] {
+  const ihtiyac = JSON.stringify({ ...need, organizationCity }, null, 1);
   const adaylar = candidates
     .map((c) => {
       const iddialar = c.claims
@@ -52,7 +61,7 @@ export function buildMatchMessages(need: NeedCard, candidates: CandidateCard[]):
             `  - [${k.id}] (${LEVEL_TR[k.level]}${k.periodStart ? `, ${k.periodStart}→${k.periodEnd ?? 'devam'}` : ''}) ${k.text}`,
         )
         .join('\n');
-      return `Aday ${c.talentId} — ${c.name}${c.headline ? ` · ${c.headline}` : ''}\n${c.story ? `  Hikâye: ${c.story}\n` : ''}  İddialar:\n${iddialar || '  (onaylı iddia yok)'}`;
+      return `Aday ${c.talentId} — ${c.name}${c.headline ? ` · ${c.headline}` : ''}${c.city ? ` · ${c.city}` : ''}\n${c.story ? `  Hikâye: ${c.story}\n` : ''}  İddialar:\n${iddialar || '  (onaylı iddia yok)'}`;
     })
     .join('\n\n');
   return [
@@ -64,12 +73,17 @@ export function buildMatchMessages(need: NeedCard, candidates: CandidateCard[]):
   ];
 }
 
-export async function runMatcher(llm: LlmProvider, need: NeedCard, candidates: CandidateCard[]) {
+export async function runMatcher(
+  llm: LlmProvider,
+  need: NeedCard,
+  candidates: CandidateCard[],
+  organizationCity: string | null = null,
+) {
   if (candidates.length === 0) {
     return { results: [], usage: null };
   }
   const { value, usage } = await llm.structured(
-    buildMatchMessages(need, candidates),
+    buildMatchMessages(need, candidates, organizationCity),
     MatchBatchResult,
     {
       schemaName: 'match_batch',
