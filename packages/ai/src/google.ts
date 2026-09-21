@@ -92,7 +92,42 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
         throw new Error(`Model çıktısı token sınırında kesildi (${o?.schemaName ?? 'şema'})`);
       const text = res.text;
       if (!text) throw new Error('Model şemalı çıktı üretmedi');
-      return { value: schema.parse(JSON.parse(text)), usage: usageOf(res.usageMetadata, started) };
+      const ilk = schema.safeParse(JSON.parse(text));
+      if (ilk.success) return { value: ilk.data, usage: usageOf(res.usageMetadata, started) };
+      // Gemini JSON şemasındaki min/max kısıtlarını her zaman tutmuyor (ör. 7 yerine 9 iddia,
+      // 400 yerine 520 karakter). Bir kez, ihlalleri söyleyerek yeniden iste; yine tutmazsa hata.
+      const ihlaller = ilk.error.issues
+        .slice(0, 8)
+        .map((i) => `${i.path.join('.') || '(kök)'}: ${i.message}`)
+        .join('; ');
+      const tekrar = await client.models.generateContent({
+        model,
+        contents: [
+          ...contents,
+          { role: 'model', parts: [{ text }] },
+          {
+            role: 'user',
+            parts: [
+              {
+                text: `Çıktı şemaya uymadı: ${ihlaller}. Aynı içeriği bu kısıtlara UYARAK yeniden üret (fazla maddeleri birleştir, uzun metinleri kısalt).`,
+              },
+            ],
+          },
+        ],
+        config: {
+          ...(system ? { systemInstruction: system } : {}),
+          maxOutputTokens: (o?.maxTokens ?? 2048) + THINKING_BUDGET,
+          thinkingConfig: { thinkingBudget: THINKING_BUDGET },
+          responseMimeType: 'application/json',
+          responseJsonSchema: z.toJSONSchema(schema),
+        },
+      });
+      const metin2 = tekrar.text;
+      if (!metin2) throw new Error('Model şemalı çıktı üretmedi (ikinci deneme)');
+      return {
+        value: schema.parse(JSON.parse(metin2)),
+        usage: usageOf(tekrar.usageMetadata, started),
+      };
     },
   };
 }

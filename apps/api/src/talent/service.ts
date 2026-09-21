@@ -154,6 +154,24 @@ export function createTalentService(
       .where(eq(talents.id, talentId));
   }
 
+  /**
+   * Onaylı kartın onaylı iddiası kalmadıysa taslağa döner: "ağda ama boş kart" olmaz (kapı
+   * approveCard'daki kuralın aynası). Yeni taslağı onaylayınca aynı akışla tekrar ağa girer.
+   */
+  async function kartiKontrolEt(talentId: string) {
+    const [t] = await db.select().from(talents).where(eq(talents.id, talentId)).limit(1);
+    if (!t || t.cardStatus !== 'approved') return;
+    const [n] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(cardClaims)
+      .where(and(eq(cardClaims.talentId, talentId), eq(cardClaims.approved, true)));
+    if ((n?.n ?? 0) === 0)
+      await db
+        .update(talents)
+        .set({ cardStatus: 'draft', updatedAt: new Date() })
+        .where(eq(talents.id, talentId));
+  }
+
   return {
     async card(userId: string) {
       const { talent, user } = await talentOf(userId);
@@ -384,8 +402,17 @@ export function createTalentService(
       const repoInputs: { ref: string; signals: Record<string, unknown> }[] = [];
       let atlanan = 0;
 
+      let okunamayan = 0;
       for (const r of secilen) {
-        const signals = await github.extract(r.installationId, r.fullName, user.githubLogin);
+        let signals: Awaited<ReturnType<typeof github.extract>>;
+        try {
+          signals = await github.extract(r.installationId, r.fullName, user.githubLogin);
+        } catch (err) {
+          // Tek bozuk repo (boş, arşivli, izin) 60 reponun okumasını düşürmesin; sayılır, geçilir.
+          okunamayan++;
+          console.error(`[sync] repo okunamadı ${r.fullName}`, err);
+          continue;
+        }
         // Org reposu yalnız kişinin commit'i varsa kanıttır: üyelik tek başına bir şey kanıtlamaz.
         // Daha önce girmişse (eski kural) kaynak da silinir; bağlı taslak iddia redraft'ta düşer.
         if (r.org && !(signals.ownCommits && signals.ownCommits > 0)) {
@@ -436,7 +463,12 @@ export function createTalentService(
         .update(githubInstallations)
         .set({ lastSyncedAt: new Date() })
         .where(eq(githubInstallations.talentId, talent.id));
-      return { ...(await this.card(userId)), skippedOrgRepos: atlanan, unreadRepos: okunmayan };
+      return {
+        ...(await this.card(userId)),
+        skippedOrgRepos: atlanan,
+        unreadRepos: okunmayan,
+        failedRepos: okunamayan,
+      };
     },
 
     /** Kurulumu kaldır: o hesabın repolarından gelen kaynaklar ve onaysız iddiaları düşer. */
@@ -477,6 +509,7 @@ export function createTalentService(
         .where(and(eq(cardClaims.id, claimId), eq(cardClaims.talentId, talent.id)))
         .returning();
       if (!guncel) throw new AppError('not_found', 'İddia bulunamadı', 404);
+      if (patch.approved === false) await kartiKontrolEt(talent.id);
       return guncel;
     },
 
@@ -492,6 +525,7 @@ export function createTalentService(
               .set({ approved: action === 'approve', updatedAt: new Date() })
               .where(kosul)
               .returning({ id: cardClaims.id });
+      if (action !== 'approve') await kartiKontrolEt(talent.id);
       return { ...(await this.card(userId)), affected: etkilenen.length };
     },
 
@@ -502,6 +536,7 @@ export function createTalentService(
         .where(and(eq(cardClaims.id, claimId), eq(cardClaims.talentId, talent.id)))
         .returning({ id: cardClaims.id });
       if (!silinen.length) throw new AppError('not_found', 'İddia bulunamadı', 404);
+      await kartiKontrolEt(talent.id);
     },
 
     async updateProfile(

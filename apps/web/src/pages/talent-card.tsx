@@ -122,12 +122,15 @@ export function TalentCardPage() {
     setBusy(key);
     setError(null);
     try {
-      const r = (await fn()) as { skippedOrgRepos?: number; unreadRepos?: number } | undefined;
+      const r = (await fn()) as
+        { skippedOrgRepos?: number; unreadRepos?: number; failedRepos?: number } | undefined;
       const notlar: string[] = [];
       if (r?.skippedOrgRepos)
         notlar.push(
           `${r.skippedOrgRepos} org reposu atlandı: commit'in olmayan repo kanıt sayılmaz.`,
         );
+      if (r?.failedRepos)
+        notlar.push(`${r.failedRepos} repo okunamadı (boş, arşivli ya da erişim yok); atlandı.`);
       if (r?.unreadRepos)
         notlar.push(
           `Bu turda 40 repo okundu; ${r.unreadRepos} repo daha var. "Yeniden oku" sıradakileri getirir.`,
@@ -646,7 +649,25 @@ function Iddialar({
     setSecili(n);
   };
   if (card.claims.length === 0)
-    return (
+    return card.sources.length > 0 ? (
+      <Empty
+        title="İddia yok, kaynak var"
+        action={
+          <Button
+            variant="primary"
+            pending={busy === 'rewrite'}
+            pendingText="Repolar okunuyor, taslak yazılıyor…"
+            onClick={onRewrite}
+          >
+            Kaynaklardan taslak yaz
+          </Button>
+        }
+      >
+        {card.sources.length} kaynak bağlı ama karta yazılmış iddia yok. Ajan bütün repoları güncel
+        bağlamla okuyup 3–7 iş maddesi ve yetkinlik setini çıkarır; birkaç dakika sürebilir. Her
+        maddeyi sen onaylarsın.
+      </Empty>
+    ) : (
       <Empty
         title="Henüz iddia yok"
         action={
