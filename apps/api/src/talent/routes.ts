@@ -6,6 +6,7 @@ import type { AuthService } from '../auth/service';
 import { newRawToken } from '../auth/tokens';
 import type { Env } from '../lib/env';
 import { AppError, ok } from '../lib/response';
+import { jobOf, startJob } from './jobs';
 import type { TalentService } from './service';
 import { DOCUMENT_MAX_BYTES } from '@evidex/evidence';
 
@@ -43,7 +44,20 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
         return ok(c, await svc.updateProfile(c.get('user').id, body));
       })
       .post('/card/approve', async (c) => ok(c, await svc.approveCard(c.get('user').id)))
-      .post('/card/rewrite', async (c) => ok(c, await svc.rewriteCard(c.get('user').id)))
+      // Uzun işler (60 repo okuma + taslak) arka planda koşar; istemci durumunu sorar.
+      .post('/card/rewrite', (c) => {
+        const userId = c.get('user').id;
+        const is = startJob(userId, 'rewrite', (onProgress) =>
+          svc.rewriteCard(userId, { onProgress }).then((k) => ({
+            skippedOrgRepos: (k as { skippedOrgRepos?: number }).skippedOrgRepos,
+            unreadRepos: (k as { unreadRepos?: number }).unreadRepos,
+            failedRepos: (k as { failedRepos?: number }).failedRepos,
+          })),
+        );
+        if (!is) throw new AppError('job_running', 'Zaten koşan bir okuma var', 409);
+        return ok(c, is, 202);
+      })
+      .get('/card/job', (c) => ok(c, jobOf(c.get('user').id)))
       .post('/card/share', async (c) => {
         const body = await parse(
           z.object({ enabled: z.boolean() }),
@@ -94,7 +108,18 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
             : `https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new?state=${state}`,
         );
       })
-      .post('/evidence/github/sync', async (c) => ok(c, await svc.syncGithub(c.get('user').id)))
+      .post('/evidence/github/sync', (c) => {
+        const userId = c.get('user').id;
+        const is = startJob(userId, 'sync', (onProgress) =>
+          svc.syncGithub(userId, { onProgress }).then((k) => ({
+            skippedOrgRepos: k.skippedOrgRepos,
+            unreadRepos: k.unreadRepos,
+            failedRepos: k.failedRepos,
+          })),
+        );
+        if (!is) throw new AppError('job_running', 'Zaten koşan bir okuma var', 409);
+        return ok(c, is, 202);
+      })
       .delete('/evidence/github/installations/:id', async (c) =>
         ok(c, await svc.removeInstallation(c.get('user').id, c.req.param('id'))),
       )

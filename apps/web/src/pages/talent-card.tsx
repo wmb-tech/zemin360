@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { THRESHOLDS, type EvidenceLevel, type EvidenceSourceKind } from '@evidex/shared';
-import { api } from '../lib/api';
+import { api, ApiRequestError } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { Enter, Live } from '../components/motion';
 import {
@@ -47,6 +47,14 @@ interface Source {
   ownershipVerified: boolean;
   verifyToken: string | null;
   lastScannedAt: string | null;
+}
+interface Job {
+  mode: 'sync' | 'rewrite';
+  status: 'running' | 'done' | 'error';
+  read: number;
+  total: number;
+  message?: string;
+  result?: { skippedOrgRepos?: number; unreadRepos?: number; failedRepos?: number };
 }
 interface Card {
   talent: {
@@ -92,7 +100,8 @@ export function TalentCardPage() {
   const [error, setError] = useState<{ key: string; message: string } | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [secili, setSecili] = useState<Set<string>>(new Set());
-  const [settled, setSettled] = useState<Set<string>>(new Set()); // sunucu onayı sonrası vurgu
+  const [settled, setSettled] = useState<Set<string>>(new Set());
+  const [ilerleme, setIlerleme] = useState<{ read: number; total: number } | null>(null); // sunucu onayı sonrası vurgu
   const zone = (params.get('bolum') as Zone | null) ?? 'iddialar';
   const setZone = (z: Zone) => {
     const p = new URLSearchParams(params);
@@ -115,8 +124,65 @@ export function TalentCardPage() {
   useEffect(() => {
     if (!card || !params.get('installed') || otoBasladi.current) return;
     otoBasladi.current = true;
-    void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }));
+    void uzunIs('sync', '/api/me/evidence/github/sync');
   }, [card, params]);
+
+  /**
+   * Uzun kanıt işi (okuma / kartı yeniden yazma): sunucu 202 döner, iş arka planda koşar,
+   * burada durum sorulur. HTTP isteğinin dakikalarca açık kalması vekil sunucuda zaman aşımına
+   * uğruyordu ("Sunucu cevabı okunamadı").
+   */
+  async function uzunIs(key: 'sync' | 'rewrite', path: string) {
+    setBusy(key);
+    setError(null);
+    setIlerleme(null);
+    try {
+      await api(path, { method: 'POST' });
+    } catch (err) {
+      // 409: başka bir sekmede zaten koşuyor → duruma bağlan.
+      if (!(err instanceof ApiRequestError && err.code === 'job_running')) {
+        setError({ key, message: err instanceof Error ? err.message : 'İşlem başlatılamadı' });
+        setBusy(null);
+        return false;
+      }
+    }
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 2500));
+      let is: Job | null;
+      try {
+        is = await api<Job | null>('/api/me/card/job');
+      } catch {
+        continue; // geçici ağ hatası işi düşürmez
+      }
+      if (!is) break;
+      setIlerleme(is.total > 0 ? { read: is.read, total: is.total } : null);
+      if (is.status === 'running') continue;
+      if (is.status === 'error') {
+        setError({ key, message: is.message ?? 'İşlem tamamlanamadı' });
+        setBusy(null);
+        setIlerleme(null);
+        return false;
+      }
+      const notlar: string[] = [];
+      const r = is.result ?? {};
+      if (r.skippedOrgRepos)
+        notlar.push(
+          `${r.skippedOrgRepos} org reposu atlandı: commit'in olmayan repo kanıt sayılmaz.`,
+        );
+      if (r.failedRepos)
+        notlar.push(`${r.failedRepos} repo okunamadı (boş, arşivli ya da erişim yok); atlandı.`);
+      if (r.unreadRepos)
+        notlar.push(
+          `Bu turda ${is.read} repo okundu; ${r.unreadRepos} repo daha var. "Yeniden oku" sıradakileri getirir.`,
+        );
+      if (notlar.length) setNote(notlar.join(' '));
+      break;
+    }
+    await load();
+    setBusy(null);
+    setIlerleme(null);
+    return true;
+  }
 
   async function run(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
@@ -241,6 +307,27 @@ export function TalentCardPage() {
             : 'GitHub bağlandı. Taslak iddialar aşağıda; doğru olanı onayla, olmayanı sil.'}
         </p>
       )}
+      {(busy === 'sync' || busy === 'rewrite') && !params.get('installed') && (
+        <div
+          className="bg-accent-soft text-accent-strong mt-4 rounded-[var(--radius-control)] px-4 py-3 text-sm font-semibold"
+          aria-live="polite"
+        >
+          {ilerleme ? `${ilerleme.read}/${ilerleme.total} repo okundu…` : 'Repolar listeleniyor…'}{' '}
+          <span className="font-normal">
+            {busy === 'rewrite'
+              ? 'Okuma bitince ajan kartı baştan yazar; birkaç dakika sürebilir, sayfada kalabilirsin.'
+              : 'Sayfada kalabilirsin; iş sunucuda sürüyor.'}
+          </span>
+          {ilerleme && ilerleme.total > 0 && (
+            <div className="bg-surface mt-2 h-1.5 overflow-hidden rounded-full">
+              <div
+                className="bg-accent h-full transition-[width] duration-[var(--duration-standard)]"
+                style={{ width: `${Math.round((ilerleme.read / ilerleme.total) * 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
       {note && !params.get('installed') && <p className="text-ink-soft mt-3 text-sm">{note}</p>}
       {error && error.key !== 'load' && <ErrorNote>{error.message}</ErrorNote>}
 
@@ -269,13 +356,19 @@ export function TalentCardPage() {
       </Enter>
 
       <Enter i={2} as="section" className="mt-6">
-        {zone === 'kaynaklar' && <Kaynaklar card={card} github={github} busy={busy} run={run} />}
+        {zone === 'kaynaklar' && (
+          <Kaynaklar
+            card={card}
+            github={github}
+            busy={busy}
+            run={run}
+            onSync={() => void uzunIs('sync', '/api/me/evidence/github/sync')}
+          />
+        )}
         {zone === 'iddialar' && (
           <Iddialar
             card={card}
-            onRewrite={() =>
-              void run('rewrite', () => api('/api/me/card/rewrite', { method: 'POST' }))
-            }
+            onRewrite={() => void uzunIs('rewrite', '/api/me/card/rewrite')}
             taslak={taslak}
             onayli={onayli}
             secili={secili}
@@ -312,11 +405,13 @@ function Kaynaklar({
   github,
   busy,
   run,
+  onSync,
 }: {
   card: Card;
   github: Source[];
   busy: string | null;
   run: Run;
+  onSync: () => void;
 }) {
   const [acik, setAcik] = useState<string | null>(null);
   const grup = (login: string) => github.filter((s) => s.ref.startsWith(`${login}/`));
@@ -340,9 +435,7 @@ function Kaynaklar({
               size="sm"
               pending={busy === 'sync'}
               pendingText="Okunuyor…"
-              onClick={() =>
-                void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }))
-              }
+              onClick={onSync}
               title="Kanıt haftada bir kendiliğinden yenilenir"
             >
               Yeniden oku

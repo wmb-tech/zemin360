@@ -183,7 +183,20 @@ export function CardScreen() {
                 kind="ghost"
                 disabled={busy === 'sync'}
                 onPress={() =>
-                  void run('sync', () => api('/api/me/evidence/github/sync', { method: 'POST' }))
+                  void run('sync', async () => {
+                    // Okuma arka planda koşar (202); bitene kadar durumu sor.
+                    await api('/api/me/evidence/github/sync', { method: 'POST' });
+                    for (;;) {
+                      await new Promise((r) => setTimeout(r, 2500));
+                      const is = await api<{ status: string; message?: string } | null>(
+                        '/api/me/card/job',
+                      );
+                      if (!is || is.status === 'running') continue;
+                      if (is.status === 'error')
+                        throw new Error(is.message ?? 'Okuma tamamlanamadı');
+                      return;
+                    }
+                  })
                 }
               />
             ) : (

@@ -71,6 +71,45 @@ const sahteGithub: GithubEvidence = {
   },
 };
 
+/**
+ * Okuma artık arka planda koşar (202): işi başlat, bitmesini bekle, kartı ve iş sonucunu döndür.
+ * Test de kullanıcı gibi davranır — uzun iş isteğin üstünde durmaz.
+ */
+type Hono = ReturnType<typeof testApp>['app'];
+interface KartCevabi {
+  talent: { githubConnected: boolean; installations: { accountLogin: string }[] };
+  sources: { id: string; ref: string; kind: string }[];
+  claims: {
+    id: string;
+    level: string;
+    approved: boolean;
+    sourceIds: string[];
+    text: string;
+  }[];
+  skippedOrgRepos?: number;
+  unreadRepos?: number;
+  failedRepos?: number;
+}
+async function senkronEt(app: Hono, cookie: string): Promise<KartCevabi> {
+  const baslat = await app.request('/api/me/evidence/github/sync', {
+    method: 'POST',
+    headers: { cookie },
+  });
+  expect(baslat.status).toBe(202);
+  for (let i = 0; i < 200; i++) {
+    const is = (await (await app.request('/api/me/card/job', { headers: { cookie } })).json())
+      .data as { status: string; message?: string; result?: Record<string, number> } | null;
+    if (is && is.status !== 'running') {
+      if (is.status === 'error') throw new Error(is.message ?? 'iş düştü');
+      const kart = (await (await app.request('/api/me/card', { headers: { cookie } })).json())
+        .data as KartCevabi;
+      return { ...kart, ...(is.result ?? {}) };
+    }
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error('iş bitmedi');
+}
+
 describe('genç kartı (doğrula)', () => {
   it('kurulum → senkron → taslak iddialar → onayla/düzelt/sil → kart onayı; onaysız iddiasız kart onaylanmaz', async () => {
     const llm = createFakeProvider({
@@ -117,18 +156,16 @@ describe('genç kartı (doğrula)', () => {
     // Kart onayı henüz mümkün değil: iddia yok.
     expect((await app.request('/api/me/card/approve', json({}, cookie))).status).toBe(422);
 
-    const sync = await app.request('/api/me/evidence/github/sync', json({}, cookie));
-    expect(sync.status).toBe(200);
-    const kart = (await sync.json()).data;
+    const kart = await senkronEt(app, cookie);
     expect(kart.talent.githubConnected).toBe(true);
     expect(kart.sources).toHaveLength(2);
     expect(kart.claims).toHaveLength(1); // uydurma kaynaklı iddia düştü
-    expect(kart.claims[0].level).toBe('verified');
-    expect(kart.claims[0].approved).toBe(false);
-    expect(kart.claims[0].sourceIds).toHaveLength(1);
+    const iddia = kart.claims[0]!;
+    expect(iddia.level).toBe('verified');
+    expect(iddia.approved).toBe(false);
+    expect(iddia.sourceIds).toHaveLength(1);
 
     // Kişi iddiayı düzeltir ve onaylar.
-    const iddia = kart.claims[0];
     const duzelt = await app.request(
       `/api/me/card/claims/${iddia.id}`,
       json(
@@ -160,9 +197,7 @@ describe('genç kartı (doğrula)', () => {
     );
 
     // Yeniden senkron onaylı iddiaya dokunmaz.
-    const tekrar = (
-      await (await app.request('/api/me/evidence/github/sync', json({}, cookie))).json()
-    ).data;
+    const tekrar = await senkronEt(app, cookie);
     expect(tekrar.claims.filter((c: { approved: boolean }) => c.approved)).toHaveLength(1);
     // …ve aynı repo için ikinci bir taslak da üretmez (onaylı iddianın kaynağı ajana gitmez).
     expect(tekrar.claims).toHaveLength(1);
@@ -210,11 +245,7 @@ describe('genç kartı (doğrula)', () => {
     expect(loginler).toContain('ayse');
     expect(kart.talent.githubConnected).toBe(true);
     // Senkron: org'daki iki repodan yalnız commit'i olan kaynağa girer; sıfır commit'li atlanır.
-    const senkron = (
-      await (
-        await app.request('/api/me/evidence/github/sync', { method: 'POST', headers: { cookie } })
-      ).json()
-    ).data;
+    const senkron = await senkronEt(app, cookie);
     expect(senkron.skippedOrgRepos).toBe(1);
     const orgKaynaklar = senkron.sources
       .map((x: { ref: string }) => x.ref)

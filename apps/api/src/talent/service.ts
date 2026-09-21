@@ -387,7 +387,10 @@ export function createTalentService(
     },
 
     /** Kurulumdaki repoları oku, sinyal çıkar, taslak iddiaları yenile. */
-    async syncGithub(userId: string, opts: { all?: boolean } = {}) {
+    async syncGithub(
+      userId: string,
+      opts: { all?: boolean; onProgress?: (read: number, total: number) => void } = {},
+    ) {
       if (!github) throw new AppError('not_configured', 'GitHub App yapılandırılmamış', 503);
       const { talent, user } = await talentOf(userId);
       const kurulumlar = await db
@@ -440,6 +443,8 @@ export function createTalentService(
       let atlanan = 0;
 
       let okunamayan = 0;
+      let islenen = 0;
+      opts.onProgress?.(0, secilen.length);
       for (const r of secilen) {
         // Tek bozuk repo (boş, arşivli, izinsiz, bozuk kodlama) tüm koşuyu düşürmesin: okuma VE
         // yazma aynı korumanın içinde; sayılır, geçilir.
@@ -492,6 +497,7 @@ export function createTalentService(
           okunamayan++;
           console.error(`[sync] repo işlenemedi ${r.fullName}`, err);
         }
+        opts.onProgress?.(++islenen, secilen.length);
       }
 
       await redraft(talent.id, user.githubLogin);
@@ -596,7 +602,10 @@ export function createTalentService(
      * çıkar. Kart onaylıysa taslağa DÖNER — onaysız iddiayla ağda kalmak gate'i deler. Kişi
      * yeni taslağı onaylayınca aynı akışla tekrar ağa girer; eşleşmeler silinmez.
      */
-    async rewriteCard(userId: string) {
+    async rewriteCard(
+      userId: string,
+      opts: { onProgress?: (read: number, total: number) => void } = {},
+    ) {
       const { talent, user } = await talentOf(userId);
       await db.delete(cardClaims).where(eq(cardClaims.talentId, talent.id));
       if (talent.cardStatus === 'approved')
@@ -611,7 +620,11 @@ export function createTalentService(
         .limit(1);
       // GitHub bağlıysa tüm repolar güncel sinyalle (README özeti dahil) yeniden okunur; sync
       // sonunda redraft zaten koşar. Bağlı değilse mevcut sinyallerden yazılır.
-      if (kurulum.length > 0) return this.syncGithub(userId, { all: true });
+      if (kurulum.length > 0)
+        return this.syncGithub(userId, {
+          all: true,
+          ...(opts.onProgress ? { onProgress: opts.onProgress } : {}),
+        });
       await redraft(talent.id, user.githubLogin ?? user.name);
       return this.card(userId);
     },
