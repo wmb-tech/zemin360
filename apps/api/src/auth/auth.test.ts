@@ -37,6 +37,36 @@ describe('kimlik', () => {
     expect((await app.request('/api/auth/magic-link', json({ email: 'bozuk' }))).status).toBe(422);
   });
 
+  it('aynı e-postalı kurum hesabı GitHub girişiyle gence dönüşmez', async () => {
+    const { app, gonderilen } = testApp({
+      githubProfile: { id: 55, login: 'ayse', email: 'ortak@example.com', name: 'Ayşe' },
+    });
+    // Önce e-posta ile kurum hesabı açılır.
+    await app.request('/api/auth/magic-link', json({ email: 'ortak@example.com' }));
+    const path = gonderilen[0]!.text.match(/\/api\/auth\/magic\/\S+/)![0];
+    const kurumGiris = await app.request(path, { redirect: 'manual' });
+    const kurumCookie = cookieOf(kurumGiris, 'evidex_session');
+    expect(
+      (await (await app.request('/api/auth/me', { headers: { cookie: kurumCookie } })).json()).data
+        .role,
+    ).toBe('organization');
+
+    // Aynı e-postalı GitHub hesabı: kimlik bağlanmaz, oturum açılmaz.
+    const state = 'sX';
+    const res = await app.request(`/api/auth/github/callback?code=abc&state=${state}`, {
+      headers: { cookie: `evidex_oauth_state=${state}` },
+      redirect: 'manual',
+    });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toContain('hata=email_in_use');
+    expect(cookieOf(res, 'evidex_session')).toBe('');
+    // Kurum hesabı hâlâ kurum.
+    expect(
+      (await (await app.request('/api/auth/me', { headers: { cookie: kurumCookie } })).json()).data
+        .role,
+    ).toBe('organization');
+  });
+
   it('github callback state uyuşmazsa oturum açmaz', async () => {
     const { app } = testApp();
     const res = await app.request('/api/auth/github/callback?code=abc&state=x', {

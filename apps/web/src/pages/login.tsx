@@ -23,6 +23,11 @@ const HATA: Record<string, { baslik: string; metin: string }> = {
     metin:
       'Evidex yalnız üyesi olduğun organizasyonların kurulumunu okur. Organizasyon yöneticinden üyeliğini görünür yapmasını iste ya da kişisel hesabınla devam et.',
   },
+  email_in_use: {
+    baslik: 'Bu e-posta başka bir rolde kayıtlı',
+    metin:
+      "GitHub hesabının e-postası, Evidex'te bir kurum ya da GİRVAK hesabına ait. Genç kartı için farklı bir e-postası olan bir GitHub hesabıyla gir; ya da o hesaba e-posta bağlantısıyla giriş yap.",
+  },
   oauth_state: {
     baslik: 'GitHub dönüşü doğrulanamadı',
     metin: 'Süre dolmuş olabilir. "GitHub ile devam et" ile tekrar dene.',

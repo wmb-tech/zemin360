@@ -172,7 +172,20 @@ export function authRoutes(deps: {
         if (!code || !state || state !== beklenen)
           throw new AppError('oauth_state', 'Geçersiz OAuth durumu', 401);
         const profile = await fetchProfile(code);
-        const { user, sessionToken } = await auth.loginWithGithub(profile);
+        let oturum: Awaited<ReturnType<typeof auth.loginWithGithub>>;
+        try {
+          oturum = await auth.loginWithGithub(profile);
+        } catch (e) {
+          // Rol çakışması gibi okunur hatalar tarayıcıya ham JSON değil giriş sayfasında gösterilir.
+          if (e instanceof AppError)
+            return c.redirect(
+              mobil
+                ? `${MOBILE_SCHEME}://auth?hata=${e.code}`
+                : `${env.WEB_ORIGIN}/giris?hata=${e.code}`,
+            );
+          throw e;
+        }
+        const { user, sessionToken } = oturum;
         // ⚠ Kurulum doğrulaması oturum çerezinden ÖNCE: sahte installation_id ile gelen istek
         // 403 alır ve çerezsiz döner; hata cevabına oturum yazılmaz.
         if (installationId && deps.onInstallation) {

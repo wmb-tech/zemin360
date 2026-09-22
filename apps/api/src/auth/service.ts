@@ -95,20 +95,30 @@ export function createAuthService(db: Db) {
       let [kullanici] = await db.select().from(users).where(eq(users.githubId, githubId)).limit(1);
       if (!kullanici) {
         const email = profile.email ?? `${profile.login}@users.noreply.github.com`;
-        [kullanici] = await db
-          .insert(users)
-          .values({
-            email,
-            name: profile.name ?? profile.login,
-            role: 'talent',
-            githubId,
-            githubLogin: profile.login,
-          })
-          .onConflictDoUpdate({
-            target: users.email,
-            set: { githubId, githubLogin: profile.login },
-          })
-          .returning();
+        const [ayniEposta] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        // ⚠ Aynı e-posta başka bir rolün hesabına aitse GitHub kimliği ona BAĞLANMAZ: kurum ya da
+        // operatör hesabı sessizce gence dönüşürdü (GİRVAK operatörü kendi Gmail'iyle giriş
+        // yapınca yaşandı). Rol çakışması kullanıcıya söylenir; kimlik karışmaz.
+        if (ayniEposta && ayniEposta.role !== 'talent')
+          throw new AppError('email_in_use', 'Bu e-posta başka bir rolde kullanılıyor', 409);
+        if (ayniEposta) {
+          [kullanici] = await db
+            .update(users)
+            .set({ githubId, githubLogin: profile.login })
+            .where(eq(users.id, ayniEposta.id))
+            .returning();
+        } else {
+          [kullanici] = await db
+            .insert(users)
+            .values({
+              email,
+              name: profile.name ?? profile.login,
+              role: 'talent',
+              githubId,
+              githubLogin: profile.login,
+            })
+            .returning();
+        }
         if (!kullanici) throw new AppError('internal', 'Kullanıcı oluşturulamadı', 500);
         await db.insert(talents).values({ userId: kullanici.id }).onConflictDoNothing();
       }
