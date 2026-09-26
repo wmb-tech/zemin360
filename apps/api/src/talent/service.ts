@@ -463,11 +463,14 @@ export function createTalentService(
       let okunamayan = 0;
       let islenen = 0;
       opts.onProgress?.(0, secilen.length);
-      for (const r of secilen) {
+      // Repolar 6'lı gruplar hâlinde paralel okunur (60 repo: ~3,5 dk → ~1 dk). Her repo kendi
+      // korumasında; sıra önemsiz (seçim ve gruplama sonradan, sinyallerden yapılır).
+      const login = user.githubLogin; // yukarıda doğrulandı; kapanış içinde daralma kaybolmasın
+      const oku = async (r: (typeof secilen)[number]) => {
         // Tek bozuk repo (boş, arşivli, izinsiz, bozuk kodlama) tüm koşuyu düşürmesin: okuma VE
         // yazma aynı korumanın içinde; sayılır, geçilir.
         try {
-          const signals = await github.extract(r.installationId, r.fullName, user.githubLogin);
+          const signals = await github.extract(r.installationId, r.fullName, login);
           // Org reposu yalnız kişinin commit'i varsa kanıttır: üyelik tek başına bir şey kanıtlamaz.
           // Daha önce girmişse (eski kural) kaynak da silinir; bağlı taslak iddia redraft'ta düşer.
           if (r.org && !(signals.ownCommits && signals.ownCommits > 0)) {
@@ -477,7 +480,7 @@ export function createTalentService(
               .where(
                 and(eq(evidenceSources.talentId, talent.id), eq(evidenceSources.ref, r.fullName)),
               );
-            continue;
+            return;
           }
           const [kaynak] = await db
             .insert(evidenceSources)
@@ -516,7 +519,9 @@ export function createTalentService(
           console.error(`[sync] repo işlenemedi ${r.fullName}`, err);
         }
         opts.onProgress?.(++islenen, secilen.length);
-      }
+      };
+      for (let i = 0; i < secilen.length; i += 6)
+        await Promise.all(secilen.slice(i, i + 6).map(oku));
 
       const { cardFull } = await redraft(talent.id, user.githubLogin);
       await db
