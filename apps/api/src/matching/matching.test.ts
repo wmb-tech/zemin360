@@ -207,6 +207,13 @@ describe('eşleştir + onay kuyruğu', () => {
       .map((m) => m.to)
       .sort();
     expect(yeniMailler).toEqual(['ayse@example.com', 'mehmet@firma.com']);
+    // Tanıştırma gerçekten tanıştırır: iki taraf aynı metni alır ve karşı tarafın adresi içinde.
+    const tanistirma = gonderilen.slice(oncekiMail);
+    for (const m of tanistirma) {
+      expect(m.text).toContain('ayse@example.com');
+      expect(m.text).toContain('mehmet@firma.com');
+      expect(m.text).toContain('Tümünü yanıtla');
+    }
 
     adaylar = (
       await (

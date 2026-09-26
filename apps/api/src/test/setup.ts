@@ -29,7 +29,8 @@ export function testApp(
   const gonderilen: { to: string; text: string }[] = [];
   const email: EmailSender = {
     async send(msg) {
-      gonderilen.push({ to: msg.to, text: msg.text });
+      // Çok alıcılı gönderim alıcı başına kaydedilir: "iki tarafa gitti" testleri aynı kalır.
+      for (const to of [msg.to].flat()) gonderilen.push({ to, text: msg.text });
     },
   };
   const { app, followUp, network } = createApp({

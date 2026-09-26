@@ -24,6 +24,7 @@ import {
   LevelBadge,
   LinkButton,
   Panel,
+  IkiAdim,
   Skeleton,
   Skills,
   type SkillRow,
@@ -227,8 +228,6 @@ export function TalentCardPage() {
   }
   async function toplu(action: 'approve' | 'unapprove' | 'delete') {
     const ids = [...secili];
-    if (action === 'delete' && !window.confirm(`${ids.length} iddia silinsin mi? Geri alınamaz.`))
-      return;
     const ok = await run('bulk', () =>
       api('/api/me/card/claims/bulk', { method: 'POST', body: JSON.stringify({ ids, action }) }),
     );
@@ -479,22 +478,21 @@ function Kaynaklar({
                         {repolar.length} repo
                       </span>
                     </button>
-                    <button
-                      onClick={() =>
-                        window.confirm(
-                          `${i.accountLogin} kurulumu kaldırılsın mı? Bu hesabın repoları karttan çıkar.`,
-                        ) &&
+                    <IkiAdim
+                      onConfirm={() =>
                         void run(i.id, () =>
                           api(`/api/me/evidence/github/installations/${i.id}`, {
                             method: 'DELETE',
                           }),
                         )
                       }
+                      armedLabel="Repolar karttan çıksın mı?"
                       className="text-ink-soft hover:text-negative flex h-9 w-9 items-center justify-center rounded-lg"
-                      aria-label={`${i.accountLogin} kurulumunu kaldır`}
+                      armedClassName="bg-negative text-surface h-9"
+                      ariaLabel={`${i.accountLogin} kurulumunu kaldır`}
                     >
                       <X size={16} aria-hidden />
-                    </button>
+                    </IkiAdim>
                   </div>
                   <div className="disclose" data-open={open}>
                     <div>
@@ -814,7 +812,7 @@ function Iddialar({
               busy={busy === c.id}
               onSelect={() => toggleSel(c.id)}
               onToggle={() => onToggle(c)}
-              onDelete={() => window.confirm('Bu iddia silinsin mi? Geri alınamaz.') && onDelete(c)}
+              onDelete={() => onDelete(c)}
               onEdit={(t) => onEdit(c, t)}
             />
           ))}
@@ -836,17 +834,15 @@ function Iddialar({
         yazdırabilirsin: mevcut tüm iddialar silinir, bütün repolar güncel bağlamla yeniden okunur
         (birkaç dakika sürebilir), yeni taslak çıkar; onaylı kart yeni taslağı onaylayana kadar
         taslağa döner.{' '}
-        <button
-          onClick={() =>
-            window.confirm(
-              `${card.claims.length} iddia silinip kart yeniden yazılacak. Onaylı kart, yeni taslağı onaylayana kadar taslağa döner. Devam?`,
-            ) && onRewrite()
-          }
+        <IkiAdim
+          onConfirm={onRewrite}
           disabled={busy === 'rewrite'}
+          armedLabel={`${card.claims.length} iddia silinip yeniden yazılsın mı?`}
           className="text-accent font-semibold hover:underline disabled:opacity-50"
+          armedClassName="bg-negative text-surface py-1"
         >
           {busy === 'rewrite' ? 'Yazılıyor…' : 'Kartı yeniden yaz'}
-        </button>
+        </IkiAdim>
       </p>
       {secili.size > 0 && (
         <div
@@ -868,12 +864,14 @@ function Iddialar({
             >
               Taslağa al
             </button>
-            <button
-              onClick={() => onBulk('delete')}
-              className="pressable rounded-[var(--radius-control)] border border-white/30 px-3 py-1.5 text-sm font-semibold"
+            <IkiAdim
+              onConfirm={() => onBulk('delete')}
+              armedLabel={`${secili.size} iddiayı sil?`}
+              className="rounded-[var(--radius-control)] border border-white/30 px-3 py-1.5 text-sm font-semibold"
+              armedClassName="bg-negative text-surface py-1.5"
             >
               Sil
-            </button>
+            </IkiAdim>
             <button
               onClick={() => setSecili(new Set())}
               className="text-surface/80 px-2 text-sm"
@@ -1005,14 +1003,16 @@ function IddiaSatiri({
               Düzenle
             </button>
           )}
-          <button
-            onClick={onDelete}
+          <IkiAdim
+            onConfirm={onDelete}
             disabled={busy}
+            armedLabel="Silinsin mi?"
             className="text-ink-soft hover:text-negative hover:bg-negative-soft flex h-9 w-9 items-center justify-center rounded-lg"
-            aria-label="Sil"
+            armedClassName="bg-negative text-surface h-9"
+            ariaLabel="Sil"
           >
             <Trash2 size={16} aria-hidden />
-          </button>
+          </IkiAdim>
         </div>
       </div>
     </li>

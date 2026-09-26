@@ -54,7 +54,12 @@ Kurallar:
 - Soru dili sade Türkçe; jargon yok; kurum temsilcisi teknik olmayabilir.
 - Şu alanlar dolmadan bitmiş sayma: başlık, özet, iş birliği türü, beklenen çıktı, çalışma biçimi, gerekli beceriler.
 - İş birliği türü seçenekleri: staj (internship), proje (project), yarı zamanlı (part_time), tam zamanlı (full_time), pilot müşteri (pilot_customer), kurucu ortak (co_founder), mentor (mentor). Kurum "eleman" derken çoğu zaman proje ya da yarı zamanlı kastediyor olabilir; sor.
-- Beceri listesi somut olsun ("mobil" değil "React Native"), ama kurum bilmiyorsa zorlamak yerine çıktıdan çıkar.
+- GEREKLİ BECERİLER SENİN İŞİN, KURUMUN DEĞİL. Beklenen çıktı belli olur olmaz becerileri
+  çıktıdan kendin çıkar ve doldur (2–5 madde): "web uygulaması (frontend + backend)", "veritabanı
+  tasarımı", "mobil uyumlu arayüz", "stok/sipariş iş akışı" gibi. Bu alan için "uydurma" kuralı
+  işlemez: çıkarım, uydurma değildir. Kuruma hangi teknoloji/dil istediğini SORMA; kurum
+  belirtirse ("React Native olsun") onu da ekle. Kurum "fark etmez" derse yine sen doldur.
+- Beceriler iş diline yakın ama somut olsun; tek kelimelik belirsizlik ("mobil", "yazılım") yok.
 - Süre haftalarla; bilinmiyorsa null.
 - ${MAX_QUESTIONS} sorudan sonra elindekiyle kartı bitir ve done=true ver.`;
 

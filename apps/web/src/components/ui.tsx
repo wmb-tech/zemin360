@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -316,5 +317,51 @@ export function Skills({ skills, compact = false }: { skills: SkillRow[]; compac
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Geri alınamaz eylem için iki adımlı düğme: ilk tıklama "emin misin?" hâline geçer, 4 sn
+ * içinde ikinci tıklama yürütür, yoksa kendiliğinden eski hâline döner. Tarayıcı onay kutusu
+ * (window.confirm) yerine: sekmeyi kilitlemez, yerinde kalır, tasarım diliyle uyumlu.
+ */
+export function IkiAdim({
+  onConfirm,
+  children,
+  armedLabel,
+  className = '',
+  armedClassName = 'bg-negative text-surface',
+  ariaLabel,
+  disabled,
+}: {
+  onConfirm: () => void;
+  children: ReactNode;
+  armedLabel: string;
+  className?: string;
+  armedClassName?: string;
+  ariaLabel?: string;
+  disabled?: boolean;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = window.setTimeout(() => setArmed(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [armed]);
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      aria-label={armed ? armedLabel : ariaLabel}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else setArmed(true);
+      }}
+      className={`pressable ${armed ? `${armedClassName} rounded-[var(--radius-control)] px-3 text-sm font-semibold` : className}`}
+    >
+      {armed ? armedLabel : children}
+    </button>
   );
 }

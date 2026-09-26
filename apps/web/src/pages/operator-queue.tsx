@@ -3,7 +3,17 @@ import { Check, Pencil, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { Enter, Live } from '../components/motion';
-import { Button, Empty, ErrorNote, Eyebrow, Panel, Skeleton, Textarea } from '../components/ui';
+import {
+  Button,
+  Empty,
+  ErrorNote,
+  Eyebrow,
+  Panel,
+  Skeleton,
+  StrengthBadge,
+  Textarea,
+} from '../components/ui';
+import type { MatchStrength } from '@evidex/shared';
 
 type Action = 'publish_shortlist' | 'introduce' | 'send_follow_up' | 'invite';
 interface QueueItem {
@@ -13,6 +23,15 @@ interface QueueItem {
   subjectId: string;
   payload: Record<string, unknown>;
   createdAt: string;
+  /** Yalnız kısa liste önerisinde: yayınlanacak adaylar (operatör tam adı görür). */
+  candidates?: {
+    rank: number;
+    strength: MatchStrength;
+    name: string;
+    headline: string | null;
+    summary: string | null;
+    gaps: string[];
+  }[];
 }
 
 const ACTION: Record<Action, { label: string; sonuc: string }> = {
@@ -93,13 +112,9 @@ export function OperatorQueuePage() {
 
   async function decide(decision: 'approve' | 'reject' | 'edit') {
     if (!secili) return;
-    if (
-      edit &&
-      !window.confirm(
-        'Kaydedilmemiş düzenleme var. Onaylamadan önce kaydedilsin mi? (İptal: düzenlemeyi at)',
-      )
-    )
-      setEdit(null);
+    // Düzenleme açıkken yalnız "düzenlemeyle onayla" / "düzenlemeyi at" görünür; düz onay/ret
+    // düğmeleri ve A/R kısayolları kapalı. Burada tarayıcı onay kutusu yok (modal diyalog
+    // sekmeyi kilitler ve tasarım dilinde yer almaz).
     setBusy(decision);
     setError(null);
     try {
@@ -356,6 +371,24 @@ function Payload({ item }: { item: QueueItem }) {
         <div className="text-ink-soft mt-1 text-xs">
           Gerekçeler ajanın; kurum yalnız ilk ad görür.
         </div>
+        {item.candidates && item.candidates.length > 0 && (
+          <ol className="border-line mt-3 divide-y divide-[var(--color-line)] border-t">
+            {item.candidates.map((a) => (
+              <li key={a.rank} className="py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-ink-soft tnum text-xs">#{a.rank}</span>
+                  <span className="text-ink font-semibold">{a.name}</span>
+                  {a.headline && <span className="text-ink-soft text-xs">{a.headline}</span>}
+                  <StrengthBadge strength={a.strength} />
+                </div>
+                {a.summary && <p className="text-ink mt-1 leading-relaxed">{a.summary}</p>}
+                {a.gaps.length > 0 && (
+                  <p className="text-ink-soft mt-1 text-xs">Eksik: {a.gaps.join(' · ')}</p>
+                )}
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     );
   }

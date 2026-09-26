@@ -80,7 +80,7 @@ export function createOperatorService(
           .limit(1);
         const kurumUyeleri = need
           ? await db
-              .select({ email: users.email })
+              .select({ email: users.email, name: users.name })
               .from(organizationMembers)
               .innerJoin(users, eq(users.id, organizationMembers.userId))
               .where(eq(organizationMembers.organizationId, need.organizationId))
@@ -100,7 +100,20 @@ export function createOperatorService(
         const alicilar = [talent?.email, ...kurumUyeleri.map((u) => u.email)].filter(
           (e): e is string => Boolean(e),
         );
-        for (const to of alicilar) await email.send({ to, subject: konu, text: metin });
+        // Tanıştırmanın özü iletişim: taraflar TEK e-postada, birbirinin adresini görerek alır
+        // ("tümünü yanıtla" doğrudan buluşturur). İletişim bloğu sistemindir; ajan ya da operatör
+        // metni ne olursa olsun adresler doğru yazılır. (Ayrı ayrı gönderim kimseyi tanıştırmıyordu.)
+        const iletisim = [
+          '',
+          '—',
+          'İletişim',
+          `${talent?.name ?? 'Genç yetenek'}: ${talent?.email ?? '—'}`,
+          `${kurum?.name ?? 'Kurum'}: ${kurumUyeleri.map((u) => u.email).join(', ') || '—'}`,
+          '',
+          'Bu e-postayı "Tümünü yanıtla" ile cevaplayarak doğrudan görüşme ayarlayabilirsiniz.',
+        ].join('\n');
+        if (alicilar.length > 0)
+          await email.send({ to: alicilar, subject: konu, text: `${metin}\n${iletisim}` });
         await db.update(matches).set({ introducedAt: new Date() }).where(eq(matches.id, m.id));
         await db.insert(collaborations).values({ matchId: m.id }).onConflictDoNothing();
         return;
@@ -154,12 +167,55 @@ export function createOperatorService(
   }
 
   return {
+    /**
+     * Bekleyen öneriler. Kısa liste önerisi sayıyla değil adaylarla gelir: operatör kimi ve neden
+     * yayınladığını görmeden onaylamamalı (kör onay). Aday bilgisi yayın anındaki eşleşmelerden
+     * canlı okunur; eski kayıtlar da aynı görünümü alır.
+     */
     async queue() {
-      return db
+      const kayitlar = await db
         .select()
         .from(approvalQueue)
         .where(eq(approvalQueue.status, 'proposed'))
         .orderBy(desc(approvalQueue.createdAt));
+      const matchIds = kayitlar
+        .filter((k) => k.action === 'publish_shortlist')
+        .flatMap((k) => ((k.payload as { matchIds?: string[] }).matchIds ?? []) as string[]);
+      if (matchIds.length === 0) return kayitlar;
+      const adaylar = await db
+        .select({
+          id: matches.id,
+          rank: matches.rank,
+          strength: matches.strength,
+          reasoning: matches.reasoning,
+          name: users.name,
+          headline: talents.headline,
+        })
+        .from(matches)
+        .innerJoin(talents, eq(talents.id, matches.talentId))
+        .innerJoin(users, eq(users.id, talents.userId))
+        .where(inArray(matches.id, matchIds));
+      const byId = new Map(adaylar.map((a) => [a.id, a]));
+      return kayitlar.map((k) => {
+        if (k.action !== 'publish_shortlist') return k;
+        const ids = ((k.payload as { matchIds?: string[] }).matchIds ?? []) as string[];
+        const liste = ids
+          .map((id) => byId.get(id))
+          .filter((a): a is NonNullable<typeof a> => Boolean(a))
+          .sort((a, b) => a.rank - b.rank)
+          .map((a) => {
+            const r = a.reasoning as { summaryForOrganization?: string; gaps?: string[] } | null;
+            return {
+              rank: a.rank,
+              strength: a.strength,
+              name: a.name,
+              headline: a.headline,
+              summary: r?.summaryForOrganization ?? null,
+              gaps: r?.gaps ?? [],
+            };
+          });
+        return { ...k, candidates: liste };
+      });
     },
 
     async decide(

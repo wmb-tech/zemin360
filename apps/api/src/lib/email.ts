@@ -7,13 +7,16 @@ import nodemailer from 'nodemailer';
  * — 465/25 Hetzner'da kapalı, 587 STARTTLS (bkz. gise-live-ops dersi).
  */
 export interface EmailSender {
-  send(msg: { to: string; subject: string; text: string; html?: string }): Promise<void>;
+  /** `to` dizi olabilir: tanıştırmada taraflar aynı e-postada, "tümünü yanıtla" çalışsın diye. */
+  send(msg: { to: string | string[]; subject: string; text: string; html?: string }): Promise<void>;
 }
 
 export function createConsoleEmailSender(): EmailSender {
   return {
     async send(msg) {
-      console.warn(`[email:console] to=${msg.to} subject=${msg.subject}\n${msg.text}`);
+      console.warn(
+        `[email:console] to=${[msg.to].flat().join(',')} subject=${msg.subject}\n${msg.text}`,
+      );
     },
   };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { createFakeProvider } from '../provider';
 import {
+  buildMessages as needMesajlari,
   finalizeNeedCard,
   MAX_QUESTIONS,
   missingRequired,
@@ -56,6 +57,15 @@ describe('need_structurer', () => {
     const { step } = await runNeedStructurer(llm, { rawText: 'x', turns });
     expect(step.done).toBe(true);
     expect(step.nextQuestion).toBeNull();
+  });
+
+  it('istem: beceriler ajanın işi — kuruma teknoloji sorulmaz, "fark etmez" de doldurulur', () => {
+    const sistem = needMesajlari('Kahve zinciriyiz, stok paneli lazım.', []).find(
+      (m) => m.role === 'system',
+    )!.content;
+    expect(sistem).toContain('GEREKLİ BECERİLER SENİN İŞİN, KURUMUN DEĞİL');
+    expect(sistem).toContain('SORMA');
+    expect(sistem).toContain('"fark etmez"');
   });
 
   it('tam taslak onaylanabilir NeedCard verir', () => {
