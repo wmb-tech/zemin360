@@ -12,6 +12,8 @@ import type { LlmMessage, LlmProvider, LlmUsage } from './provider';
  */
 export interface GoogleProviderOptions {
   model?: string;
+  /** Hızlı kademe ve yedek model (kalite modeli kotaya takılırsa buna düşülür). */
+  fastModel?: string;
   vertex?: { project: string; location?: string };
   apiKey?: string;
 }
@@ -45,9 +47,27 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
         location: opts.vertex.location ?? 'global',
       })
     : new GoogleGenAI({ apiKey: opts.apiKey! });
-  const gen = (req: Parameters<typeof client.models.generateContent>[0]) =>
-    denemeli(() => client.models.generateContent(req));
   const model = opts.model ?? 'gemini-2.5-pro';
+  const fastModel = opts.fastModel ?? 'gemini-2.5-flash';
+  /**
+   * Çağrı + yedek: kalite modeli geçici hatayı (429/503) denemelerden sonra da veriyorsa istek
+   * bir kez hızlı modelle yapılır — ayrı kota havuzu; canlı demoda "Beklenmeyen hata" yerine
+   * biraz daha sade ama çalışan bir cevap. Hangi modelin cevapladığı kullanım kaydına yazılır.
+   */
+  async function gen(req: Parameters<typeof client.models.generateContent>[0]) {
+    try {
+      return { res: await denemeli(() => client.models.generateContent(req)), used: req.model };
+    } catch (err) {
+      const metin = err instanceof Error ? err.message : String(err);
+      const gecici = /\b(429|503)\b|RESOURCE_EXHAUSTED|UNAVAILABLE/.test(metin);
+      if (!gecici || req.model === fastModel) throw err;
+      console.warn(`[llm] ${req.model} geçici hata; ${fastModel} ile yedek çağrı`);
+      return {
+        res: await client.models.generateContent({ ...req, model: fastModel }),
+        used: fastModel,
+      };
+    }
+  }
   const providerName = opts.vertex ? 'google-vertex' : 'google-aistudio';
 
   function split(messages: LlmMessage[]) {
@@ -67,10 +87,11 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
   const usageOf = (
     u: { promptTokenCount?: number; candidatesTokenCount?: number } | undefined,
     started: number,
+    kullanilan: string = model,
   ): LlmUsage => ({
     inputTokens: u?.promptTokenCount ?? 0,
     outputTokens: u?.candidatesTokenCount ?? 0,
-    model,
+    model: kullanilan,
     provider: providerName,
     durationMs: Date.now() - started,
   });
@@ -83,7 +104,7 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
     async complete(messages, o) {
       const started = Date.now();
       const { system, contents } = split(messages);
-      const res = await gen({
+      const { res, used } = await gen({
         model,
         contents,
         config: {
@@ -91,20 +112,23 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
           maxOutputTokens: o?.maxTokens ?? 1024,
         },
       });
-      return { text: res.text ?? '', usage: usageOf(res.usageMetadata, started) };
+      return { text: res.text ?? '', usage: usageOf(res.usageMetadata, started, used) };
     },
     async structured(messages, schema, o) {
       const started = Date.now();
       const { system, contents } = split(messages);
       // ⚠ Gemini 2.5'te düşünme tokenleri maxOutputTokens'tan düşer; bütçeyi ayrıca ayırmazsak
       // JSON yarıda kesilir ("Unterminated string"). Çağıranın maxTokens'ı cevap içindir.
-      const res = await gen({
-        model,
+      // Hızlı kademe: Flash, düşünme bütçesi küçük — ihtiyaç sohbetinde tur ~15 sn → birkaç sn.
+      const secilen = o?.tier === 'fast' ? fastModel : model;
+      const butce = o?.tier === 'fast' ? 256 : THINKING_BUDGET;
+      const { res, used } = await gen({
+        model: secilen,
         contents,
         config: {
           ...(system ? { systemInstruction: system } : {}),
-          maxOutputTokens: (o?.maxTokens ?? 2048) + THINKING_BUDGET,
-          thinkingConfig: { thinkingBudget: THINKING_BUDGET },
+          maxOutputTokens: (o?.maxTokens ?? 2048) + butce,
+          thinkingConfig: { thinkingBudget: butce },
           responseMimeType: 'application/json',
           responseJsonSchema: z.toJSONSchema(schema),
         },
@@ -114,15 +138,15 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
       const text = res.text;
       if (!text) throw new Error('Model şemalı çıktı üretmedi');
       const ilk = schema.safeParse(JSON.parse(text));
-      if (ilk.success) return { value: ilk.data, usage: usageOf(res.usageMetadata, started) };
+      if (ilk.success) return { value: ilk.data, usage: usageOf(res.usageMetadata, started, used) };
       // Gemini JSON şemasındaki min/max kısıtlarını her zaman tutmuyor (ör. 7 yerine 9 iddia,
       // 400 yerine 520 karakter). Bir kez, ihlalleri söyleyerek yeniden iste; yine tutmazsa hata.
       const ihlaller = ilk.error.issues
         .slice(0, 8)
         .map((i) => `${i.path.join('.') || '(kök)'}: ${i.message}`)
         .join('; ');
-      const tekrar = await gen({
-        model,
+      const { res: tekrar, used: used2 } = await gen({
+        model: used,
         contents: [
           ...contents,
           { role: 'model', parts: [{ text }] },
@@ -137,8 +161,8 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
         ],
         config: {
           ...(system ? { systemInstruction: system } : {}),
-          maxOutputTokens: (o?.maxTokens ?? 2048) + THINKING_BUDGET,
-          thinkingConfig: { thinkingBudget: THINKING_BUDGET },
+          maxOutputTokens: (o?.maxTokens ?? 2048) + butce,
+          thinkingConfig: { thinkingBudget: butce },
           responseMimeType: 'application/json',
           responseJsonSchema: z.toJSONSchema(schema),
         },
@@ -147,7 +171,7 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
       if (!metin2) throw new Error('Model şemalı çıktı üretmedi (ikinci deneme)');
       return {
         value: schema.parse(JSON.parse(metin2)),
-        usage: usageOf(tekrar.usageMetadata, started),
+        usage: usageOf(tekrar.usageMetadata, started, used2),
       };
     },
   };

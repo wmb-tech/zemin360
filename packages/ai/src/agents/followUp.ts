@@ -40,6 +40,7 @@ export async function runFollowUpDrafter(llm: LlmProvider, ctx: FollowUpContext)
   const { value, usage } = await llm.structured(buildFollowUpMessages(ctx), FollowUpDraft, {
     schemaName: 'follow_up_draft',
     maxTokens: 1500,
+    tier: 'fast',
   });
   return { draft: value, usage };
 }
@@ -76,6 +77,7 @@ export async function runCheckinInterpreter(llm: LlmProvider, input: CheckinInpu
   const { value, usage } = await llm.structured(buildCheckinMessages(input), CheckinInsight, {
     schemaName: 'checkin_insight',
     maxTokens: 800,
+    tier: 'fast',
   });
   // Ajan kuralı çiğnese bile referans kapısı kodda: kurum değilse / tamamlanmadıysa / onaysızsa yok.
   const referansOlabilir =

@@ -96,6 +96,7 @@ export async function runNeedStructurer(
     NeedStructurerStep,
     {
       schemaName: 'need_step',
+      tier: 'fast',
     },
   );
   const missing = missingRequired(value.draft);

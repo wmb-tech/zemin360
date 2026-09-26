@@ -32,7 +32,15 @@ export interface LlmProvider {
   structured<T>(
     messages: LlmMessage[],
     schema: z.ZodType<T>,
-    opts?: { maxTokens?: number; schemaName?: string },
+    opts?: {
+      maxTokens?: number;
+      schemaName?: string;
+      /**
+       * 'fast': sohbet gibi insanın beklediği çağrılar (ihtiyaç soruları, takip) — hızlı model.
+       * 'quality' (varsayılan): kart, eşleştirme, değerlendirme — güçlü model.
+       */
+      tier?: 'fast' | 'quality';
+    },
   ): Promise<StructuredResult<T>>;
 }
 
