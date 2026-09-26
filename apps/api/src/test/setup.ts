@@ -38,6 +38,7 @@ export function testApp(
     db,
     email,
     llm: opts.llm ?? createFakeProvider(),
+    inlineMatching: true,
     github: opts.github ?? null,
     ...(opts.liveUrl ? { liveUrl: opts.liveUrl } : {}),
     ...(opts.publicRepo ? { publicRepo: opts.publicRepo } : {}),

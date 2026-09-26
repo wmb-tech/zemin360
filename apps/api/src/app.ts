@@ -11,6 +11,7 @@ import { createEmailSenderFromEnv, type EmailSender } from './lib/email';
 import type { Env } from './lib/env';
 import { AppError, fail, ok } from './lib/response';
 import { withRole } from './auth/middleware';
+import { demoStatus, removeDemoNetwork, seedDemoNetwork } from './demo/network';
 import { health } from './routes/health';
 import { needRoutes } from './needs/routes';
 import { createNeedService } from './needs/service';
@@ -57,6 +58,11 @@ export interface AppDeps {
   document?: DocumentEvidence;
   /** Web derlemesinin kökü; varsa API aynı porttan servis eder (üretimde tek süreç). */
   webDist?: string;
+  /**
+   * İhtiyaç onayından sonra eşleştirme: üretimde arka planda (kurum 30 sn beklemez), testlerde
+   * satır içi (sonuç hemen doğrulanabilsin). Varsayılan arka plan.
+   */
+  inlineMatching?: boolean;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -103,7 +109,12 @@ export function createApp(deps: AppDeps) {
   app.route('/api/me/challenges', talentChallengeRoutes(auth, challenge));
   app.route(
     '/api/needs',
-    needRoutes(auth, createNeedService(deps.db, llm, matching), matching, challenge),
+    needRoutes(
+      auth,
+      createNeedService(deps.db, llm, matching, { inlineMatching: deps.inlineMatching ?? false }),
+      matching,
+      challenge,
+    ),
   );
   const followUp = createFollowUpService(deps.db, llm, email, deps.env.WEB_ORIGIN);
   const scouting = createScoutingService(
@@ -133,6 +144,15 @@ export function createApp(deps: AppDeps) {
       .get('/', async (c) =>
         ok(c, await deps.db.select().from(errorLog).orderBy(desc(errorLog.createdAt)).limit(50)),
       ),
+  );
+  // Demo ağı: yalnız operatör; yükle (idempotent) / kaldır (yalnız @demo.evidex.dev).
+  app.route(
+    '/api/operator/demo',
+    new Hono()
+      .use('*', withRole(auth, 'operator'))
+      .get('/', async (c) => ok(c, await demoStatus(deps.db)))
+      .post('/', async (c) => ok(c, await seedDemoNetwork(deps.db)))
+      .delete('/', async (c) => ok(c, await removeDemoNetwork(deps.db))),
   );
   // Takip cevabı: giriş yok, e-postadaki tek kullanımlık token yetkidir.
   app.route('/api/checkin', checkinRoutes(followUp));

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
-import { Button, Empty, ErrorNote, Eyebrow, Skeleton } from '../components/ui';
+import { Button, Empty, ErrorNote, Eyebrow, IkiAdim, Skeleton } from '../components/ui';
 import { Enter, Live } from '../components/motion';
 import { NeedPicker } from '../components/need-picker';
 
@@ -110,9 +110,16 @@ export function NetworkPage() {
             okunur; {THRESHOLDS.silentCardAfterDays} gündür etkinlik yoksa kart sessiz sayılır.
           </p>
         </div>
-        <Button pending={busy === 'refresh'} pendingText="Okunuyor…" onClick={() => void refresh()}>
-          Kanıtları şimdi yenile
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <DemoAgi onChange={() => void load()} />
+          <Button
+            pending={busy === 'refresh'}
+            pendingText="Okunuyor…"
+            onClick={() => void refresh()}
+          >
+            Kanıtları şimdi yenile
+          </Button>
+        </div>
       </Enter>
       {note && <p className="text-ink-soft mt-3 text-sm">{note}</p>}
 
@@ -378,5 +385,54 @@ function ScoutForm({ onDone }: { onDone: (msg: string) => void }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Demo ağı (sunum ve eğitim): 8 kurgusal genç + 2 kurum. Yalnız @demo.evidex.dev kayıtlarına
+ * dokunur; gerçek kullanıcılar etkilenmez. Kaldırma iki adımlı.
+ */
+function DemoAgi({ onChange }: { onChange: () => void }) {
+  const [durum, setDurum] = useState<{ talents: number; organizations: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
+  useEffect(() => {
+    void api<{ talents: number; organizations: number }>('/api/operator/demo')
+      .then(setDurum)
+      .catch(() => setDurum(null));
+  }, []);
+  async function calis(method: 'POST' | 'DELETE') {
+    setBusy(true);
+    setHata(null);
+    try {
+      setDurum(await api('/api/operator/demo', { method }));
+      onChange();
+    } catch (e) {
+      setHata(e instanceof Error ? e.message : 'İşlem tamamlanamadı');
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!durum) return null;
+  const yuklu = durum.talents > 0;
+  return (
+    <div className="flex items-center gap-2">
+      {hata && <span className="text-negative text-xs">{hata}</span>}
+      {yuklu ? (
+        <IkiAdim
+          onConfirm={() => void calis('DELETE')}
+          disabled={busy}
+          armedLabel="Demo ağı silinsin mi?"
+          className="border-line text-ink-soft hover:bg-paper-2 inline-flex min-h-11 items-center rounded-[var(--radius-control)] border px-4 text-sm font-semibold"
+          armedClassName="bg-negative text-surface min-h-11"
+        >
+          Demo ağı yüklü · {durum.talents} genç, {durum.organizations} kurum · kaldır
+        </IkiAdim>
+      ) : (
+        <Button pending={busy} pendingText="Yükleniyor…" onClick={() => void calis('POST')}>
+          Demo ağını yükle
+        </Button>
+      )}
+    </div>
   );
 }

@@ -17,7 +17,12 @@ import type { MatchingService } from '../matching/service';
  * Kurum ham metni yazar → ajan taslak + soru → cevap → … → kurum onaylar.
  * ⚠ Onay yalnız kurumun; ajan `done` dese de kart onaysız `draft` kalır.
  */
-export function createNeedService(db: Db, llm: LlmProvider, matching: MatchingService) {
+export function createNeedService(
+  db: Db,
+  llm: LlmProvider,
+  matching: MatchingService,
+  opts: { inlineMatching?: boolean } = {},
+) {
   async function organizationOf(userId: string) {
     const [uye] = await db
       .select({ organizationId: organizationMembers.organizationId })
@@ -144,7 +149,13 @@ export function createNeedService(db: Db, llm: LlmProvider, matching: MatchingSe
         .where(eq(needs.id, needId))
         .returning();
       // Onay eşleştirmeyi tetikler; kısa liste operatör kuyruğuna düşer (kurum henüz görmez).
-      await matching.runForNeed(needId);
+      // Eşleştirme ~30 sn (tüm ağ × ajan); kurumun onay düğmesi bunu beklemez. Düşerse kayıtlı
+      // kalır ve operatör İhtiyaçlar ekranından "Eşleştir" ile yeniden koşar.
+      if (opts.inlineMatching) await matching.runForNeed(needId);
+      else
+        void matching
+          .runForNeed(needId)
+          .catch((err: unknown) => console.error(`[matching] ihtiyaç ${needId} eşleşemedi`, err));
       return onayli!;
     },
   };
