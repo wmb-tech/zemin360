@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { ArrowRight, ChevronRight, FileCheck2, IdCard, Users } from 'lucide-react';
+import {
+  ArrowRight,
+  ChevronRight,
+  FileCheck2,
+  FileText,
+  Flag,
+  GitBranch,
+  Globe,
+  Handshake,
+  IdCard,
+  Users,
+} from 'lucide-react';
 import {
   THRESHOLDS,
   type CollaborationStatus,
@@ -255,9 +266,8 @@ export function TalentHomePage() {
                     <p className="text-ink-soft mt-1 text-sm">
                       {m.organization ?? `${m.city ? `${m.city}'da ` : ''}bir kurum`}
                       {m.introduced
-                        ? ' · tanıştırıldınız'
+                        ? ` · ${m.collaborationStatus ? COLLAB[m.collaborationStatus] : 'Tanıştırıldınız'}`
                         : ' · kurum seni inceliyor; tanıştırma GİRVAK onayıyla'}
-                      {m.collaborationStatus && ` · ${COLLAB[m.collaborationStatus]}`}
                     </p>
                     {(m.fit || m.gap) && (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -299,8 +309,11 @@ export function TalentHomePage() {
             <ul className="mt-3 divide-y divide-[var(--color-line)]">
               {o.recentSources.map((s) => (
                 <li key={s.id} className="flex items-start gap-3 py-3">
-                  <div className="bg-paper-2 text-ink-soft mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold uppercase">
-                    {KIND[s.kind].slice(0, 2)}
+                  <div
+                    className="bg-paper-2 text-ink-soft mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                    title={KIND[s.kind]}
+                  >
+                    <KaynakIkon kind={s.kind} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-ink truncate text-sm font-semibold">
@@ -337,4 +350,16 @@ export function TalentHomePage() {
       </Enter>
     </div>
   );
+}
+
+const KAYNAK_IKON = {
+  github_repo: GitBranch,
+  live_url: Globe,
+  document: FileText,
+  network_reference: Handshake,
+  challenge_submission: Flag,
+} as const;
+function KaynakIkon({ kind }: { kind: keyof typeof KAYNAK_IKON }) {
+  const Icon = KAYNAK_IKON[kind];
+  return <Icon size={16} aria-hidden />;
 }

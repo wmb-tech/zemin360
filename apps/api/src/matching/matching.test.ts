@@ -237,6 +237,14 @@ describe('eşleştir + onay kuyruğu', () => {
     ).data;
     expect(meKurum.organization.name).toBe('Firma A.Ş.');
     expect(meKurum.organization.needsName).toBe(false);
+    const gencCookie = await oturum(app, gonderilen, 'ayse@example.com');
+    const ozet = (
+      await (await app.request('/api/me/overview', { headers: { cookie: gencCookie } })).json()
+    ).data;
+    expect(ozet.matches[0].organization).toBe('Firma A.Ş.');
+    // Gerekçe kutuları dolu gelmeli (kayıtlı gerekçe `strength` taşımaz; tam şema düşürüyordu).
+    expect(ozet.matches[0].fit).toContain('React Native');
+    expect(ozet.matches[0].gap).toContain('App Store');
 
     // İzle (06): operatör görüşme oldu der; ölçüm paneli paydalarıyla döner.
     const durum = await app.request(

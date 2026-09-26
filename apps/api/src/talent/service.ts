@@ -325,7 +325,9 @@ export function createTalentService(
           .filter((m) => m.shortlistPublishedAt)
           .map((m) => {
             // Gerekçe ajanın kaydettiği MatchReasoning'den; ilk "uyuyor" ve ilk "eksik" — uydurma yok.
-            const r = MatchReasoning.safeParse(m.reasoning);
+            // ⚠ Kayıtlı gerekçe `strength` taşımaz (ayrı sütunda); tam şemayla doğrulamak her
+            // seferinde düşüyor ve kutular sessizce boş kalıyordu.
+            const r = MatchReasoning.omit({ strength: true }).safeParse(m.reasoning);
             return {
               matchId: m.matchId,
               strength: m.strength,
