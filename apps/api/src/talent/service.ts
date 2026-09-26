@@ -517,8 +517,10 @@ export function createTalentService(
         } catch (err) {
           okunamayan++;
           console.error(`[sync] repo işlenemedi ${r.fullName}`, err);
+        } finally {
+          // Atlanan org reposu da işlenmiş sayılır; çubuk %100'e varsın.
+          opts.onProgress?.(++islenen, secilen.length);
         }
-        opts.onProgress?.(++islenen, secilen.length);
       };
       for (let i = 0; i < secilen.length; i += 6)
         await Promise.all(secilen.slice(i, i + 6).map(oku));
