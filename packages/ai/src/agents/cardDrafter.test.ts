@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { createFakeProvider } from '../provider';
 import {
+  adGeciyor,
+  adiCikar,
   buildCardMessages,
   groupWork,
   isKoku,
@@ -54,6 +56,95 @@ describe('iş grupları (seçim deterministik)', () => {
     expect(gruplar.map((g) => g.key)).toEqual(['bisatsan', 'closer', 'autoviz']);
     expect(gruplar[0]!.refs).toEqual(['h/bisatsan-web', 'h/bisatsan-backend']);
     expect(gruplar.find((g) => g.key === 'retro')).toBeUndefined();
+  });
+});
+
+describe('okuma doğruluğu: rol, dönem, gizlilik kodla', () => {
+  it('rol katkıcı sayısı ve sahiplikten hesaplanır; dönem kendi commit tarihlerinden', () => {
+    const [ekip] = groupWork(
+      [
+        {
+          ref: 'wmb-tech/closer',
+          signals: {
+            ownCommits: 799,
+            authorshipRatio: 0.89,
+            contributors: 3,
+            isPrivate: true,
+            ownFirstCommitAt: '2026-08-13T10:00:00Z',
+            ownLastCommitAt: '2026-09-15T10:00:00Z',
+          },
+        },
+      ],
+      10,
+    );
+    expect(ekip!.role).toBe('3 kişilik ekipte ana geliştirici (%89, 799 commit)');
+    expect(ekip!.periodStart).toBe('2026-08-13');
+    expect(ekip!.periodEnd).toBe('2026-09-15');
+    expect(ekip!.privateNames).toEqual(['closer']);
+    const [tek] = groupWork(
+      [
+        {
+          ref: 'h/ersan-diamond-website',
+          signals: { ownCommits: 137, authorshipRatio: 0.99, contributors: 2 },
+        },
+      ],
+      10,
+    );
+    expect(tek!.role).toBe('tek başına (137 commit)');
+  });
+
+  it('gizli ad: ortak kelimeler (adisyon, stok, web) yasak değil; kelime sınırı ve Türkçe ek', () => {
+    const [g] = groupWork(
+      [{ ref: 'wmb-tech/wmb-adisyon-v2-backend', signals: { ownCommits: 50, isPrivate: true } }],
+      10,
+    );
+    expect(g!.privateNames).toEqual([]);
+    expect(adGeciyor("Halqa'yı tek başına geliştirdi", 'halqa')).toBe(true);
+    expect(adGeciyor('"SAN" projesinin web tarafı', 'san')).toBe(true);
+    expect(adGeciyor('sanal showroom görselleri', 'san')).toBe(false);
+    expect(adiCikar('Araçlar için "SAN" projesinin web tarafını geliştirdi.', 'san')).toBe(
+      'Araçlar için projesinin web tarafını geliştirdi.',
+    );
+  });
+
+  it('özel ad geçen iddia bir kez yeniden yazdırılır; yine geçerse ad metinden çıkar', async () => {
+    const adli = {
+      ...taslak(1),
+      claims: [
+        {
+          text: 'Halqa adlı geleneksel sanatlar platformunu iki kişilik ekipte geliştirdi.',
+          sourceRefs: [],
+          periodStart: null,
+          periodEnd: null,
+        },
+      ],
+    };
+    const llm = createFakeProvider({ value: adli }); // model inatla adı yazıyor
+    const { draft } = await runCardDrafter(llm, 'h', [
+      { ref: 'wmb-tech/halqa', signals: { ownCommits: 246, isPrivate: true } },
+    ]);
+    expect(adGeciyor(draft.claims[0]!.text, 'halqa')).toBe(false);
+  });
+
+  it('şablon README bağlam sayılmaz; sayfa başlığı okunur', async () => {
+    const { readmeOzeti, sayfaKimligi } = await import('../../../evidence/src/providers/github');
+    expect(
+      readmeOzeti(
+        '# React + TypeScript + Vite\n\nThis template provides a minimal setup to get React working in Vite with HMR',
+      ),
+    ).toBeUndefined();
+    expect(
+      sayfaKimligi(
+        '<title>Bisatsan — Aracını değerinde sat</title><meta name="description" content="Ücretsiz ön teklif, ekspertiz ve alım">',
+      ),
+    ).toBe('Bisatsan — Aracını değerinde sat — Ücretsiz ön teklif, ekspertiz ve alım');
+    expect(sayfaKimligi('<title>Vite + React + TS</title>')).toBeUndefined();
+    // Linkli şablon da elenir (ersan-diamond-website'te kaçmıştı).
+    expect(
+      readmeOzeti(
+        'This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://x).',
+      ),
+    ).toBeUndefined();
   });
 });
 

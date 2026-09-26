@@ -194,6 +194,35 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
       } catch {
         /* README yok ya da erişim yok */
       }
+      // Ürün kimliği ipuçları: yayınlanan sayfanın <title>/<meta description>'ı ve mobil
+      // uygulamanın adı. README şablon kaldıysa (Vite/CRA/Next iskeleti) ürün tanımı buradan gelir;
+      // bisatsan-web'in README'si Vite şablonuydu ve ürün "pazarlama paneli" sanılıyordu.
+      const icerik = async (path: string) => {
+        const { data } = await gh.repos.getContent({ owner, repo, path });
+        return !Array.isArray(data) && 'content' in data
+          ? metinCoz(Buffer.from(data.content, 'base64'))
+          : '';
+      };
+      let pageTitle: string | undefined;
+      const htmlYolu = paths.find((p) =>
+        /^(index\.html|public\/index\.html|apps\/web\/index\.html|src\/app\/layout\.tsx)$/.test(p),
+      );
+      if (htmlYolu) {
+        try {
+          pageTitle = sayfaKimligi(await icerik(htmlYolu));
+        } catch {
+          /* okunamadıysa ipucu yok */
+        }
+      }
+      let appName: string | undefined;
+      if (has(/^app\.json$/)) {
+        try {
+          const app = JSON.parse(await icerik('app.json')) as { expo?: { name?: unknown } };
+          if (typeof app.expo?.name === 'string') appName = temizMetin(app.expo.name).slice(0, 80);
+        } catch {
+          /* geçersiz app.json */
+        }
+      }
       let manifestDescription: string | undefined;
       if (has(/^package\.json$/)) {
         try {
@@ -242,6 +271,8 @@ export function createGithubEvidence(cfg: GithubAppConfig) {
         description: meta.description ?? undefined,
         ...(readmeExcerpt ? { readmeExcerpt } : {}),
         ...(manifestDescription ? { manifestDescription } : {}),
+        ...(pageTitle ? { pageTitle } : {}),
+        ...(appName ? { appName } : {}),
         topics: meta.topics ?? [],
         stars: meta.stargazers_count,
         fork: meta.fork,
@@ -268,8 +299,37 @@ export function temizMetin(s: string): string {
   return s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
 }
 
+/**
+ * İskelet araçlarının hazır README'leri ürün hakkında hiçbir şey söylemez; bağlam sayılırsa ajan
+ * şablon cümlelerinden ürün uyduruyordu. Bunlar atılır.
+ */
+const SABLON_README = [
+  /This template provides a minimal setup to get React working in Vite/i,
+  /Getting Started with Create React App/i,
+  /This is a \[?Next\.js\]?(\([^)]*\))? project bootstrapped with/i,
+  /This is an \[?Expo\]?(\([^)]*\))? project created with/i,
+  /Welcome to your Expo app/i,
+  /This project was created using `bun init`/i,
+  /This project was bootstrapped with/i,
+  /^#?\s*(React \+ TypeScript \+ Vite|Vite \+ React)\b/i,
+];
+
+/** Sayfa kimliği: <title> ve <meta name="description"> (ya da Next metadata title/description). */
+export function sayfaKimligi(src: string): string | undefined {
+  const al = (re: RegExp) => re.exec(src)?.[1]?.trim();
+  const baslik =
+    al(/<title[^>]*>([^<]{2,120})<\/title>/i) ?? al(/title:\s*['"`]([^'"`]{2,120})['"`]/);
+  const aciklama =
+    al(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']{4,300})["']/i) ??
+    al(/description:\s*['"`]([^'"`]{4,300})['"`]/);
+  const genel = /^(vite \+ react|react app|expo app|create next app|document|app)( \+ ts)?$/i;
+  const parcalar = [baslik, aciklama].filter((x): x is string => Boolean(x) && !genel.test(x!));
+  return parcalar.length ? temizMetin(parcalar.join(' — ')).slice(0, 300) : undefined;
+}
+
 /** README'den bağlam: rozet, HTML, boş satır ve kod blokları atılır; ilk 600 karakter. */
 export function readmeOzeti(raw: string): string | undefined {
+  if (SABLON_README.some((re) => re.test(raw))) return undefined;
   const satirlar = temizMetin(raw)
     .replace(/```[\s\S]*?```/g, '')
     .split('\n')

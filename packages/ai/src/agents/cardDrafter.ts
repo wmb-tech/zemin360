@@ -15,7 +15,7 @@ export interface RepoSignalInput {
 
 export const DraftClaim = z.object({
   text: z.string().min(40).max(400), // 2–3 cümle: ne, kime, rol/sahiplik, süre, canlı mı; yığın listesi yok
-  sourceRefs: z.array(z.string()).min(1), // birleşik iddia birden çok kaynağa bağlanır
+  sourceRefs: z.array(z.string()), // bilgi amaçlı: kaynakları iş sırasına göre kod bağlar
   periodStart: z.string().nullable(), // YYYY-MM-DD
   periodEnd: z.string().nullable(),
 });
@@ -32,6 +32,107 @@ export interface WorkGroup {
   key: string;
   refs: string[];
   weight: number;
+  /** Sistem hesaplar (katkıcı sayısı × sahiplik): model aynen kullanır, çelişki üretemez. */
+  role?: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  /** Özel repoların ürün adları: iddia metninde geçemez (kodla denetlenir). */
+  privateNames?: string[];
+}
+
+/** Ürün adı sayılmayan, metinde doğal geçen kelimeler (gizlilik denetimi bunlara takılmaz). */
+const ORTAK_KELIME = new Set([
+  'adisyon',
+  'stok',
+  'stock',
+  'erp',
+  'platform',
+  'site',
+  'web',
+  'mobile',
+  'mobil',
+  'backend',
+  'frontend',
+  'api',
+  'app',
+  'demo',
+  'vitrin',
+  'showcase',
+  'marketing',
+  'hub',
+  'ads',
+  'concept',
+  'infra',
+  'print',
+  'agent',
+  'starter',
+  'repo',
+  'website',
+  'kit',
+  'studio',
+  'temel',
+  'next',
+  'panel',
+  'admin',
+  'shop',
+  'store',
+  'test',
+  'wmb',
+  'server',
+  'client',
+  'mobileapp',
+]);
+
+const gunAl = (v: unknown) => (typeof v === 'string' && v.length >= 10 ? v.slice(0, 10) : null);
+
+function grupAyrinti(
+  refs: RepoSignalInput[],
+): Pick<WorkGroup, 'role' | 'periodStart' | 'periodEnd' | 'privateNames'> {
+  let toplam = 0;
+  let agirlikliOran = 0;
+  let oranAgirligi = 0;
+  let katkici = 0;
+  const ilkler: string[] = [];
+  const sonlar: string[] = [];
+  const gizli = new Set<string>();
+  for (const r of refs) {
+    const s = r.signals;
+    const own = sayi(s.ownCommits) || sayi(s.commitCount);
+    toplam += own;
+    if (typeof s.authorshipRatio === 'number') {
+      agirlikliOran += s.authorshipRatio * Math.max(own, 1);
+      oranAgirligi += Math.max(own, 1);
+    }
+    katkici = Math.max(katkici, sayi(s.contributors));
+    const i = gunAl(s.ownFirstCommitAt ?? s.firstActivityAt);
+    const o = gunAl(s.ownLastCommitAt ?? s.lastActivityAt);
+    if (i) ilkler.push(i);
+    if (o) sonlar.push(o);
+    if (s.isPrivate === true && r.ref.includes('/'))
+      for (const t of r.ref
+        .split('/')[1]!
+        .toLowerCase()
+        .split(/[-_.\s]+/))
+        if (t.length >= 3 && !ORTAK_KELIME.has(t) && !/\d/.test(t)) gizli.add(t);
+  }
+  const oran = oranAgirligi ? agirlikliOran / oranAgirligi : null;
+  const yuzde = oran === null ? null : Math.round(oran * 100);
+  const role =
+    katkici <= 1 || (oran !== null && oran >= 0.95)
+      ? `tek başına (${toplam} commit)`
+      : oran !== null && oran >= 0.5
+        ? `${katkici} kişilik ekipte ana geliştirici (%${yuzde}, ${toplam} commit)`
+        : oran !== null
+          ? `${katkici} kişilik ekipte katkı (%${yuzde}, ${toplam} commit)`
+          : `${toplam} commit`;
+  ilkler.sort();
+  sonlar.sort();
+  return {
+    role,
+    periodStart: ilkler[0] ?? null,
+    periodEnd: sonlar.at(-1) ?? null,
+    privateNames: [...gizli],
+  };
 }
 
 const GENEL = new Set([
@@ -81,12 +182,18 @@ export function groupWork(repos: RepoSignalInput[], limit: number): WorkGroup[] 
     gruplar.set(k, g);
   }
   const ay = 30 * 24 * 3600 * 1000;
+  const byRef = new Map(kendi.map((r) => [r.ref, r]));
   return (
     [...gruplar.entries()]
       .map(([key, g]) => {
         const sure = Number.isFinite(g.ilk) && Number.isFinite(g.son) ? (g.son - g.ilk) / ay : 0;
         // Süre katsayısı yumuşak: 3 ay sürdürülen iş, aynı commit'li 1 günlük işin ~1,5 katı.
-        return { key, refs: g.refs, weight: Math.round(g.commit * (1 + Math.min(sure, 12) / 6)) };
+        return {
+          key,
+          refs: g.refs,
+          weight: Math.round(g.commit * (1 + Math.min(sure, 12) / 6)),
+          ...grupAyrinti(g.refs.map((r) => byRef.get(r)!)),
+        };
       })
       .sort((a, b) => b.weight - a.weight)
       // Küçük iş (ağırlık < 3) yalnız yerine en az 3 anlamlı iş varsa elenir; yeni başlayan bir
@@ -132,9 +239,12 @@ yapabiliyor" diyeceği bir yetkinlik kartı taslağı yazarsın. Kurallar:
   backend'i ve yönetim paneli". Kod dili/araçlar sinyalden, ürünün amacı yalnız belgeden.
 
 HER İDDİANIN İÇİ (2–3 cümle, 40–400 karakter)
-- Ne yapıldı ve kime/ne için; rol ve sahiplik (ownCommits ve authorshipRatio'dan: "tek başına",
-  "iki kişilik ekipte ana geliştirici (%72)", "üç kişilik ekipte katkı (%28, 40 commit)"); süre
-  ve dönem; canlıda mı (deployed/homepage). Sayıları sinyalden al; olmayan sayıyı uydurma.
+- Ne yapıldı ve kime/ne için; rol; canlıda mı (deployed/homepage). ROL satırını olduğu gibi kullan
+  ("tek başına", "üç kişilik ekipte ana geliştirici (%89, 799 commit)"); kendin rol, oran ya da
+  ekip büyüklüğü türetme, ROL ile çelişen ifade ("tek başına" + "ekip") yazma. Dönemi yazma;
+  sistem ekler. Olmayan sayıyı uydurma.
+- Ürünün ne olduğunu pageTitle, appName, description, readmeExcerpt, manifestDescription'dan al;
+  aynı işin repoları arasında en açıklayıcı olanı esas al (ör. mobil uygulamanın README'si).
 - YIĞIN LİSTESİ YAZMA. "TypeScript, Docker ve GitHub Actions kullandı", "test ve CI kurdu" gibi
   cümleler iddiaya GİRMEZ; bunlar karttaki yetkinlik bölümünde sinyalden otomatik çıkar. Bir
   teknoloji ancak işin kendisini ayırt ediyorsa geçer ("Expo ile mağaza içi sipariş uygulaması").
@@ -168,11 +278,16 @@ export function buildCardMessages(
   opts: { budget?: number; existing?: string[]; groups?: WorkGroup[] } = {},
 ): LlmMessage[] {
   const bySref = new Map(repos.map((r) => [r.ref, r]));
-  const gruplar = opts.groups ?? repos.map((r) => ({ key: r.ref, refs: [r.ref], weight: 0 }));
+  const gruplar: WorkGroup[] =
+    opts.groups ?? repos.map((r) => ({ key: r.ref, refs: [r.ref], weight: 0 }));
   const govde = gruplar
     .map(
       (g, i) =>
         `## İŞ ${i + 1} — kaynaklar: ${g.refs.join(', ')}\n` +
+        (g.role ? `ROL (sistem hesapladı; AYNEN kullan, değiştirme): ${g.role}\n` : '') +
+        (g.privateNames?.length
+          ? `YASAK ADLAR (özel ürün; metinde geçmesin): ${g.privateNames.join(', ')}\n`
+          : '') +
         g.refs
           .map((ref) => `### ${ref}\n${JSON.stringify(bySref.get(ref)?.signals ?? {}, null, 1)}`)
           .join('\n'),
@@ -235,8 +350,64 @@ export async function runCardDrafter(
   }
   // Kaynaklar sıraya göre KOD tarafından bağlanır: i. iddia i. işin repolarıdır. Model yanlış ya
   // da uydurma ref yazsa bile iddia doğru kanıta bağlı kalır; fazla iddia atılır.
-  const claims = value.claims
-    .slice(0, groups.length)
-    .map((c, i) => ({ ...c, sourceRefs: groups[i]!.refs }));
+  // Gizlilik kodla denetlenir: özel ürün adı geçen iddia varsa bir kez, adları söyleyerek yeniden
+  // yazdırılır; yine geçerse ad metinden çıkarılır (sızıntı hiçbir koşulda karta girmez).
+  const ihlal = (v: typeof value) =>
+    v.claims
+      .slice(0, groups.length)
+      .flatMap((c, i) =>
+        (groups[i]!.privateNames ?? [])
+          .filter((ad) => adGeciyor(c.text, ad))
+          .map((ad) => ({ i, ad })),
+      );
+  let ihlaller = ihlal(value);
+  if (ihlaller.length > 0) {
+    const tekrar = await llm.structured(
+      [
+        ...messages,
+        { role: 'assistant', content: JSON.stringify(value) },
+        {
+          role: 'user',
+          content: `Şu iddialarda özel ürün adı geçiyor: ${ihlaller
+            .map((x) => `İŞ ${x.i + 1} → "${x.ad}"`)
+            .join(
+              '; ',
+            )}. Aynı içeriği bu adları KULLANMADAN, işi alanıyla tarif ederek yeniden yaz.`,
+        },
+      ],
+      schema,
+      { schemaName: 'card_draft', maxTokens: 3000 },
+    );
+    value = tekrar.value;
+    usage = { ...tekrar.usage, durationMs: usage.durationMs + tekrar.usage.durationMs };
+    ihlaller = ihlal(value);
+  }
+  // Kaynaklar ve dönem KOD tarafından bağlanır: i. iddia i. işin repolarıdır. Model yanlış ref ya
+  // da tarih yazsa bile iddia doğru kanıta ve ölçülen döneme bağlı kalır.
+  const claims = value.claims.slice(0, groups.length).map((c, i) => {
+    const g = groups[i]!;
+    let text = c.text;
+    for (const x of ihlaller.filter((y) => y.i === i)) text = adiCikar(text, x.ad);
+    return {
+      ...c,
+      text,
+      sourceRefs: g.refs,
+      periodStart: g.periodStart ?? c.periodStart,
+      periodEnd: g.periodEnd ?? c.periodEnd,
+    };
+  });
   return { draft: { ...value, claims }, usage, groups };
+}
+
+const kacis = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Kelime olarak geçiyor mu (büyük/küçük harf ve Türkçe ek duyarsız: "Halqa'yı", "SAN projesi"). */
+export function adGeciyor(metin: string, ad: string): boolean {
+  return new RegExp(`(^|[^\\p{L}])${kacis(ad)}(?=[^\\p{L}]|$)`, 'iu').test(metin);
+}
+/** Son çare: adı, tırnaklarını ve kesme işaretli ekini metinden çıkarır. */
+export function adiCikar(metin: string, ad: string): string {
+  return metin
+    .replace(new RegExp(`["“”]?${kacis(ad)}["“”]?('\\p{L}+)?\\s*`, 'giu'), '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
