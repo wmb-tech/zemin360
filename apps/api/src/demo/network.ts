@@ -532,6 +532,7 @@ export async function seedDemoNetwork(db: Db) {
       });
   }
 
+  const ihtiyacId = new Map<string, string>();
   for (const o of DEMO_ORGS) {
     const email = `${o.slug}${DEMO_DOMAIN}`;
     const [var_] = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -545,16 +546,61 @@ export async function seedDemoNetwork(db: Db) {
       .values({ name: o.name, city: o.city, approvedByOperatorAt: o.approved ? simdi : null })
       .returning();
     await db.insert(organizationMembers).values({ organizationId: org!.id, userId: u!.id });
-    await db.insert(needs).values({
-      organizationId: org!.id,
-      rawText: o.need.rawText,
-      card: { ...o.need.card } as Record<string, unknown>,
-      turns: [],
-      pendingQuestion: null,
-      missingFields: [],
-      cardStatus: 'approved',
-      cardApprovedAt: simdi,
-    });
+    const [ihtiyac] = await db
+      .insert(needs)
+      .values({
+        organizationId: org!.id,
+        rawText: o.need.rawText,
+        card: { ...o.need.card } as Record<string, unknown>,
+        turns: [],
+        pendingQuestion: null,
+        missingFields: [],
+        cardStatus: 'approved',
+        cardApprovedAt: simdi,
+      })
+      .returning();
+    ihtiyacId.set(o.slug, ihtiyac!.id);
+  }
+
+  // Takip (izle 06) sunumda canlı gösterilebilsin: Deniz × Yeşil Adım 4 gün önce tanıştırılmış.
+  // Operatör "Şimdi tara" deyince ajan iki tarafa takip sorusu taslağı yazar.
+  const yesil = ihtiyacId.get('yesil');
+  if (yesil) {
+    const [deniz] = await db
+      .select({ id: talents.id })
+      .from(talents)
+      .innerJoin(users, eq(users.id, talents.userId))
+      .where(eq(users.email, `deniz${DEMO_DOMAIN}`))
+      .limit(1);
+    if (deniz) {
+      const gunOnce = (n: number) => new Date(simdi.getTime() - n * 24 * 3600 * 1000);
+      await db
+        .update(needs)
+        .set({ shortlistPublishedAt: gunOnce(5) })
+        .where(eq(needs.id, yesil));
+      const [m] = await db
+        .insert(matches)
+        .values({
+          needId: yesil,
+          talentId: deniz.id,
+          strength: 'strong',
+          rank: 1,
+          reasoning: {
+            fits: [
+              {
+                text: 'Bir öğrenci topluluğunun etkinlik kayıt sitesini ve yönetim panelini tek başına geliştirmiş; 3 dönemdir kullanılıyor.',
+                claimIds: [],
+              },
+            ],
+            gaps: ['Erişilebilirlik çalışması kartında görünmüyor.'],
+            summaryForOrganization:
+              'İhtiyacınızın neredeyse aynısını daha önce yapmış ve canlıda tutuyor: etkinlik kaydı, katılımcı listesi, telefondan kullanım.',
+          },
+          introducedAt: gunOnce(4),
+        })
+        .returning();
+      await db.insert(collaborations).values({ matchId: m!.id, status: 'introduced' });
+    }
   }
   return demoStatus(db);
 }
