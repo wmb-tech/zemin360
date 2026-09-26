@@ -13,7 +13,7 @@ import {
   talents,
   users,
 } from '@evidex/db';
-import { MAX_CLAIMS, runCardDrafter, type LlmProvider } from '@evidex/ai';
+import { groupWork, MAX_CLAIMS, runCardDrafter, type LlmProvider } from '@evidex/ai';
 import type { DocumentEvidence, GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
 import { newRawToken } from '../auth/tokens';
 import { assertPublicUrl } from '@evidex/evidence';
@@ -131,6 +131,8 @@ export function createTalentService(
     // Kart doluysa yeni taslak yazılmaz: onaylı maddeleri kimse silemez, sınırı da aşamayız.
     // Kişi yeni kanıtını göstermek isterse "Kartı yeniden yaz" ile hepsini birlikte yeniletir.
     if (butce <= 0) return { cardFull: true };
+    // Yazılacak iş yoksa (kalan kaynaklar fork ya da önemsiz) ajan hiç çağrılmaz.
+    if (groupWork(yeniInputs, butce).length === 0) return { cardFull: false };
     let draft: Awaited<ReturnType<typeof runCardDrafter>>['draft'];
     let usage: Awaited<ReturnType<typeof runCardDrafter>>['usage'];
     try {

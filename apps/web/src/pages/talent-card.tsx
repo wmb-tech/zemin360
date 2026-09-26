@@ -144,6 +144,8 @@ export function TalentCardPage() {
     setIlerleme(null);
     try {
       await api(path, { method: 'POST' });
+      // Yeniden yazımda iddialar sunucuda hemen silinir; ekran eski listeyi göstermesin.
+      if (key === 'rewrite') await load();
     } catch (err) {
       // 409: başka bir sekmede zaten koşuyor → duruma bağlan.
       if (!(err instanceof ApiRequestError && err.code === 'job_running')) {

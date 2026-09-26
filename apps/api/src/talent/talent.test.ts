@@ -125,12 +125,6 @@ describe('genç kartı (doğrula)', () => {
               periodStart: '2026-01-15',
               periodEnd: null,
             },
-            {
-              text: 'Uydurma iddia: kaynağı olmayan bir repo için yazılmış, düşmesi gereken cümle.',
-              sourceRefs: ['ayse/olmayan'],
-              periodStart: null,
-              periodEnd: null,
-            },
           ],
         },
       },
@@ -159,7 +153,8 @@ describe('genç kartı (doğrula)', () => {
     const kart = await senkronEt(app, cookie);
     expect(kart.talent.githubConnected).toBe(true);
     expect(kart.sources).toHaveLength(2);
-    expect(kart.claims).toHaveLength(1); // uydurma kaynaklı iddia düştü
+    // Fork (react-fork) iş sayılmaz: tek iş → tek iddia, kaynağı kodla bağlanır.
+    expect(kart.claims).toHaveLength(1);
     const iddia = kart.claims[0]!;
     expect(iddia.level).toBe('verified');
     expect(iddia.approved).toBe(false);

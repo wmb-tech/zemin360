@@ -1,84 +1,122 @@
 import { describe, expect, it } from 'bun:test';
 import { createFakeProvider } from '../provider';
-import { buildCardMessages, looksEnglish, runCardDrafter } from './cardDrafter';
+import {
+  buildCardMessages,
+  groupWork,
+  isKoku,
+  looksEnglish,
+  runCardDrafter,
+  type RepoSignalInput,
+} from './cardDrafter';
 
-describe('card_drafter', () => {
-  it('kaynağı olmayan iddia düşer, uydurma kaynak referansı atılır', async () => {
-    const llm = createFakeProvider({
-      value: {
-        headline: 'Mobil geliştirici',
-        story:
-          'Sekiz aydır bir kafe için sipariş uygulaması geliştiriyor; canlıda, iki kişilik ekipte ana geliştirici, test ve CI kurulu.',
-        claims: [
-          {
-            text: 'React Native ile 8 aydır sürdürülen kafe sipariş uygulaması; canlıda; iki kişilik ekipte ana geliştirici.',
-            sourceRefs: ['ayse/kafe', 'ayse/uydurma'],
-            periodStart: '2026-01-15',
-            periodEnd: null,
-          },
-          {
-            text: 'Kubernetes ile üretim kümesi yönetimi; bu iddianın kaynağı yok, düşmesi gerekir.',
-            sourceRefs: ['ayse/olmayan'],
-            periodStart: null,
-            periodEnd: null,
-          },
-        ],
-      },
-    });
-    const { draft } = await runCardDrafter(llm, 'ayse', [
-      { ref: 'ayse/kafe', signals: { languages: ['TypeScript'] } },
-    ]);
-    expect(draft.claims).toHaveLength(1);
-    expect(draft.claims[0]!.sourceRefs).toEqual(['ayse/kafe']);
+const repo = (ref: string, ownCommits: number, ilk = '2026-03-01', son = '2026-06-01') => ({
+  ref,
+  signals: {
+    ownCommits,
+    ownFirstCommitAt: `${ilk}T00:00:00Z`,
+    ownLastCommitAt: `${son}T00:00:00Z`,
+  },
+});
+const taslak = (n: number) => ({
+  headline: 'Full-stack geliştirici',
+  story:
+    'Kanıta bağlı birden çok ürün geliştirdi; çoğunu tek başına, bir kısmını küçük ekiplerle yürüttü ve canlıya aldı.',
+  claims: Array.from({ length: n }, (_, i) => ({
+    text: `Bir ürünün ${i + 1}. işini geliştirdi; iki kişilik ekipte ana geliştirici olarak çalıştı.`,
+    sourceRefs: ['uydurma/ref'],
+    periodStart: null,
+    periodEnd: null,
+  })),
+});
+
+describe('iş grupları (seçim deterministik)', () => {
+  it('ürün kökü: parçaları tek işte toplar, wmb önekinde ikinci kelimeyi alır', () => {
+    expect(isKoku('hazan111/bisatsan-web')).toBe('bisatsan');
+    expect(isKoku('hazan111/bisatsan-marketing-hub')).toBe('bisatsan');
+    expect(isKoku('wmb-tech/wmb-adisyon-v2-mobile')).toBe('wmb adisyon');
+    expect(isKoku('wmb-tech/wmb-adisyon-site')).toBe('wmb adisyon');
+    expect(isKoku('hazan111/mobilya_showcase2')).toBe('mobilya');
+    expect(isKoku('hazan111/autoviz-next')).toBe('autoviz');
+    expect(isKoku('teknofest.pdf#abc')).toBe('kaynak:teknofest.pdf#abc');
   });
 
-  it('istem: ürün bağlamı README/açıklamadan gelir, repo adından tahmin yasağı yazılı, yığın listesi yasak', () => {
-    const mesajlar = buildCardMessages('hazan111', [
-      {
-        ref: 'hazan111/gise-backend',
-        signals: {
-          languages: ['TypeScript'],
-          readmeExcerpt: 'Gisè Studio — mimarlık stüdyosu için e-ticaret ve içerik paneli.',
-          manifestDescription: 'Gisè Studio API',
+  it('emeğe göre sıralar, küçük işi atar, sınırı uygular — büyük iş hiç düşmez', () => {
+    const gruplar = groupWork(
+      [
+        repo('h/bisatsan-web', 300, '2026-03-01', '2026-09-01'),
+        repo('h/bisatsan-backend', 250, '2026-03-01', '2026-09-01'),
+        repo('h/autoviz', 175),
+        repo('h/retro-diner', 2, '2025-09-01', '2025-09-01'),
+        repo('h/closer', 799, '2026-08-01', '2026-09-15'),
+      ],
+      3,
+    );
+    expect(gruplar.map((g) => g.key)).toEqual(['bisatsan', 'closer', 'autoviz']);
+    expect(gruplar[0]!.refs).toEqual(['h/bisatsan-web', 'h/bisatsan-backend']);
+    expect(gruplar.find((g) => g.key === 'retro')).toBeUndefined();
+  });
+});
+
+describe('card_drafter', () => {
+  it('her işe tam bir iddia; kaynaklar sıraya göre kodla bağlanır (uydurma ref işe yaramaz)', async () => {
+    const repolar: RepoSignalInput[] = [
+      repo('h/bisatsan-web', 300),
+      repo('h/bisatsan-backend', 250),
+      repo('h/autoviz', 175),
+    ];
+    const llm = createFakeProvider({ value: taslak(2) });
+    const { draft, groups } = await runCardDrafter(llm, 'h', repolar);
+    expect(groups.map((g) => g.key)).toEqual(['bisatsan', 'autoviz']);
+    expect(draft.claims).toHaveLength(2);
+    expect(draft.claims[0]!.sourceRefs).toEqual(['h/bisatsan-web', 'h/bisatsan-backend']);
+    expect(draft.claims[1]!.sourceRefs).toEqual(['h/autoviz']);
+  });
+
+  it('iş sayısından az iddia dönerse şema reddeder (iş düşürmek mümkün değil)', async () => {
+    const llm = createFakeProvider({ value: taslak(1) });
+    await expect(
+      runCardDrafter(llm, 'h', [repo('h/bisatsan-web', 300), repo('h/autoviz', 175)]),
+    ).rejects.toThrow();
+  });
+
+  it('istem: işler numaralı gelir; README bağlamı, tahmin yasağı ve yığın yasağı yazılı', () => {
+    const mesajlar = buildCardMessages(
+      'hazan111',
+      [
+        {
+          ref: 'hazan111/gise-backend',
+          signals: {
+            languages: ['TypeScript'],
+            readmeExcerpt: 'Gisè Studio — mimarlık stüdyosu için e-ticaret ve içerik paneli.',
+            manifestDescription: 'Gisè Studio API',
+          },
         },
-      },
-    ]);
+      ],
+      { groups: [{ key: 'gise', refs: ['hazan111/gise-backend'], weight: 10 }] },
+    );
     const sistem = mesajlar.find((m) => m.role === 'system')!.content;
     const kullanici = mesajlar.find((m) => m.role === 'user')!.content;
     expect(sistem).toContain('REPO ADINDAN TAHMİN ETME');
     expect(sistem).toContain('YIĞIN LİSTESİ YAZMA');
-    expect(sistem).toContain('İDDİA = İŞ, REPO DEĞİL');
+    expect(sistem).toContain('İŞLER SANA GRUPLANMIŞ GELİR');
+    expect(kullanici).toContain('## İŞ 1 — kaynaklar: hazan111/gise-backend');
+    expect(kullanici).toContain('TAM 1 iddia yaz');
     expect(kullanici).toContain('mimarlık stüdyosu için e-ticaret');
-    expect(kullanici).toContain('"manifestDescription": "Gisè Studio API"');
   });
 
-  it('bütçe: kartta onaylı madde varsa kalan yer kadar yazılır, onaylılar tekrarlanmaz', async () => {
-    const mesajlar = buildCardMessages('hazan111', [{ ref: 'a/b', signals: {} }], {
-      budget: 3,
+  it('bütçe: kartta onaylı madde varsa yalnız kalan yer kadar iş seçilir, onaylılar istemde', async () => {
+    const repolar = [repo('h/a', 50), repo('h/b', 40), repo('h/c', 30), repo('h/d', 20)];
+    const mesajlar = buildCardMessages('h', repolar, {
+      budget: 2,
       existing: ['Bir sözleşme platformunu tek başına geliştirdi.'],
+      groups: groupWork(repolar, 2),
     });
     const kullanici = mesajlar.find((m) => m.role === 'user')!.content;
-    expect(kullanici).toContain('EN FAZLA 3 madde');
+    expect(kullanici).toContain('TAM 2 iddia yaz');
     expect(kullanici).toContain('TEKRARLAMA');
-    expect(kullanici).toContain('Bir sözleşme platformunu tek başına geliştirdi.');
-
-    // Şema bütçeyi zorlar: 4 madde gelirse (3 sınırında) çıktı reddedilir.
-    const llm = createFakeProvider({
-      value: {
-        headline: 'Geliştirici',
-        story:
-          'Kanıta bağlı üç ürün geliştirdi; ikisi canlıda, biri ekiple yürütüldü. Toplam dört yıl süren düzenli katkı.',
-        claims: Array.from({ length: 4 }, (_, i) => ({
-          text: `Bir ürünün ${i + 1}. parçasını geliştirdi; canlıda, iki kişilik ekipte ana geliştirici olarak çalıştı.`,
-          sourceRefs: ['a/b'],
-          periodStart: null,
-          periodEnd: null,
-        })),
-      },
-    });
-    await expect(
-      runCardDrafter(llm, 'hazan111', [{ ref: 'a/b', signals: {} }], { budget: 3 }),
-    ).rejects.toThrow();
+    const llm = createFakeProvider({ value: taslak(2) });
+    const { groups } = await runCardDrafter(llm, 'h', repolar, { budget: 2 });
+    expect(groups.map((g) => g.key)).toEqual(['a', 'b']);
   });
 
   it('dil sezgisi: İngilizce çıktıyı yakalar, Türkçeyi bırakır', () => {

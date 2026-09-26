@@ -20,16 +20,92 @@ export const DraftClaim = z.object({
   periodEnd: z.string().nullable(),
 });
 
+/**
+ * ### İş grupları — seçim deterministik, yazım ajanın
+ * 60 repoyu "hangi işler karta girsin" diye modele bırakınca her turda başka bir alt küme
+ * seçiyordu (bir turda 17 madde, sonrakinde 6; bisatsan, autoviz, TFF gibi yüzlerce commit'lik
+ * işler düştü). Artık: repolar ürün kökünden gruplanır (bisatsan-web/-backend/-mobile → bisatsan;
+ * wmb-adisyon-v2-* → wmb adisyon), grup ağırlığı kişinin kendi emeğiyle ölçülür (commit × süre),
+ * en ağır N grup seçilir; ajan her gruba TAM BİR madde yazar, kaynakları kod bağlar.
+ */
+export interface WorkGroup {
+  key: string;
+  refs: string[];
+  weight: number;
+}
+
+const GENEL = new Set([
+  'the',
+  'my',
+  'app',
+  'web',
+  'site',
+  'website',
+  'frontend',
+  'backend',
+  'api',
+  'v2',
+]);
+
+/** Repo adından ürün kökü: sahip atılır, ayraçla bölünür; "wmb" önekinde ikinci kelime de alınır. */
+export function isKoku(ref: string): string {
+  if (!ref.includes('/')) return `kaynak:${ref}`; // belge / canlı ürün: tek başına bir iş
+  const ad = ref.split('/')[1]!.toLowerCase();
+  const parcalar = ad
+    .split(/[-_.\s]+/)
+    .map((p) => p.replace(/\d+$/, ''))
+    .filter((p) => p && !GENEL.has(p));
+  if (parcalar.length === 0) return ad;
+  if (parcalar[0] === 'wmb' && parcalar[1]) return `wmb ${parcalar[1]}`;
+  return parcalar[0]!;
+}
+
+const sayi = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+const tarih = (v: unknown) => (typeof v === 'string' ? Date.parse(v) : NaN);
+
+export function groupWork(repos: RepoSignalInput[], limit: number): WorkGroup[] {
+  const gruplar = new Map<string, { refs: string[]; commit: number; ilk: number; son: number }>();
+  // Fork başkasının işidir: kişinin commit'i olmadıkça iş sayılmaz.
+  const kendi = repos.filter((r) => !(r.signals.fork === true && !sayi(r.signals.ownCommits)));
+  for (const r of kendi) {
+    const k = isKoku(r.ref);
+    const g = gruplar.get(k) ?? { refs: [], commit: 0, ilk: Infinity, son: -Infinity };
+    g.refs.push(r.ref);
+    const s = r.signals;
+    // Belge/canlı ürün commit taşımaz; sabit bir ağırlıkla yarışır (küçük işler arasında kalır).
+    g.commit += r.ref.includes('/') ? sayi(s.ownCommits) || sayi(s.commitCount) : 20;
+    const i = tarih(s.ownFirstCommitAt ?? s.firstActivityAt);
+    const o = tarih(s.ownLastCommitAt ?? s.lastActivityAt);
+    if (!Number.isNaN(i)) g.ilk = Math.min(g.ilk, i);
+    if (!Number.isNaN(o)) g.son = Math.max(g.son, o);
+    gruplar.set(k, g);
+  }
+  const ay = 30 * 24 * 3600 * 1000;
+  return (
+    [...gruplar.entries()]
+      .map(([key, g]) => {
+        const sure = Number.isFinite(g.ilk) && Number.isFinite(g.son) ? (g.son - g.ilk) / ay : 0;
+        // Süre katsayısı yumuşak: 3 ay sürdürülen iş, aynı commit'li 1 günlük işin ~1,5 katı.
+        return { key, refs: g.refs, weight: Math.round(g.commit * (1 + Math.min(sure, 12) / 6)) };
+      })
+      .sort((a, b) => b.weight - a.weight)
+      // Küçük iş (ağırlık < 3) yalnız yerine en az 3 anlamlı iş varsa elenir; yeni başlayan bir
+      // gencin birkaç commit'lik reposu yok sayılıp kartı boş bırakılmaz.
+      .filter((g, _i, hepsi) => g.weight >= 3 || hepsi.filter((x) => x.weight >= 3).length < 3)
+      .slice(0, Math.max(1, limit))
+  );
+}
+
 /** Kartın TAMAMINDAKİ üst sınır: onaylı + yeni taslak birlikte bunu aşmaz. */
 export const MAX_CLAIMS = 10;
 
-export const cardDraftSchema = (max: number = MAX_CLAIMS) =>
+export const cardDraftSchema = (max: number = MAX_CLAIMS, min = 1) =>
   z.object({
     headline: z.string().min(3).max(80),
     story: z.string().min(80).max(900),
     claims: z
       .array(DraftClaim)
-      .min(1)
+      .min(Math.min(min, Math.max(1, Math.min(max, MAX_CLAIMS))))
       .max(Math.max(1, Math.min(max, MAX_CLAIMS))),
   });
 export const CardDraft = cardDraftSchema();
@@ -42,16 +118,12 @@ Sen GİRVAK'ın kart yazım asistanısın. Bir gencin bağladığı kaynakların
 ürün) makine sinyallerini alırsın; ondan bir kurum temsilcisinin 1 dakikada okuyup "bu kişi ne
 yapabiliyor" diyeceği bir yetkinlik kartı taslağı yazarsın. Kurallar:
 
-İDDİA = İŞ, REPO DEĞİL
-- En az 3, en fazla 10 iddia. Her iddia BİR ürünü/işi anlatır. Aynı ürünün parçaları (web + api +
-  mobil + site), aynı türden denemeler, aynı müşteri için yapılan repolar TEK iddiada birleşir;
-  sourceRefs'e hepsi yazılır. Önemsiz, boş, tek commit'lik ya da fork repolar tek başına iddia
-  olmaz; bir birleşik iddianın parçası olabilir ya da hiç yazılmaz.
-- Sıra: en çok şey söyleyen iş en üstte (uzun süre × yüksek sahiplik × yakın tarih × canlıda).
-- KAPSAM: kişinin ciddi emek verdiği hiçbir ürün listeden DÜŞMESİN. Çok commit'li ya da uzun
-  süreli bir ürünü yer kalmadı diye atlama; küçük işleri birleştirerek ya da hiç yazmayarak yer aç.
-  Sınıra dayanıyorsan önce benzer küçük işleri tek maddede topla ("üç vitrin sitesi"), asıl ürünü
-  koru.
+İŞLER SANA GRUPLANMIŞ GELİR
+- Girdi "İŞ 1, İŞ 2, …" diye gruplanmış ve emeğe göre sıralanmıştır (kişinin kendi commit'i ×
+  süre). Her İŞ için TAM BİR iddia yaz, AYNI SIRAYLA. İş atlama, iki işi birleştirme, yeni iş
+  ekleme. Bir İŞ'in birden çok reposu aynı ürünün parçalarıdır (web + api + mobil + site): tek
+  iddiada anlat.
+- sourceRefs'e o İŞ'in repolarını yaz (sistem yine de sıraya göre bağlar).
 
 ÜRÜNÜN NE OLDUĞUNU NEREDEN BİLİRSİN
 - YALNIZ description, readmeExcerpt, manifestDescription, topics ve homepage'den. Bunlar boşsa
@@ -93,10 +165,18 @@ DİĞER
 export function buildCardMessages(
   login: string,
   repos: RepoSignalInput[],
-  opts: { budget?: number; existing?: string[] } = {},
+  opts: { budget?: number; existing?: string[]; groups?: WorkGroup[] } = {},
 ): LlmMessage[] {
-  const govde = repos
-    .map((r) => `### ${r.ref}\n${JSON.stringify(r.signals, null, 1)}`)
+  const bySref = new Map(repos.map((r) => [r.ref, r]));
+  const gruplar = opts.groups ?? repos.map((r) => ({ key: r.ref, refs: [r.ref], weight: 0 }));
+  const govde = gruplar
+    .map(
+      (g, i) =>
+        `## İŞ ${i + 1} — kaynaklar: ${g.refs.join(', ')}\n` +
+        g.refs
+          .map((ref) => `### ${ref}\n${JSON.stringify(bySref.get(ref)?.signals ?? {}, null, 1)}`)
+          .join('\n'),
+    )
     .join('\n\n');
   const butce = opts.budget ?? MAX_CLAIMS;
   // Kartta zaten onaylı maddeler varsa bütçe kalan yerdir; onaylı işler tekrar yazılmaz.
@@ -109,7 +189,7 @@ export function buildCardMessages(
     { role: 'system', content: SYSTEM },
     {
       role: 'user',
-      content: `GitHub kullanıcısı: ${login}\n\nREPOLAR VE SİNYALLER:\n${govde}${mevcut}\n\nEN FAZLA ${butce} madde yaz (kartın toplam sınırı ${MAX_CLAIMS}; ${opts.existing?.length ?? 0} madde zaten onaylı). Kart taslağını üret.`,
+      content: `GitHub kullanıcısı: ${login}\n\nİŞLER VE SİNYALLER:\n${govde}${mevcut}\n\n${opts.groups ? `TAM ${opts.groups.length} iddia yaz: her İŞ için bir tane, aynı sırayla.` : `EN FAZLA ${butce} madde yaz.`} (Kartın toplam sınırı ${MAX_CLAIMS}; ${opts.existing?.length ?? 0} madde zaten onaylı.) Kart taslağını üret.`,
     },
   ];
 }
@@ -127,8 +207,9 @@ export async function runCardDrafter(
   repos: RepoSignalInput[],
   opts: { budget?: number; existing?: string[] } = {},
 ) {
-  const schema = cardDraftSchema(opts.budget);
-  const messages = buildCardMessages(login, repos, opts);
+  const groups = groupWork(repos, opts.budget ?? MAX_CLAIMS);
+  const schema = cardDraftSchema(groups.length, groups.length);
+  const messages = buildCardMessages(login, repos, { ...opts, groups });
   let { value, usage } = await llm.structured(messages, schema, {
     schemaName: 'card_draft',
     maxTokens: 3000,
@@ -152,10 +233,10 @@ export async function runCardDrafter(
     value = tekrar.value;
     usage = { ...tekrar.usage, durationMs: usage.durationMs + tekrar.usage.durationMs };
   }
-  const gecerli = new Set(repos.map((r) => r.ref));
-  // Uydurma kaynak referansı atılır; kaynaksız kalan iddia düşer.
+  // Kaynaklar sıraya göre KOD tarafından bağlanır: i. iddia i. işin repolarıdır. Model yanlış ya
+  // da uydurma ref yazsa bile iddia doğru kanıta bağlı kalır; fazla iddia atılır.
   const claims = value.claims
-    .map((c) => ({ ...c, sourceRefs: c.sourceRefs.filter((s) => gecerli.has(s)) }))
-    .filter((c) => c.sourceRefs.length > 0);
-  return { draft: { ...value, claims }, usage };
+    .slice(0, groups.length)
+    .map((c, i) => ({ ...c, sourceRefs: groups[i]!.refs }));
+  return { draft: { ...value, claims }, usage, groups };
 }
