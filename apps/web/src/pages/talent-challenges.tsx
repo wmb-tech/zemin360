@@ -91,9 +91,7 @@ export function TalentChallengesPage() {
                         <span className="inline-flex items-center gap-1">
                           <Clock size={14} aria-hidden /> {c.durationHours} saat
                         </span>
-                        {c.closesAt && (
-                          <span>son teslim {new Date(c.closesAt).toLocaleString('tr-TR')}</span>
-                        )}
+                        {c.closesAt && <span>son teslim {tarihSaat(c.closesAt)}</span>}
                       </div>
                     </div>
                     {c.mySubmission ? (
@@ -129,8 +127,8 @@ export function TalentChallengesPage() {
                       {c.mySubmission ? (
                         <p className="text-ink-soft mt-4 text-sm">
                           Teslimin: <span className="font-mono">{c.mySubmission.repoUrl}</span> ·{' '}
-                          {new Date(c.mySubmission.submittedAt).toLocaleString('tr-TR')}. Sonuç,
-                          görev kapanınca kartına düşer.
+                          {tarihSaat(c.mySubmission.submittedAt)}. Sonuç, görev kapanınca kartına
+                          düşer.
                         </p>
                       ) : (
                         <form
@@ -175,3 +173,11 @@ export function TalentChallengesPage() {
     </div>
   );
 }
+
+const tarihSaat = (d: string) =>
+  new Date(d).toLocaleString('tr-TR', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });

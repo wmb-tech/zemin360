@@ -84,10 +84,16 @@ export function OperatorChallengesPage() {
 
   async function design(e: FormEvent) {
     e.preventDefault();
-    await run('design', () =>
-      api(`/api/operator/challenges/from-need/${needId.trim()}`, { method: 'POST' }),
-    );
+    let yeniId: string | null = null;
+    await run('design', async () => {
+      const c = await api<{ id: string }>(`/api/operator/challenges/from-need/${needId.trim()}`, {
+        method: 'POST',
+      });
+      yeniId = c.id;
+    });
     setNeedId('');
+    // Tasarlanan görev hemen detayda açılır: operatör okuyup "Aç" diyebilsin.
+    if (yeniId) await openDetail(yeniId);
   }
 
   async function openDetail(id: string) {
@@ -156,9 +162,7 @@ export function OperatorChallengesPage() {
                     <div className="text-ink text-sm font-semibold">{c.title}</div>
                     <div className="text-ink-soft tnum mt-0.5 text-xs">
                       {STATUS[c.status]} · {c.durationHours} saat
-                      {c.closesAt &&
-                        c.status === 'open' &&
-                        ` · kapanış ${new Date(c.closesAt).toLocaleString('tr-TR')}`}
+                      {c.closesAt && c.status === 'open' && ` · kapanış ${tarihSaat(c.closesAt)}`}
                     </div>
                   </button>
                 </li>
@@ -301,3 +305,11 @@ export function OperatorChallengesPage() {
     </div>
   );
 }
+
+const tarihSaat = (d: string) =>
+  new Date(d).toLocaleString('tr-TR', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });

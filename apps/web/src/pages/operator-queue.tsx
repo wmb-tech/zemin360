@@ -187,6 +187,12 @@ export function OperatorQueuePage() {
         </div>
       </Enter>
 
+      {live && (
+        <p className="text-verified mt-3 text-sm font-semibold" aria-hidden>
+          {live}
+        </p>
+      )}
+
       <Enter i={1} as="div" className="mt-5 flex flex-wrap gap-1">
         {(['all', ...(Object.keys(ACTION) as Action[])] as const).map((k) => (
           <button

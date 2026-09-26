@@ -191,6 +191,8 @@ export function NeedDetailPage() {
   const { id } = useParams();
   const [need, setNeed] = useState<Need | null>(null);
   const [answer, setAnswer] = useState('');
+  // Gönderilen cevap: sunucu dönene kadar balon olarak görünür (ajan 15–20 sn düşünüyor).
+  const [giden, setGiden] = useState<string | null>(null);
   const [busy, setBusy] = useState<'answer' | 'approve' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [changed, setChanged] = useState<Set<string>>(new Set()); // son cevapla değişen alanlar
@@ -214,10 +216,14 @@ export function NeedDetailPage() {
     setBusy('answer');
     setError(null);
     const onceki = need.card ?? {};
+    const metin = answer;
+    setGiden(metin);
+    setAnswer('');
+    window.setTimeout(() => bottom.current?.scrollIntoView({ block: 'nearest' }), 0);
     try {
       const yeni = await api<Need>(`/api/needs/${need.id}/answer`, {
         method: 'POST',
-        body: JSON.stringify({ answer }),
+        body: JSON.stringify({ answer: metin }),
       });
       // Değişen alanlar: yalnız sunucu cevabı geldikten sonra vurgulanır (erken doldurma yok).
       const diff = new Set<string>();
@@ -227,11 +233,13 @@ export function NeedDetailPage() {
       setChanged(diff);
       window.setTimeout(() => setChanged(new Set()), 600);
       setNeed(yeni);
-      setAnswer('');
       setLive(yeni.pendingQuestion ? 'Cevap alındı; yeni soru var.' : 'Kart onay için hazır.');
     } catch (err) {
+      // Gönderilemeyen cevap kaybolmaz: kutuya geri döner.
+      setAnswer(metin);
       setError(err instanceof Error ? err.message : 'Cevap gönderilemedi; metnin duruyor.');
     } finally {
+      setGiden(null);
       setBusy(null);
     }
   }
@@ -313,9 +321,28 @@ export function NeedDetailPage() {
               </div>
             ))}
             {need.pendingQuestion && !approved && (
-              <Bubble who="Evidex" hint={need.pendingQuestion.why} current>
+              <Bubble
+                who="Evidex"
+                hint={giden ? undefined : need.pendingQuestion.why}
+                current={!giden}
+              >
                 {need.pendingQuestion.text}
               </Bubble>
+            )}
+            {giden && (
+              <>
+                <Bubble who="Siz">{giden}</Bubble>
+                <div className="flex justify-start" role="status">
+                  <div className="bg-surface border-line text-ink-soft flex items-center gap-2 rounded-[var(--radius-panel)] border px-4 py-3 text-sm">
+                    <span className="flex gap-1" aria-hidden>
+                      <span className="bg-accent h-1.5 w-1.5 animate-pulse rounded-full" />
+                      <span className="bg-accent h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:150ms]" />
+                      <span className="bg-accent h-1.5 w-1.5 animate-pulse rounded-full [animation-delay:300ms]" />
+                    </span>
+                    Evidex cevabını karta işliyor; sıradaki soruyu hazırlıyor…
+                  </div>
+                </div>
+              </>
             )}
             {approved && (
               <p className="text-ink-soft text-sm">
@@ -553,7 +580,7 @@ function Bubble({
   children,
 }: {
   who: 'Siz' | 'Evidex';
-  hint?: string;
+  hint?: string | undefined;
   current?: boolean;
   children: ReactNode;
 }) {
