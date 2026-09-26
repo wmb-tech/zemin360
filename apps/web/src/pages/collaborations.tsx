@@ -76,10 +76,21 @@ export function CollaborationsPage() {
     setBusy('scan');
     setError(null);
     try {
-      const r = await api<{ proposed: number; silent: number }>('/api/operator/follow-ups/scan', {
-        method: 'POST',
-      });
-      setLive(`${r.proposed} takip önerisi kuyruğa düştü · ${r.silent} sessiz işaretlendi.`);
+      const r = await api<{ proposed: number; silent: number; pending: number }>(
+        '/api/operator/follow-ups/scan',
+        { method: 'POST' },
+      );
+      setLive(
+        [
+          r.proposed > 0
+            ? `${r.proposed} yeni takip önerisi kuyruğa düştü`
+            : 'Yeni takip zamanı gelen yok',
+          r.pending > 0 ? `${r.pending} öneri onay kuyruğunda bekliyor` : null,
+          r.silent > 0 ? `${r.silent} iş birliği sessiz işaretlendi` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') + '.',
+      );
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Tarama koşmadı');

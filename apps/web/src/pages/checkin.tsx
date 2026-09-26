@@ -51,7 +51,8 @@ export function CheckinPage() {
   useEffect(() => {
     api<CheckinContext>(`/api/checkin/${token}`)
       .then((ctx) => {
-        setStatus(ctx.currentStatus);
+        // Seçim önceden doldurulmaz: mevcut durum karşı tarafın son cevabı olabilir; iki taraf
+        // bağımsız cevaplamazsa çelişki (biri "görüştük", öbürü "olmadı") hiç görünmez.
         setDurum(ctx.answered ? { tur: 'cevaplanmis', ctx } : { tur: 'form', ctx });
       })
       .catch(() => setDurum({ tur: 'gecersiz' }));

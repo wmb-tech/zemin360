@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { createFakeProvider } from '@evidex/ai';
 import {
   cardClaims,
+  collaborationCheckins,
   collaborations,
   matches,
   needs,
@@ -236,5 +237,52 @@ describe('takip (izle)', () => {
     expect(await db.select().from(cardClaims).where(eq(cardClaims.talentId, genc.id))).toHaveLength(
       0,
     );
+  });
+
+  it('ajan cevabı yorumlayamazsa (ör. 429 kota) cevap kaybolmaz: kaydedilir, operatöre bayrak düşer', async () => {
+    const llm = createFakeProvider({
+      bySchema: {
+        follow_up_draft: {
+          subject: 'Nasıl gidiyor?',
+          messageTalent: 'Selam, görüşebildiniz mi? [link]',
+          messageOrganization: 'Merhaba, görüşme oldu mu? [link]',
+        },
+      },
+    });
+    // Yorum ajanı 429 ile düşer (canlı tarayıcı turunda yaşandı: kurumun cevabı 500 alıyordu).
+    const asil = llm.structured.bind(llm);
+    llm.structured = async (m, schema, o) => {
+      if (o?.schemaName === 'checkin_insight')
+        throw new Error('{"error":{"code":429,"status":"RESOURCE_EXHAUSTED"}}');
+      return asil(m, schema, o);
+    };
+    const { db, gonderilen, followUp } = testApp({ llm });
+    const { kurumEmail, collab } = await isBirligiKur(db, true);
+    await followUp.send({
+      collaborationId: collab.id,
+      subject: 'Takip',
+      messageTalent: 'Selam [link]',
+      messageOrganization: 'Merhaba [link]',
+    });
+    const token = gonderilen
+      .find((m) => m.to === kurumEmail)!
+      .text.match(/\/takip\/([A-Za-z0-9_-]+)/)![1]!;
+    const sonuc = await followUp.answer(token, {
+      status: 'meeting',
+      feedback: 'Salı görüştük, backend kısmını alıyor.',
+    });
+    expect(sonuc.status).toBe('meeting');
+    const [kayit] = await db
+      .select()
+      .from(collaborationCheckins)
+      .where(
+        and(
+          eq(collaborationCheckins.collaborationId, collab.id),
+          eq(collaborationCheckins.side, 'organization'),
+        ),
+      );
+    expect(kayit!.answeredAt).not.toBeNull();
+    expect(kayit!.feedback).toBe('Salı görüştük, backend kısmını alıyor.');
+    expect((kayit!.insight as { needsOperator: boolean }).needsOperator).toBe(true);
   });
 });

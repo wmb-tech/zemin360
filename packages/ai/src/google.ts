@@ -16,6 +16,25 @@ export interface GoogleProviderOptions {
   apiKey?: string;
 }
 
+/**
+ * Geçici sağlayıcı hataları (429 kota/yoğunluk, 503) için TEK katmanlı kısa yeniden deneme:
+ * 2 sn, sonra 6 sn. Üst katmanlar ayrıca denemez (iç içe yeniden deneme = donma; AutoViz dersi).
+ * Kalıcı hata (400, şema) denenmez.
+ */
+async function denemeli<T>(fn: () => Promise<T>): Promise<T> {
+  const bekle = [2000, 6000];
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const metin = err instanceof Error ? err.message : String(err);
+      const gecici = /\b(429|503)\b|RESOURCE_EXHAUSTED|UNAVAILABLE/.test(metin);
+      if (!gecici || i >= bekle.length) throw err;
+      await new Promise((r) => setTimeout(r, bekle[i]));
+    }
+  }
+}
+
 export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
   if (!opts.vertex && !opts.apiKey)
     throw new Error('Google sağlayıcısı: vertex projesi ya da apiKey gerekli');
@@ -26,6 +45,8 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
         location: opts.vertex.location ?? 'global',
       })
     : new GoogleGenAI({ apiKey: opts.apiKey! });
+  const gen = (req: Parameters<typeof client.models.generateContent>[0]) =>
+    denemeli(() => client.models.generateContent(req));
   const model = opts.model ?? 'gemini-2.5-pro';
   const providerName = opts.vertex ? 'google-vertex' : 'google-aistudio';
 
@@ -62,7 +83,7 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
     async complete(messages, o) {
       const started = Date.now();
       const { system, contents } = split(messages);
-      const res = await client.models.generateContent({
+      const res = await gen({
         model,
         contents,
         config: {
@@ -77,7 +98,7 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
       const { system, contents } = split(messages);
       // ⚠ Gemini 2.5'te düşünme tokenleri maxOutputTokens'tan düşer; bütçeyi ayrıca ayırmazsak
       // JSON yarıda kesilir ("Unterminated string"). Çağıranın maxTokens'ı cevap içindir.
-      const res = await client.models.generateContent({
+      const res = await gen({
         model,
         contents,
         config: {
@@ -100,7 +121,7 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
         .slice(0, 8)
         .map((i) => `${i.path.join('.') || '(kök)'}: ${i.message}`)
         .join('; ');
-      const tekrar = await client.models.generateContent({
+      const tekrar = await gen({
         model,
         contents: [
           ...contents,

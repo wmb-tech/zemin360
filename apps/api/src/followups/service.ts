@@ -171,7 +171,8 @@ export function createFollowUpService(
         });
         proposed++;
       }
-      return { proposed, silent };
+      // Bekleyen: daha önce üretilmiş, operatör kararı bekleyen öneriler (tarama tekrar üretmez).
+      return { proposed, silent, pending: bekleyenIds.size };
     },
 
     /** Kuyruk onayından çağrılır: iki tarafa tek kullanımlık linkli e-posta. */
@@ -246,23 +247,37 @@ export function createFollowUpService(
         referenceClaim: null,
       };
       if (feedback.length > 0) {
-        const r = await runCheckinInterpreter(llm, {
-          side: ci.side,
-          status: body.status,
-          feedback,
-          organizationName: b.org.name,
-          needTitle: (b.need.card as NeedCard | null)?.title ?? '',
-          organizationCanReference: kurumReferansVerebilir,
-        });
-        insight = r.insight;
-        await recordAgentRun(db, {
-          agent: 'checkin_interpreter',
-          subjectType: 'collaboration_checkin',
-          subjectId: ci.id,
-          inputSummary: { side: ci.side, status: body.status, chars: feedback.length },
-          outputSummary: { flags: insight.flags, needsOperator: insight.needsOperator },
-          usage: r.usage,
-        });
+        // ⚠ Cevap AI'a bağımlı değildir: ajan yorumlayamazsa (kota, ağ, şema) kişinin yazdığı
+        // kaybolmaz; cevap kaydedilir, yorum yerine operatöre "oku" bayrağı düşer. Aksi hâlde bir
+        // kurumun geri bildirimi bizim model kotamız yüzünden reddediliyordu (429 → 500).
+        try {
+          const r = await runCheckinInterpreter(llm, {
+            side: ci.side,
+            status: body.status,
+            feedback,
+            organizationName: b.org.name,
+            needTitle: (b.need.card as NeedCard | null)?.title ?? '',
+            organizationCanReference: kurumReferansVerebilir,
+          });
+          insight = r.insight;
+          await recordAgentRun(db, {
+            agent: 'checkin_interpreter',
+            subjectType: 'collaboration_checkin',
+            subjectId: ci.id,
+            inputSummary: { side: ci.side, status: body.status, chars: feedback.length },
+            outputSummary: { flags: insight.flags, needsOperator: insight.needsOperator },
+            usage: r.usage,
+          });
+        } catch (err) {
+          console.error('[checkin] ajan yorumlayamadı; cevap yorumsuz kaydediliyor', err);
+          insight = {
+            summary: 'Ajan bu cevabı yorumlayamadı; metin olduğu gibi kayıtlı.',
+            flags: body.status === 'did_not_happen' ? ['no_contact'] : [],
+            needsOperator: true,
+            operatorNote: 'Ajan yorumu yok — cevabı doğrudan oku.',
+            referenceClaim: null,
+          };
+        }
       }
 
       await db
