@@ -7,6 +7,7 @@ import { CandidatesPage } from './pages/candidates';
 import { OperatorQueuePage } from './pages/operator-queue';
 import { TalentCardPage } from './pages/talent-card';
 import { MetricsPage } from './pages/metrics';
+import { DemoMailPage } from './pages/demo-mail';
 import { OperatorChallengesPage } from './pages/operator-challenges';
 import { TalentChallengesPage } from './pages/talent-challenges';
 import { CollaborationsPage } from './pages/collaborations';
@@ -83,6 +84,7 @@ function Routed() {
             <Route path="/ihtiyaclar" element={<OperatorNeedsPage />} />
             <Route path="/meydan" element={<OperatorChallengesPage />} />
             <Route path="/ag" element={<NetworkPage />} />
+            <Route path="/demo-posta" element={<DemoMailPage />} />
             <Route path="/isbirlikleri" element={<CollaborationsPage />} />
             <Route path="/olcum" element={<MetricsPage />} />
           </>

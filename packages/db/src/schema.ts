@@ -382,6 +382,16 @@ export const errorLog = pgTable('error_log', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Demo hesaplarına (@demo.evidex.dev) giden e-postalar: gerçek kutu yok, sunumda operatör
+ *  buradan okur (tanıştırma e-postası, tek kullanımlık takip linkleri). Demo kaldırılınca silinir. */
+export const demoMail = pgTable('demo_mail', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  to: text('to').array().notNull(),
+  subject: text('subject').notNull(),
+  body: text('body').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 /* ---------- Meydan okuma (döngü adımı: keşfet 01) ---------- */
 
 export const challenges = pgTable(

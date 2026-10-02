@@ -37,6 +37,12 @@ async function denemeli<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+/**
+ * Model kurum adını sık sık noktasız I ile yazıyor ("GIRVAK"); dışarı giden e-posta konusunda
+ * jüri/kurum bunu ilk görür. Ad sabit olduğu için düzeltme kodda, istemde değil.
+ */
+export const adDuzelt = (metin: string) => metin.replace(/G[Iı]RVAK/g, 'GİRVAK');
+
 export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
   if (!opts.vertex && !opts.apiKey)
     throw new Error('Google sağlayıcısı: vertex projesi ya da apiKey gerekli');
@@ -137,7 +143,7 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
         throw new Error(`Model çıktısı token sınırında kesildi (${o?.schemaName ?? 'şema'})`);
       const text = res.text;
       if (!text) throw new Error('Model şemalı çıktı üretmedi');
-      const ilk = schema.safeParse(JSON.parse(text));
+      const ilk = schema.safeParse(JSON.parse(adDuzelt(text)));
       if (ilk.success) return { value: ilk.data, usage: usageOf(res.usageMetadata, started, used) };
       // Gemini JSON şemasındaki min/max kısıtlarını her zaman tutmuyor (ör. 7 yerine 9 iddia,
       // 400 yerine 520 karakter). Bir kez, ihlalleri söyleyerek yeniden iste; yine tutmazsa hata.
@@ -170,7 +176,7 @@ export function createGoogleProvider(opts: GoogleProviderOptions): LlmProvider {
       const metin2 = tekrar.text;
       if (!metin2) throw new Error('Model şemalı çıktı üretmedi (ikinci deneme)');
       return {
-        value: schema.parse(JSON.parse(metin2)),
+        value: schema.parse(JSON.parse(adDuzelt(metin2))),
         usage: usageOf(tekrar.usageMetadata, started, used2),
       };
     },

@@ -1,6 +1,6 @@
 {
-  "id": "fae5c4c5-4548-4ef4-826f-d14c1f73ca45",
-  "prevId": "c61f0631-e398-40f1-adaa-deb4f1953095",
+  "id": "b9eddaa4-7584-4cd1-b32d-6b4f84d79ea5",
+  "prevId": "632e1d74-ebe1-436c-8489-754b4d6365a7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -915,6 +915,51 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.demo_mail": {
+      "name": "demo_mail",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "to": {
+          "name": "to",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

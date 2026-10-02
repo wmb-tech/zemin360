@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { useEffect, useState, type FormEvent } from 'react';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
 import { api } from '../lib/api';
@@ -476,6 +477,12 @@ function DemoAgi({ onChange }: { onChange: () => void }) {
                   aria-label="Giriş bağlantısı"
                 />
               )}
+              <Link
+                to="/demo-posta"
+                className="text-accent mt-3 inline-block text-sm font-semibold hover:underline"
+              >
+                Demo posta kutusu →
+              </Link>
               <div className="border-line mt-3 border-t pt-3">
                 <IkiAdim
                   onConfirm={() => void calis('DELETE')}

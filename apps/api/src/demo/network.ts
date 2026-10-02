@@ -1,8 +1,10 @@
-import { eq, inArray, like, or } from 'drizzle-orm';
+import { desc, eq, inArray, like, or } from 'drizzle-orm';
+import type { EmailSender } from '../lib/email';
 import {
   approvalQueue,
   cardClaims,
   collaborations,
+  demoMail,
   evidenceSignals,
   evidenceSources,
   matches,
@@ -671,5 +673,30 @@ export async function removeDemoNetwork(db: Db) {
     await db.delete(approvalQueue).where(inArray(approvalQueue.subjectId, konular));
   if (orgIds.length) await db.delete(organizations).where(inArray(organizations.id, orgIds));
   await db.delete(users).where(inArray(users.id, kullaniciIds));
+  await db.delete(demoMail);
   return demoStatus(db);
+}
+
+const demoAdresi = (a: string) => a.toLowerCase().endsWith(DEMO_DOMAIN);
+
+/**
+ * Demo posta kutusu: demo adrese giden e-posta SMTP'ye çıkmaz (kutusu yok, geri döner), tabloya
+ * yazılır; operatör sunumda buradan okur. Karışık alıcıda (gerçek genç × demo kurum) gerçek
+ * taraf e-postayı yine alır — gerçek kullanıcının postası demo yüzünden kesilmez.
+ */
+export function withDemoInbox(db: Db, inner: EmailSender): EmailSender {
+  return {
+    async send(msg) {
+      const to = [msg.to].flat();
+      if (to.some(demoAdresi))
+        await db.insert(demoMail).values({ to, subject: msg.subject, body: msg.text });
+      const gercek = to.filter((a) => !demoAdresi(a));
+      if (gercek.length === to.length) return inner.send(msg);
+      if (gercek.length) await inner.send({ ...msg, to: gercek });
+    },
+  };
+}
+
+export async function demoInbox(db: Db) {
+  return db.select().from(demoMail).orderBy(desc(demoMail.createdAt)).limit(40);
 }

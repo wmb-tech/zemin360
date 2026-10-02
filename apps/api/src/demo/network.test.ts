@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { eq, like } from 'drizzle-orm';
-import { cardClaims, collaborations, matches, needs, talents, users } from '@evidex/db';
+import { cardClaims, collaborations, demoMail, matches, needs, talents, users } from '@evidex/db';
+import type { EmailSender } from '../lib/email';
 import { cookieOf, testApp } from '../test/setup';
 import {
   DEMO_DOMAIN,
@@ -8,6 +9,7 @@ import {
   demoStatus,
   removeDemoNetwork,
   seedDemoNetwork,
+  withDemoInbox,
 } from './network';
 
 describe('demo ağı', () => {
@@ -99,5 +101,29 @@ describe('demo ağı', () => {
     // Operatör olmayan üretemez.
     expect((await al('kahve', kurum)).status).toBe(403);
     await removeDemoNetwork(db);
+  });
+
+  it("demo adrese giden e-posta kutuya yazılır, SMTP'ye çıkmaz; gerçek alıcı yine alır", async () => {
+    const { db } = testApp();
+    const giden: (string | string[])[] = [];
+    const inner: EmailSender = { send: async (m) => void giden.push(m.to) };
+    const posta = withDemoInbox(db, inner);
+    await posta.send({
+      to: [`kahve${DEMO_DOMAIN}`, `elif${DEMO_DOMAIN}`],
+      subject: 'Tanıştırma',
+      text: 'a',
+    });
+    await posta.send({
+      to: ['gercek@example.com', `kahve${DEMO_DOMAIN}`],
+      subject: 'Karışık',
+      text: 'b',
+    });
+    await posta.send({ to: 'gercek@example.com', subject: 'Gerçek', text: 'c' });
+    expect(giden).toEqual([['gercek@example.com'], 'gercek@example.com']);
+    const kutu = await db.select().from(demoMail);
+    expect(kutu.map((m) => m.subject).sort()).toEqual(['Karışık', 'Tanıştırma']);
+    await seedDemoNetwork(db);
+    await removeDemoNetwork(db);
+    expect(await db.select().from(demoMail)).toHaveLength(0);
   });
 });

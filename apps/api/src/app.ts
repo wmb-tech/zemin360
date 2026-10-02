@@ -11,7 +11,14 @@ import { createEmailSenderFromEnv, type EmailSender } from './lib/email';
 import type { Env } from './lib/env';
 import { AppError, fail, ok } from './lib/response';
 import { withRole } from './auth/middleware';
-import { demoLoginEmail, demoStatus, removeDemoNetwork, seedDemoNetwork } from './demo/network';
+import {
+  demoInbox,
+  demoLoginEmail,
+  demoStatus,
+  removeDemoNetwork,
+  seedDemoNetwork,
+  withDemoInbox,
+} from './demo/network';
 import { health } from './routes/health';
 import { needRoutes } from './needs/routes';
 import { createNeedService } from './needs/service';
@@ -69,7 +76,7 @@ export interface AppDeps {
 export function createApp(deps: AppDeps) {
   const app = new Hono();
   const auth = createAuthService(deps.db);
-  const email = deps.email ?? createEmailSenderFromEnv(deps.env);
+  const email = withDemoInbox(deps.db, deps.email ?? createEmailSenderFromEnv(deps.env));
   const llm = deps.llm ?? createLlmFromEnv(deps.env);
   const github =
     deps.github !== undefined
@@ -153,6 +160,7 @@ export function createApp(deps: AppDeps) {
       .get('/', async (c) => ok(c, await demoStatus(deps.db)))
       .post('/', async (c) => ok(c, await seedDemoNetwork(deps.db)))
       .delete('/', async (c) => ok(c, await removeDemoNetwork(deps.db)))
+      .get('/mail', async (c) => ok(c, await demoInbox(deps.db)))
       .post('/login/:slug', async (c) => {
         const email = await demoLoginEmail(deps.db, c.req.param('slug'));
         if (!email) throw new AppError('not_found', 'Demo hesabı bulunamadı', 404);

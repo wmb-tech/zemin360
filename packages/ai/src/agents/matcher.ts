@@ -75,7 +75,7 @@ export function buildMatchMessages(
       const yetkinlik = c.skills
         .map(
           (s) =>
-            `${s.name} (${s.repos} repo, ${s.commits} commit${s.firstAt ? `, ${s.firstAt.slice(0, 7)}→${s.lastAt?.slice(0, 7) ?? '?'}` : ''})`,
+            `${s.name} (${s.repos} repo${s.commits > 0 ? `, ${s.commits} commit` : ''}${s.firstAt ? `, ${s.firstAt.slice(0, 7)}→${s.lastAt?.slice(0, 7) ?? '?'}` : ''})`,
         )
         .join('; ');
       return `Aday ${c.talentId} — ${c.name}${c.headline ? ` · ${c.headline}` : ''}${c.city ? ` · ${c.city}` : ''}\n${c.story ? `  Hikâye: ${c.story}\n` : ''}${yetkinlik ? `  Yetkinlikler (kanıttan ölçülmüş): ${yetkinlik}\n` : ''}  İddialar:\n${iddialar || '  (onaylı iddia yok)'}`;
