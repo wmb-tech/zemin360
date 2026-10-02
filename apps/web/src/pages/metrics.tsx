@@ -208,7 +208,8 @@ function Hatalar() {
     <Panel className="p-5">
       <Eyebrow>Son beklenmeyen hatalar · {liste.length}</Eyebrow>
       <p className="text-ink-soft mt-1 text-xs">
-        Kullanıcı ekranında yalnız "kayıt xxxxxxxx" görünür; sebep ve yığın burada.
+        Son 7 gün. Kullanıcı ekranında yalnız "kayıt xxxxxxxx" görünür; sebep ve yığın burada
+        (satıra tıkla).
       </p>
       <ul className="mt-3 divide-y divide-[var(--color-line)]">
         {liste.map((h) => (
@@ -224,11 +225,14 @@ function Hatalar() {
               <span className="text-ink font-mono text-xs">
                 {h.method} {h.path}
               </span>
-              <span className="text-negative">{h.message}</span>
+              <span className="text-negative">
+                {h.message.length > 160 ? `${h.message.slice(0, 160)}…` : h.message}
+              </span>
             </button>
-            {acik === h.id && h.stack && (
+            {acik === h.id && (
               <pre className="bg-paper-2 text-ink-soft mt-2 overflow-x-auto rounded-[var(--radius-control)] p-3 text-xs whitespace-pre-wrap">
-                {h.stack}
+                {h.message}
+                {h.stack ? `\n\n${h.stack}` : ''}
               </pre>
             )}
           </li>

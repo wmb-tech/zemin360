@@ -4,7 +4,7 @@ import { serveStatic } from 'hono/bun';
 import { existsSync } from 'node:fs';
 import { logger } from 'hono/logger';
 import { errorLog, type Db } from '@evidex/db';
-import { desc } from 'drizzle-orm';
+import { desc, gt } from 'drizzle-orm';
 import { authRoutes } from './auth/routes';
 import { createAuthService, type GithubProfile } from './auth/service';
 import { createEmailSenderFromEnv, type EmailSender } from './lib/email';
@@ -146,11 +146,18 @@ export function createApp(deps: AppDeps) {
   // Hata kayıtları: yalnız operatör; son 50 kayıt, sebep + yığın (sunucu loguna erişimsiz teşhis).
   app.route(
     '/api/operator/errors',
-    new Hono()
-      .use('*', withRole(auth, 'operator'))
-      .get('/', async (c) =>
-        ok(c, await deps.db.select().from(errorLog).orderBy(desc(errorLog.createdAt)).limit(50)),
+    new Hono().use('*', withRole(auth, 'operator')).get('/', async (c) =>
+      ok(
+        c,
+        // Son 7 gün: düzeltilmiş eski hatalar panelde kalabalık etmesin; kayıt tabloda durur.
+        await deps.db
+          .select()
+          .from(errorLog)
+          .where(gt(errorLog.createdAt, new Date(Date.now() - 7 * 24 * 3600 * 1000)))
+          .orderBy(desc(errorLog.createdAt))
+          .limit(50),
       ),
+    ),
   );
   // Demo ağı: yalnız operatör; yükle (idempotent) / kaldır (yalnız @demo.evidex.dev).
   app.route(
