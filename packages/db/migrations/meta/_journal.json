@@ -99,6 +99,13 @@
       "when": 1790017217668,
       "tag": "0013_operator_account",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790017218668,
+      "tag": "0014_operator_owner",
+      "breakpoints": true
     }
   ]
 }
