@@ -175,12 +175,13 @@ describe('takip (izle)', () => {
     expect(iddialar[0]!.approved).toBe(false);
     expect(iddialar[0]!.text).toContain('Lodos Yazılım');
 
-    // Operatör listesi: durum kurumun son cevabı, çelişki (meeting ≠ completed) işaretli.
+    // Operatör listesi: çelişkide (meeting ≠ completed) ikinci cevap durumu ezmez; ilk cevapta
+    // kalır, çelişki işaretlenir, kararı operatör verir.
     const liste = (
       await (await app.request('/api/operator/collaborations', { headers: { cookie: op } })).json()
     ).data;
     const satir = liste.find((l: { id: string }) => l.id === collab.id);
-    expect(satir.status).toBe('completed');
+    expect(satir.status).toBe('meeting');
     expect(satir.conflict).toBe(true);
     expect(satir.lastRound).toHaveLength(2);
     expect(satir.silentSince).toBeNull();

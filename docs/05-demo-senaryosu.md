@@ -7,7 +7,8 @@ değil tıklama: tek cümlelik giriş, sonra ürün konuşur. Adres: https://evi
 ## Hazırlık (sunumdan 1 gün önce + 30 dk önce)
 
 **1 gün önce (bir kez):**
-- Operatör olarak gir (`wmbyazilim+girvak@gmail.com`, sihirli link) → **Ağ → Demo ağını yükle**.
+- Operatör olarak gir (`hhasanhh125+evidex@gmail.com`, sihirli link Hasan'ın kutusuna düşer;
+  yedek `wmbyazilim+girvak@gmail.com`) → **Ağ → Demo ağını yükle**. *(2 Eki 2026: canlıda yüklü.)*
   Gelen: 8 genç (farklı alanlar ve kanıt seviyeleri: doğrulanmış / belgeli / beyan), 2 kurum
   (Anadolu Kahve Evleri — İzmir, Yeşil Adım Derneği — İstanbul), onaylı birer ihtiyaç ve Deniz ×
   Yeşil Adım arasında **4 gün önce** yapılmış bir tanıştırma (takip gösterimi için).
@@ -15,15 +16,17 @@ değil tıklama: tek cümlelik giriş, sonra ürün konuşur. Adres: https://evi
 
 **30 dk önce:**
 - Üç tarayıcı profili / gizli pencere, hepsi girişli:
-  1. **Kurum** — kendi adresin, ör. `wmbyazilim+kurum@gmail.com` (ilk girişte kurum adı: "Kafe Masa").
-  2. **Operatör** — `wmbyazilim+girvak@gmail.com`.
+  1. **Kurum** — Ağ → Demo ağı → **Anadolu Kahve Evleri · Giriş bağlantısı** (gizli pencerede aç).
+  2. **Operatör** — `hhasanhh125+evidex@gmail.com`.
   3. **Genç** — Hasan'ın GitHub hesabı (gerçek kart, 10 onaylı iddia).
-- Posta kutusu (wmbyazilim@gmail.com) dördüncü sekmede: tanıştırma ve takip e-postaları burada
-  görünür (artı-adresler aynı kutuya düşer).
+- **Demo posta kutusu** (`/demo-posta`, Ağ → Demo ağı → Demo posta kutusu) dördüncü sekmede:
+  demo hesaplara giden tanıştırma ve takip e-postaları dışarı çıkmaz, burada görünür; takip
+  linkleri buradan tıklanır.
 - Telefon: web'in mobil görünümü ya da Expo build'i, genç hesabıyla kart ekranında.
 
-**Süreler (ölçüldü):** ihtiyaç sohbeti turu ~5 sn · eşleştirme ~30 sn (arka planda; onay düğmesi
-beklemez) · takip taslağı ~5 sn · kart okuma 60 repo ~1 dk. Pro model kotaya takılırsa çağrı
+**Süreler (canlıda ölçüldü, 2 Eki):** ihtiyaç sohbeti turu ~5 sn (kart çoğu zaman 1 cevapta
+onaya hazır) · eşleştirme ~45 sn (11 kart; arka planda) · kısa liste onayı ~3 sn (güçlü adaylara
+e-posta gider) · tanıştırma taslağı ~10 sn · takip taslağı ~6 sn · kart okuma 60 repo ~1 dk. Pro model kotaya takılırsa çağrı
 otomatik olarak hızlı modele düşer; ekranda hata görülmez.
 
 ## Akış (dakika dakika)
@@ -38,7 +41,7 @@ seviye, dönem, kaynak. "Kod saklanmaz; GitHub App sinyal okur. Rol ve dönem ö
 tahmin etmez." Yetkinlikler bölümü: dil/araç × repo × commit. Paylaşım linki (`/k/…`):
 e-posta yok, GitHub adı yok. *(doğrula 02, UI/UX)*
 
-**1:00 — Kurum: ihtiyaç.** Kurum sekmesi → "Kafemiz için masadan QR ile sipariş alan basit bir
+**1:00 — Kurum: ihtiyaç.** Kurum sekmesi (Anadolu Kahve Evleri) → "Kafemiz için masadan QR ile sipariş alan basit bir
 web ekranı lazım, iki ay içinde." Ajan tek soru sorar (~5 sn), kart sağda canlı dolar; iki
 cevap. "Kurum teknoloji bilmek zorunda değil; becerileri ajan beklenen çıktıdan çıkarır." Kartı
 onayla. *(tanımla 05, AI)*
@@ -50,11 +53,11 @@ Kurum sekmesi: adaylar ilk adla, "uyuyor çünkü / eksik olan", yetkinlikler ö
 istiyorum". *(eşleştir 03)*
 
 **2:40 — Operatör: tanıştırma.** Kuyrukta ajanın e-posta taslağı. "Düzenle" ile bir cümle ekle →
-"Düzenlemeyle onayla". Posta kutusu: **tek e-posta, iki taraf birlikte**, altta iletişim bloğu.
+"Düzenlemeyle onayla". Demo posta kutusu: **tek e-posta, iki taraf birlikte**, altta iletişim bloğu.
 "Operatör onaylamadan tek satır gitmez; her karar denetim izine düşer."
 
 **3:15 — İzle: takip.** İş birlikleri → **Şimdi tara**: Deniz × Yeşil Adım (4 gün önce tanıştı)
-için iki tarafa ayrı takip sorusu kuyrukta. Onayla. Posta kutusundan kurumun tek kullanımlık
+için iki tarafa ayrı takip sorusu kuyrukta. Onayla. Demo posta kutusundan kurumun tek kullanımlık
 linki: "Görüştük" + bir cümle. Gencin linki: "Olmadı". İş birlikleri ekranında **çelişki** ve
 **bayrak**. "İki taraf bağımsız cevaplar; biri öbürünün cevabını görmez. Sessizlik de, çelişki de
 operatöre düşer." *(izle 06)*

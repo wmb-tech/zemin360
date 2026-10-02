@@ -4,7 +4,7 @@ import { Mail, RefreshCw } from 'lucide-react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { Enter } from '../components/motion';
-import { Button, Empty, ErrorNote, Eyebrow, Panel, Skeleton } from '../components/ui';
+import { Button, Empty, ErrorNote, Panel, Skeleton } from '../components/ui';
 
 interface DemoMail {
   id: string;
@@ -109,9 +109,10 @@ export function DemoMailPage() {
                 </h2>
                 <span className="text-ink-soft tnum text-xs">{saat(m.createdAt)}</span>
               </div>
-              <div className="mt-1">
-                <Eyebrow>Alıcı: {m.to.join(', ')}</Eyebrow>
-              </div>
+              {/* Adres büyük harfe çevrilmez: tr-TR'de "yesil" → "YESİL" bozulur. */}
+              <p className="text-ink-soft mt-1 text-xs">
+                <span className="font-semibold">Alıcı:</span> {m.to.join(', ')}
+              </p>
               <div className="border-line mt-3 border-t pt-3">
                 <Govde text={m.body} />
               </div>

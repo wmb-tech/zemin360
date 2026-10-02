@@ -284,10 +284,24 @@ export function createFollowUpService(
         .update(collaborationCheckins)
         .set({ answeredAt: now, status: body.status, feedback: feedback || null, insight })
         .where(eq(collaborationCheckins.id, ci.id));
+      // Aynı turda öbür taraf başka bir durum dediyse ikinci cevap durumu ezmez: "Görüştük" ile
+      // "Olmadı" çelişkisinde son cevaplayan kazanmasın; çelişki işaretlenir, kararı operatör verir.
+      const [obur] = await db
+        .select({ status: collaborationCheckins.status })
+        .from(collaborationCheckins)
+        .where(
+          and(
+            eq(collaborationCheckins.collaborationId, ci.collaborationId),
+            eq(collaborationCheckins.batchId, ci.batchId),
+            sql`${collaborationCheckins.id} <> ${ci.id}`,
+          ),
+        )
+        .limit(1);
+      const celiski = Boolean(obur?.status && obur.status !== body.status);
       await db
         .update(collaborations)
         .set({
-          status: body.status,
+          ...(celiski ? {} : { status: body.status }),
           lastCheckinAt: now,
           silentSince: null,
           ...(ci.side === 'talent'
