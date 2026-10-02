@@ -392,12 +392,20 @@ function ScoutForm({ onDone }: { onDone: (msg: string) => void }) {
  * Demo ağı (sunum ve eğitim): 8 kurgusal genç + 2 kurum. Yalnız @demo.evidex.dev kayıtlarına
  * dokunur; gerçek kullanıcılar etkilenmez. Kaldırma iki adımlı.
  */
+interface DemoDurum {
+  talents: number;
+  organizations: number;
+  accounts: { slug: string; name: string; role: 'talent' | 'organization' }[];
+}
+
 function DemoAgi({ onChange }: { onChange: () => void }) {
-  const [durum, setDurum] = useState<{ talents: number; organizations: number } | null>(null);
+  const [durum, setDurum] = useState<DemoDurum | null>(null);
   const [busy, setBusy] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
+  const [acik, setAcik] = useState(false);
+  const [link, setLink] = useState<{ slug: string; url: string } | null>(null);
   useEffect(() => {
-    void api<{ talents: number; organizations: number }>('/api/operator/demo')
+    void api<DemoDurum>('/api/operator/demo')
       .then(setDurum)
       .catch(() => setDurum(null));
   }, []);
@@ -405,7 +413,7 @@ function DemoAgi({ onChange }: { onChange: () => void }) {
     setBusy(true);
     setHata(null);
     try {
-      setDurum(await api('/api/operator/demo', { method }));
+      setDurum(await api<DemoDurum>('/api/operator/demo', { method }));
       onChange();
     } catch (e) {
       setHata(e instanceof Error ? e.message : 'İşlem tamamlanamadı');
@@ -413,21 +421,75 @@ function DemoAgi({ onChange }: { onChange: () => void }) {
       setBusy(false);
     }
   }
+  async function baglanti(slug: string) {
+    setHata(null);
+    try {
+      const r = await api<{ url: string }>(`/api/operator/demo/login/${slug}`, { method: 'POST' });
+      setLink({ slug, url: r.url });
+      await navigator.clipboard?.writeText(r.url).catch(() => undefined);
+    } catch (e) {
+      setHata(e instanceof Error ? e.message : 'Bağlantı üretilemedi');
+    }
+  }
   if (!durum) return null;
   const yuklu = durum.talents > 0;
   return (
-    <div className="flex items-center gap-2">
+    <div className="relative flex items-center gap-2">
       {hata && <span className="text-negative text-xs">{hata}</span>}
       {yuklu ? (
-        <IkiAdim
-          onConfirm={() => void calis('DELETE')}
-          disabled={busy}
-          armedLabel="Demo ağı silinsin mi?"
-          className="border-line text-ink-soft hover:bg-paper-2 inline-flex min-h-11 items-center rounded-[var(--radius-control)] border px-4 text-sm font-semibold"
-          armedClassName="bg-negative text-surface min-h-11"
-        >
-          Demo ağı yüklü · {durum.talents} genç, {durum.organizations} kurum · kaldır
-        </IkiAdim>
+        <>
+          <Button onClick={() => setAcik((v) => !v)} aria-expanded={acik}>
+            Demo ağı · {durum.talents} genç, {durum.organizations} kurum
+          </Button>
+          {acik && (
+            <div className="bg-surface border-line absolute top-full right-0 z-20 mt-2 w-[min(92vw,420px)] rounded-[var(--radius-panel)] border p-4 shadow-lg">
+              <p className="text-ink-soft text-xs leading-relaxed">
+                Sunum ve eğitim için: hesabın tek kullanımlık giriş bağlantısını al,{' '}
+                <b>gizli pencerede</b> aç (bu pencerede açarsan operatör oturumun kapanır). 15
+                dakika geçerli.
+              </p>
+              <ul className="mt-3 max-h-72 divide-y divide-[var(--color-line)] overflow-y-auto">
+                {durum.accounts.map((a) => (
+                  <li key={a.slug} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span>
+                      <span className="text-ink font-semibold">{a.name}</span>
+                      <span className="text-ink-soft">
+                        {' '}
+                        · {a.role === 'organization' ? 'kurum' : 'genç'}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => void baglanti(a.slug)}
+                      className="text-accent shrink-0 text-xs font-semibold hover:underline"
+                    >
+                      {link?.slug === a.slug ? 'Kopyalandı ✓' : 'Giriş bağlantısı'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {link && (
+                <input
+                  readOnly
+                  value={link.url}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="border-line bg-paper-2 mt-3 w-full rounded-[var(--radius-control)] border px-2 py-1.5 font-mono text-xs"
+                  aria-label="Giriş bağlantısı"
+                />
+              )}
+              <div className="border-line mt-3 border-t pt-3">
+                <IkiAdim
+                  onConfirm={() => void calis('DELETE')}
+                  disabled={busy}
+                  armedLabel="Demo ağı silinsin mi?"
+                  className="text-negative text-xs font-semibold hover:underline"
+                  armedClassName="bg-negative text-surface py-1"
+                >
+                  Demo ağını kaldır
+                </IkiAdim>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <Button pending={busy} pendingText="Yükleniyor…" onClick={() => void calis('POST')}>
           Demo ağını yükle

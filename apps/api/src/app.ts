@@ -11,7 +11,7 @@ import { createEmailSenderFromEnv, type EmailSender } from './lib/email';
 import type { Env } from './lib/env';
 import { AppError, fail, ok } from './lib/response';
 import { withRole } from './auth/middleware';
-import { demoStatus, removeDemoNetwork, seedDemoNetwork } from './demo/network';
+import { demoLoginEmail, demoStatus, removeDemoNetwork, seedDemoNetwork } from './demo/network';
 import { health } from './routes/health';
 import { needRoutes } from './needs/routes';
 import { createNeedService } from './needs/service';
@@ -152,7 +152,13 @@ export function createApp(deps: AppDeps) {
       .use('*', withRole(auth, 'operator'))
       .get('/', async (c) => ok(c, await demoStatus(deps.db)))
       .post('/', async (c) => ok(c, await seedDemoNetwork(deps.db)))
-      .delete('/', async (c) => ok(c, await removeDemoNetwork(deps.db))),
+      .delete('/', async (c) => ok(c, await removeDemoNetwork(deps.db)))
+      .post('/login/:slug', async (c) => {
+        const email = await demoLoginEmail(deps.db, c.req.param('slug'));
+        if (!email) throw new AppError('not_found', 'Demo hesabı bulunamadı', 404);
+        const raw = await auth.requestMagicLink(email);
+        return ok(c, { url: `${deps.env.API_ORIGIN}/api/auth/magic/${raw}` });
+      }),
   );
   // Takip cevabı: giriş yok, e-postadaki tek kullanımlık token yetkidir.
   app.route('/api/checkin', checkinRoutes(followUp));

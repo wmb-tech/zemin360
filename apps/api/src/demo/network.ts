@@ -438,16 +438,33 @@ export const DEMO_ORGS = [
   },
 ] as const;
 
-/** Demo ağının durumu: kaç genç ve kurum yüklü. */
+/** Demo ağının durumu: kaç genç ve kurum yüklü, hangi demo hesaplar var. */
 export async function demoStatus(db: Db) {
   const kullanicilar = await db
-    .select({ role: users.role })
+    .select({ email: users.email, name: users.name, role: users.role })
     .from(users)
     .where(like(users.email, `%${DEMO_DOMAIN}`));
   return {
     talents: kullanicilar.filter((u) => u.role === 'talent').length,
     organizations: kullanicilar.filter((u) => u.role === 'organization').length,
+    accounts: kullanicilar
+      .map((u) => ({ slug: u.email.slice(0, -DEMO_DOMAIN.length), name: u.name, role: u.role }))
+      .sort((a, b) =>
+        a.role === b.role ? a.name.localeCompare(b.name, 'tr') : a.role === 'organization' ? -1 : 1,
+      ),
   };
+}
+
+/**
+ * Operatörün demo hesabına giriş bağlantısı üretmesi (sunum ve eğitim): e-postası kurgusal olan
+ * hesaba posta gidemez; operatör tek kullanımlık bağlantıyı panelden alır ve gizli pencerede açar.
+ * ⚠ Yalnız @demo.evidex.dev hesapları — gerçek bir kullanıcı adına bağlantı üretilemez.
+ */
+export async function demoLoginEmail(db: Db, slug: string): Promise<string | null> {
+  if (!/^[a-z0-9-]{1,40}$/.test(slug)) return null;
+  const email = `${slug}${DEMO_DOMAIN}`;
+  const [u] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  return u ? email : null;
 }
 
 export async function seedDemoNetwork(db: Db) {
