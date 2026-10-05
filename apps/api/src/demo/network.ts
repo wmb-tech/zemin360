@@ -1,4 +1,4 @@
-import { desc, eq, like } from 'drizzle-orm';
+import { and, desc, eq, like } from 'drizzle-orm';
 import { kullanicilariSil } from '../account/silme';
 import type { EmailSender } from '../lib/email';
 import {
@@ -555,7 +555,21 @@ export async function seedDemoNetwork(db: Db) {
   for (const o of DEMO_ORGS) {
     const email = `${o.slug}${DEMO_DOMAIN}`;
     const [var_] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (var_) continue;
+    if (var_) {
+      // Kurum zaten var: ihtiyacını bul ki aşağıdaki tanıştırma eksikse tamamlansın (ör. demo
+      // genci "hesabımı sil" ile gitti, ağ yeniden yüklendi).
+      const [mevcut] = await db
+        .select({ id: needs.id })
+        .from(needs)
+        .innerJoin(
+          organizationMembers,
+          eq(organizationMembers.organizationId, needs.organizationId),
+        )
+        .where(eq(organizationMembers.userId, var_.id))
+        .limit(1);
+      if (mevcut) ihtiyacId.set(o.slug, mevcut.id);
+      continue;
+    }
     const [u] = await db
       .insert(users)
       .values({ email, name: o.name, role: 'organization' })
@@ -591,7 +605,14 @@ export async function seedDemoNetwork(db: Db) {
       .innerJoin(users, eq(users.id, talents.userId))
       .where(eq(users.email, `deniz${DEMO_DOMAIN}`))
       .limit(1);
-    if (deniz) {
+    const [zatenVar] = deniz
+      ? await db
+          .select({ id: matches.id })
+          .from(matches)
+          .where(and(eq(matches.needId, yesil), eq(matches.talentId, deniz.id)))
+          .limit(1)
+      : [];
+    if (deniz && !zatenVar) {
       const gunOnce = (n: number) => new Date(simdi.getTime() - n * 24 * 3600 * 1000);
       await db
         .update(needs)

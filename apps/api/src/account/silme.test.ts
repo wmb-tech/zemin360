@@ -9,7 +9,7 @@ import {
   users,
 } from '@evidex/db';
 import { cookieOf, testApp } from '../test/setup';
-import { DEMO_DOMAIN, seedDemoNetwork } from '../demo/network';
+import { DEMO_DOMAIN, removeDemoNetwork, seedDemoNetwork } from '../demo/network';
 
 describe('hesabını sil (KVKK)', () => {
   it('genç kendi hesabını ve iş birliklerini siler; ortak kurum kalır; operatör silinemez', async () => {
@@ -82,6 +82,20 @@ describe('hesabını sil (KVKK)', () => {
         ),
     ).toHaveLength(0);
 
+    // Demo genci silinip ağ yeniden yüklenince takip gösterimi için tanıştırma geri gelir.
+    await seedDemoNetwork(db);
+    const [yeniDeniz] = await db
+      .select({ tid: talents.id })
+      .from(talents)
+      .innerJoin(users, eq(users.id, talents.userId))
+      .where(eq(users.email, `deniz${DEMO_DOMAIN}`));
+    const geriGelen = await db
+      .select({ id: collaborations.id })
+      .from(collaborations)
+      .innerJoin(matches, eq(matches.id, collaborations.matchId))
+      .where(eq(matches.talentId, yeniDeniz!.tid));
+    expect(geriGelen).toHaveLength(1);
+
     // Kurum: başka üyesi varken hesap silinse kurum kalır.
     const [kahveUye] = await db
       .select({ orgId: organizationMembers.organizationId })
@@ -99,6 +113,9 @@ describe('hesabını sil (KVKK)', () => {
     expect(
       await db.select().from(organizations).where(eq(organizations.id, kahveUye!.orgId)),
     ).toHaveLength(1);
+    // Artık bırakma: test sırası değişince demo testi tek kopya kurum bekliyor.
     await db.delete(users).where(eq(users.id, ikinci!.id));
+    await db.delete(organizations).where(eq(organizations.id, kahveUye!.orgId));
+    await removeDemoNetwork(db);
   });
 });
