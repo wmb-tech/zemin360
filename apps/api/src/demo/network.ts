@@ -642,6 +642,86 @@ export async function seedDemoNetwork(db: Db) {
       await db.insert(collaborations).values({ matchId: m!.id, status: 'introduced' });
     }
   }
+
+  // Kurum ekranı ilk bakışta dolu görünsün: Anadolu Kahve'nin ihtiyacına yayınlanmış bir kısa
+  // liste (güçlü / olası / zayıf, gerekçeli). Gerekçe maddeleri adayın gerçek iddialarına bağlı.
+  const kahve = ihtiyacId.get('kahve');
+  if (kahve) {
+    const [varMi] = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .where(eq(matches.needId, kahve))
+      .limit(1);
+    if (!varMi) {
+      const aday = async (slug: string) => {
+        const [t] = await db
+          .select({ id: talents.id })
+          .from(talents)
+          .innerJoin(users, eq(users.id, talents.userId))
+          .where(eq(users.email, `${slug}${DEMO_DOMAIN}`))
+          .limit(1);
+        if (!t) return null;
+        const iddialar = await db
+          .select({ id: cardClaims.id })
+          .from(cardClaims)
+          .where(eq(cardClaims.talentId, t.id));
+        return { id: t.id, iddia: iddialar.map((x) => x.id) };
+      };
+      const liste = [
+        {
+          slug: 'elif',
+          strength: 'strong' as const,
+          fits: [
+            'Bir kafe zincirinin sipariş uygulamasını ve API’sini on ay tek başına geliştirip canlıda tuttu; şubelerin günlük siparişi buradan geçiyor.',
+            'Telefondan kullanım ihtiyacınıza uygun: mobil istemciyi Expo ile yayınlamış.',
+          ],
+          gaps: ['Stok takibi kartında ayrıca görünmüyor; görüşmede sorulmalı.'],
+          summary:
+            'Şube siparişini zaten bir kafe zinciri için yapmış ve canlıda tutuyor; stok tarafı görüşmede netleşmeli.',
+        },
+        {
+          slug: 'can',
+          strength: 'possible' as const,
+          fits: [
+            'Sipariş ve stok veritabanı tasarımı ile API tarafında e-ticaret altyapısı deneyimi var.',
+          ],
+          gaps: ['Arayüz ve telefondan kullanım tarafında kanıt yok.'],
+          summary:
+            'Panelin arka yüzünü (sipariş, stok, şube verisi) kurabilir; arayüz için ikinci bir kişi gerekebilir.',
+        },
+        {
+          slug: 'burak',
+          strength: 'weak' as const,
+          fits: [
+            'Raporlama otomasyonu, merkezin şube stoklarını tek ekranda görme isteğine dokunuyor.',
+          ],
+          gaps: ['Sipariş akışı ya da web uygulaması geliştirme kanıtı yok.'],
+          summary:
+            'Raporlama tarafında yardımcı olabilir ama paneli tek başına kuracak kanıtı yok.',
+        },
+      ];
+      let sira = 0;
+      for (const l of liste) {
+        const a = await aday(l.slug);
+        if (!a) continue;
+        await db.insert(matches).values({
+          needId: kahve,
+          talentId: a.id,
+          strength: l.strength,
+          rank: ++sira,
+          reasoning: {
+            fits: l.fits.map((text, i) => ({ text, claimIds: a.iddia.slice(i, i + 1) })),
+            gaps: l.gaps,
+            summaryForOrganization: l.summary,
+          },
+        });
+      }
+      await db
+        .update(needs)
+        .set({ shortlistPublishedAt: new Date(simdi.getTime() - 2 * 24 * 3600 * 1000) })
+        .where(eq(needs.id, kahve));
+    }
+  }
   return demoStatus(db);
 }
 

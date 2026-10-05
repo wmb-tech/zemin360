@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'bun:test';
 import { eq, like } from 'drizzle-orm';
-import { cardClaims, collaborations, demoMail, matches, needs, talents, users } from '@evidex/db';
+import {
+  cardClaims,
+  collaborations,
+  organizations,
+  demoMail,
+  matches,
+  needs,
+  talents,
+  users,
+} from '@evidex/db';
 import type { EmailSender } from '../lib/email';
 import { cookieOf, testApp } from '../test/setup';
 import {
@@ -52,6 +61,24 @@ describe('demo ağı', () => {
         .where(eq(users.email, `deniz${DEMO_DOMAIN}`));
     const [ib] = await demoIsBirligi();
     expect(Date.now() - ib!.introducedAt!.getTime()).toBeGreaterThan(3.5 * 24 * 3600 * 1000);
+    // Kurum ekranı dolu: Anadolu Kahve'nin ihtiyacında yayınlanmış, gerekçeli 3 adaylı kısa liste.
+    const kahveEslesme = await db
+      .select({
+        strength: matches.strength,
+        published: needs.shortlistPublishedAt,
+        r: matches.reasoning,
+      })
+      .from(matches)
+      .innerJoin(needs, eq(needs.id, matches.needId))
+      .innerJoin(organizations, eq(organizations.id, needs.organizationId))
+      .where(eq(organizations.name, 'Anadolu Kahve Evleri'));
+    expect(kahveEslesme.map((m) => m.strength).sort()).toEqual(['possible', 'strong', 'weak']);
+    expect(kahveEslesme.every((m) => m.published)).toBe(true);
+    expect(
+      kahveEslesme.some((m) =>
+        (m.r as { fits: { claimIds: string[] }[] }).fits.some((f) => f.claimIds.length > 0),
+      ),
+    ).toBe(true);
 
     expect(await removeDemoNetwork(db)).toMatchObject({ talents: 0, organizations: 0 });
     expect(await demoIsBirligi()).toHaveLength(0);

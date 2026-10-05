@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Clock, Send } from 'lucide-react';
+import { Clock, Send, Flag } from 'lucide-react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { Enter, Live } from '../components/motion';
@@ -74,7 +74,7 @@ export function TalentChallengesPage() {
       {error && <ErrorNote>{error}</ErrorNote>}
       <Enter i={1} as="section" className="mt-6">
         {list?.length === 0 && (
-          <Empty title="Şu an açık meydan okuma yok">
+          <Empty icon={Flag} title="Şu an açık meydan okuma yok">
             GİRVAK bir ihtiyaçtan görev türetince burada görünür; e-postayla da haber veririz.
           </Empty>
         )}

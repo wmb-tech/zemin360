@@ -255,7 +255,7 @@ export function TalentHomePage() {
           </h2>
           {o.matches.length === 0 ? (
             <div className="mt-3">
-              <Empty title="Henüz eşleşme yok">
+              <Empty icon={Users} bekliyor title="Henüz eşleşme yok">
                 Bir kurum ihtiyaç açıp GİRVAK kısa listeyi onaylayınca burada görünür. Kurum seni
                 ilk adın ve gerekçeyle görür; tanıştırma olursa iki tarafa e-posta gider.
               </Empty>

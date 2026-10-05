@@ -1,3 +1,4 @@
+import { ListChecks } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api } from '../lib/api';
@@ -56,7 +57,9 @@ export function OperatorNeedsPage() {
       {error && <ErrorNote>{error}</ErrorNote>}
       <Enter i={1} as="section" className="mt-6">
         {list.length === 0 ? (
-          <Empty title="Henüz ihtiyaç yok">Kurum ilk ihtiyacını açınca burada görünür.</Empty>
+          <Empty icon={ListChecks} title="Henüz ihtiyaç yok">
+            Kurum ilk ihtiyacını açınca burada görünür.
+          </Empty>
         ) : (
           <div className="bg-surface border-line overflow-x-auto rounded-[var(--radius-panel)] border">
             <table className="w-full text-sm">

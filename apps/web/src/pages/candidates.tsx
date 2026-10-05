@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, Check, Minus } from 'lucide-react';
+import { ArrowLeft, Check, Minus, FileText, Hourglass, SearchX } from 'lucide-react';
 import type { MatchStrength } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
@@ -99,18 +99,18 @@ export function CandidatesPage() {
 
       <Enter i={1} as="section" className="mt-6">
         {need.cardStatus !== 'approved' && (
-          <Empty title="Kart henüz onaylı değil">
+          <Empty icon={FileText} title="Kart henüz onaylı değil">
             Kartı onaylayınca eşleştirme kendiliğinden koşar.
           </Empty>
         )}
         {need.cardStatus === 'approved' && !data.published && (
-          <Empty title="GİRVAK kısa listeyi inceliyor">
+          <Empty icon={Hourglass} bekliyor title="GİRVAK kısa listeyi inceliyor">
             Ajan adayları gerekçesiyle sıraladı; GİRVAK operatörü listeyi açınca burada görürsün.
             Genellikle bir iş günü içinde.
           </Empty>
         )}
         {data.published && data.candidates.length === 0 && (
-          <Empty title="Bu ihtiyaç için aday bulunamadı">
+          <Empty icon={SearchX} title="Bu ihtiyaç için aday bulunamadı">
             GİRVAK ağ dışında keşif ya da bir meydan okuma başlatabilir; haber veririz.
           </Empty>
         )}

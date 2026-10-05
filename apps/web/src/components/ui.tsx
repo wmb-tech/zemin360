@@ -1,3 +1,4 @@
+import { CircleDashed, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type {
   ButtonHTMLAttributes,
@@ -187,21 +188,37 @@ export function Skeleton({ rows = 3, className = '' }: { rows?: number; classNam
   );
 }
 
-/** Boş durum: ne görüneceğini ve ilgili sonraki eylemi söyler. */
+/**
+ * Boş ya da bekleme durumu: ne görüneceğini, neden henüz olmadığını ve sonraki eylemi söyler.
+ * İkon durumu tanıtır; `bekliyor` arka planda süren bir iş olduğunu (nabız) gösterir — "boş"
+ * ile "sırada" aynı görünmesin.
+ */
 export function Empty({
   title,
   children,
   action,
+  icon: Icon = CircleDashed,
+  bekliyor = false,
 }: {
   title: string;
   children?: ReactNode;
   action?: ReactNode;
+  icon?: LucideIcon;
+  bekliyor?: boolean;
 }) {
   return (
-    <div className="border-line rounded-[var(--radius-panel)] border border-dashed p-6">
-      <p className="text-ink font-semibold">{title}</p>
-      {children && <p className="text-ink-soft mt-1 max-w-prose text-sm">{children}</p>}
-      {action && <div className="mt-4">{action}</div>}
+    <div className="bg-surface border-line flex gap-4 rounded-[var(--radius-panel)] border p-5 md:p-6">
+      <div className="bg-accent-soft text-accent relative grid size-11 shrink-0 place-items-center rounded-xl">
+        <Icon size={20} aria-hidden />
+        {bekliyor && (
+          <span className="bg-accent absolute -top-0.5 -right-0.5 size-2.5 animate-pulse rounded-full motion-reduce:animate-none" />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-ink font-semibold">{title}</p>
+        {children && <p className="text-ink-soft mt-1 max-w-prose text-sm">{children}</p>}
+        {action && <div className="mt-4">{action}</div>}
+      </div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { Flag } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
@@ -146,7 +147,7 @@ export function OperatorChallengesPage() {
           <ul className="bg-surface border-line mt-4 divide-y divide-[var(--color-line)] rounded-[var(--radius-panel)] border">
             {list.length === 0 && (
               <li className="p-4">
-                <Empty title="Henüz meydan okuma yok">
+                <Empty icon={Flag} title="Henüz meydan okuma yok">
                   Onaylı bir ihtiyaç seçip tasarla; taslak burada birikir.
                 </Empty>
               </li>

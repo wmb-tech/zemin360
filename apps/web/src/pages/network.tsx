@@ -1,3 +1,4 @@
+import { Building2, Users } from 'lucide-react';
 import { Link } from 'react-router';
 import { useEffect, useState, type FormEvent } from 'react';
 import { THRESHOLDS, type EvidenceLevel } from '@evidex/shared';
@@ -143,7 +144,9 @@ export function NetworkPage() {
       <Enter i={2} as="section" className="mt-6">
         {view === 'gencler' &&
           (data.talents.length === 0 ? (
-            <Empty title="Henüz genç yok">GitHub ile giren ilk genç burada görünür.</Empty>
+            <Empty icon={Users} title="Henüz genç yok">
+              GitHub ile giren ilk genç burada görünür.
+            </Empty>
           ) : (
             <div className="bg-surface border-line overflow-x-auto rounded-[var(--radius-panel)] border">
               <table className="w-full text-sm">
@@ -206,7 +209,9 @@ export function NetworkPage() {
           ))}
         {view === 'kurumlar' &&
           (data.organizations.length === 0 ? (
-            <Empty title="Henüz kurum yok">Sihirli linkle giren ilk kurum burada görünür.</Empty>
+            <Empty icon={Building2} title="Henüz kurum yok">
+              Sihirli linkle giren ilk kurum burada görünür.
+            </Empty>
           ) : (
             <div className="bg-surface border-line overflow-x-auto rounded-[var(--radius-panel)] border">
               <p className="text-ink-soft border-line border-b px-4 py-3 text-xs">

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Pencil, Send, Users } from 'lucide-react';
+import { ArrowLeft, Pencil, Send, Users, ListChecks } from 'lucide-react';
 import { CollaborationType, WorkMode, type NeedCardEdits } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
@@ -138,7 +138,7 @@ export function NeedsListPage() {
           </div>
         ) : needs.length === 0 ? (
           <div className="mt-3">
-            <Empty title="Henüz ihtiyaç yok">
+            <Empty icon={ListChecks} title="Henüz ihtiyaç yok">
               İlkini soldan başlat; kart onaylanınca eşleştirme kendiliğinden koşar.
             </Empty>
           </div>

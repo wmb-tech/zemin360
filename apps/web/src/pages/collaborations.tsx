@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Check, ChevronDown, Clock, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, Clock, MessageSquare, Handshake } from 'lucide-react';
 import type { CheckinInsight, CollaborationStatus } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
@@ -148,7 +148,7 @@ export function CollaborationsPage() {
 
       <Enter i={1} as="section" className="mt-6">
         {list.length === 0 ? (
-          <Empty title="Henüz tanıştırma yok">
+          <Empty icon={Handshake} title="Henüz tanıştırma yok">
             Tanıştırma onaylanınca iş birliği kaydı burada açılır; üç gün sonra ilk takip sorusu
             gider.
           </Empty>

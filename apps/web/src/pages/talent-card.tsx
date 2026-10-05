@@ -915,7 +915,7 @@ function IddiaSatiri({
     <li
       className={`bg-surface rounded-[var(--radius-panel)] border p-4 ${settled ? 'settle' : ''} ${selected ? 'border-accent' : 'border-line'}`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
         <input
           type="checkbox"
           checked={selected}
@@ -975,7 +975,7 @@ function IddiaSatiri({
             <p className="text-ink-soft mt-1 text-xs">Ajan taslağı düzenlendi.</p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="ml-8 flex w-full shrink-0 items-center gap-1 sm:ml-0 sm:w-auto">
           {!c.approved ? (
             <Button
               size="sm"

@@ -96,7 +96,7 @@ export function DemoMailPage() {
       {error && <ErrorNote>{error}</ErrorNote>}
       <Enter i={1} as="section" className="mt-6 grid gap-4">
         {list.length === 0 ? (
-          <Empty title="Henüz e-posta yok">
+          <Empty icon={Mail} title="Henüz e-posta yok">
             Tanıştırma ya da takip sorusu onaylandığında demo taraflara giden e-posta burada
             görünür.
           </Empty>

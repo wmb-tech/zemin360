@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Pencil, X } from 'lucide-react';
+import { Check, Pencil, X, CheckCheck } from 'lucide-react';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { Enter, Live } from '../components/motion';
@@ -214,7 +214,7 @@ export function OperatorQueuePage() {
 
       {items.length === 0 ? (
         <div className="mt-6">
-          <Empty title="Bekleyen dış eylem yok">
+          <Empty icon={CheckCheck} title="Bekleyen dış eylem yok">
             Ajan bir kısa liste, tanıştırma, takip sorusu ya da davet önerdiğinde burada görünür.
           </Empty>
         </div>
