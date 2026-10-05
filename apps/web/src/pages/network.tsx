@@ -149,7 +149,7 @@ export function NetworkPage() {
             </Empty>
           ) : (
             <div className="bg-surface border-line overflow-x-auto rounded-[var(--radius-panel)] border">
-              <table className="w-full text-sm">
+              <table className="tablo-kart w-full text-sm">
                 <thead className="bg-paper-2 text-ink-soft text-left text-xs font-bold tracking-wide uppercase">
                   <tr>
                     <th className="px-4 py-3">Genç</th>
@@ -169,7 +169,7 @@ export function NetworkPage() {
                             <div className="text-ink-soft font-mono text-xs">@{t.githubLogin}</div>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td data-label="Kart" className="px-4 py-3">
                           <span
                             className={`rounded-md px-2 py-0.5 text-xs font-bold ${t.cardStatus === 'approved' ? 'bg-verified-soft text-verified' : 'bg-declared-soft text-declared'}`}
                           >
@@ -181,7 +181,7 @@ export function NetworkPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td data-label="Kanıt" className="px-4 py-3">
                           <div className="text-ink-soft tnum text-xs">
                             {t.sources} kaynak · {t.approvedClaims}/{toplam} iddia onaylı
                           </div>
@@ -196,7 +196,7 @@ export function NetworkPage() {
                             </div>
                           )}
                         </td>
-                        <td className="text-ink-soft tnum px-4 py-3">
+                        <td data-label="Son etkinlik" className="text-ink-soft tnum px-4 py-3">
                           {tarih(t.lastSignalAt)}
                           {t.silent && <div className="text-xs">yol: meydan okuma daveti</div>}
                         </td>
@@ -218,7 +218,7 @@ export function NetworkPage() {
                 Referans yetkisi: yalnız onaylı kurumun "tamamlandı" değerlendirmesi gencin kartına
                 referans olarak düşer (KARAR-10).
               </p>
-              <table className="w-full text-sm">
+              <table className="tablo-kart w-full text-sm">
                 <thead className="bg-paper-2 text-ink-soft text-left text-xs font-bold tracking-wide uppercase">
                   <tr>
                     <th className="px-4 py-3">Kurum</th>
@@ -231,11 +231,13 @@ export function NetworkPage() {
                   {data.organizations.map((o) => (
                     <tr key={o.id} className="hover:bg-paper-2/60">
                       <td className="text-ink px-4 py-3 font-semibold">{o.name}</td>
-                      <td className="text-ink-soft px-4 py-3">{o.city ?? '—'}</td>
-                      <td className="text-ink-soft tnum px-4 py-3">
+                      <td data-label="Şehir" className="text-ink-soft px-4 py-3">
+                        {o.city ?? '—'}
+                      </td>
+                      <td data-label="İhtiyaç · üye" className="text-ink-soft tnum px-4 py-3">
                         {o.needs} · {o.members}
                       </td>
-                      <td className="px-4 py-3">
+                      <td data-label="Referans" className="px-4 py-3">
                         <Button
                           size="sm"
                           variant={o.approved ? 'secondary' : 'primary'}

@@ -185,3 +185,34 @@ body {
   letter-spacing: -0.012em;
   line-height: 1;
 }
+
+/* Telefonda tablo → satır başına kart: başlık satırı gizlenir, her hücre kendi etiketini taşır. */
+@media (max-width: 767px) {
+  .tablo-kart thead {
+    display: none;
+  }
+  .tablo-kart tr {
+    display: block;
+    padding: 12px 16px;
+  }
+  .tablo-kart td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 3px 0 !important;
+    text-align: right;
+  }
+  .tablo-kart td:first-child {
+    text-align: left;
+    padding-bottom: 6px !important;
+  }
+  .tablo-kart td[data-label]::before {
+    content: attr(data-label);
+    color: var(--color-ink-soft);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    flex-shrink: 0;
+  }
+}

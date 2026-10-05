@@ -13,6 +13,7 @@ import { AppError, fail, ok } from './lib/response';
 import { withRole, type AuthVars } from './auth/middleware';
 import { deleteCookie, getCookie } from 'hono/cookie';
 import { kullanicilariSil } from './account/silme';
+import { withHtml } from './lib/email-html';
 import {
   demoInbox,
   demoLoginEmail,
@@ -78,7 +79,7 @@ export interface AppDeps {
 export function createApp(deps: AppDeps) {
   const app = new Hono();
   const auth = createAuthService(deps.db);
-  const email = withDemoInbox(deps.db, deps.email ?? createEmailSenderFromEnv(deps.env));
+  const email = withDemoInbox(deps.db, withHtml(deps.email ?? createEmailSenderFromEnv(deps.env)));
   const llm = deps.llm ?? createLlmFromEnv(deps.env);
   const github =
     deps.github !== undefined

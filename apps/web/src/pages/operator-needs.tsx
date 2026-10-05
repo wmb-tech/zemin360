@@ -62,7 +62,7 @@ export function OperatorNeedsPage() {
           </Empty>
         ) : (
           <div className="bg-surface border-line overflow-x-auto rounded-[var(--radius-panel)] border">
-            <table className="w-full text-sm">
+            <table className="tablo-kart w-full text-sm">
               <thead className="bg-paper-2 text-ink-soft sticky top-0 text-left text-xs font-bold tracking-wide uppercase">
                 <tr>
                   <th className="px-4 py-3">İhtiyaç</th>
@@ -79,20 +79,22 @@ export function OperatorNeedsPage() {
                     <td className="text-ink px-4 py-3 font-semibold">
                       {n.title ?? 'Başlıksız (taslak)'}
                     </td>
-                    <td className="text-ink-soft px-4 py-3">{n.organizationName}</td>
-                    <td className="px-4 py-3">
+                    <td data-label="Kurum" className="text-ink-soft px-4 py-3">
+                      {n.organizationName}
+                    </td>
+                    <td data-label="Durum" className="px-4 py-3">
                       <span
                         className={`rounded-md px-2 py-0.5 text-xs font-bold ${n.cardStatus === 'approved' ? 'bg-verified-soft text-verified' : 'bg-declared-soft text-declared'}`}
                       >
                         {n.cardStatus === 'approved' ? 'Onaylı' : 'Taslak'}
                       </span>
                     </td>
-                    <td className="text-ink-soft tnum px-4 py-3">
+                    <td data-label="Eşleşme" className="text-ink-soft tnum px-4 py-3">
                       {n.cardStatus === 'approved'
                         ? `${n.matches.strong} güçlü · ${n.matches.possible} olası · ${n.matches.weak} zayıf · ${n.matches.introduced} tanıştırma`
                         : '—'}
                     </td>
-                    <td className="text-ink-soft px-4 py-3">
+                    <td data-label="Kısa liste" className="text-ink-soft px-4 py-3">
                       {n.cardStatus !== 'approved'
                         ? '—'
                         : n.shortlistPublishedAt
@@ -101,7 +103,7 @@ export function OperatorNeedsPage() {
                     </td>
                     <td className="px-4 py-3">
                       {n.cardStatus === 'approved' && (
-                        <div className="flex justify-end gap-2">
+                        <div className="flex flex-wrap justify-end gap-2 max-md:justify-start">
                           <Button
                             size="sm"
                             pending={busy === n.id}
@@ -118,7 +120,7 @@ export function OperatorNeedsPage() {
                           </Link>
                           <Link
                             to="/meydan"
-                            className="border-line hover:bg-paper-2 inline-flex min-h-9 items-center rounded-[var(--radius-control)] border px-3 text-sm font-semibold"
+                            className="border-line hover:bg-paper-2 inline-flex min-h-9 items-center rounded-[var(--radius-control)] border px-3 text-sm font-semibold whitespace-nowrap"
                           >
                             Meydan okuma
                           </Link>
