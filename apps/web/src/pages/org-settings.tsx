@@ -1,3 +1,4 @@
+import { HesapSil } from '../components/hesap-sil';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { api } from '../lib/api';
@@ -120,6 +121,7 @@ export function OrgSettingsPage() {
             : 'GİRVAK onayı bekliyor — onaydan sonra biten iş birliklerinde referans verebilirsiniz.'}
         </p>
       </Enter>
+      <HesapSil rol="organization" />
     </div>
   );
 }

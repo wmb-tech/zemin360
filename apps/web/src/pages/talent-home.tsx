@@ -1,3 +1,4 @@
+import { HesapSil } from '../components/hesap-sil';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import {
@@ -348,6 +349,7 @@ export function TalentHomePage() {
           </div>
         )}
       </Enter>
+      <HesapSil rol="talent" />
     </div>
   );
 }

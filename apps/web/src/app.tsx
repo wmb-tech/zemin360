@@ -8,6 +8,7 @@ import { OperatorQueuePage } from './pages/operator-queue';
 import { TalentCardPage } from './pages/talent-card';
 import { MetricsPage } from './pages/metrics';
 import { DemoMailPage } from './pages/demo-mail';
+import { PrivacyPage } from './pages/gizlilik';
 import { OperatorChallengesPage } from './pages/operator-challenges';
 import { TalentChallengesPage } from './pages/talent-challenges';
 import { CollaborationsPage } from './pages/collaborations';
@@ -102,6 +103,7 @@ export function App() {
         {/* Oturumsuz sayfalar: e-postadaki linkle gelenler */}
         <Route path="/takip/:token" element={<CheckinPage />} />
         <Route path="/k/:slug" element={<PublicCardPage />} />
+        <Route path="/gizlilik" element={<PrivacyPage />} />
         <Route path="*" element={<Routed />} />
       </Routes>
     </AuthProvider>

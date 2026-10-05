@@ -5,12 +5,14 @@ import { existsSync } from 'node:fs';
 import { logger } from 'hono/logger';
 import { errorLog, type Db } from '@evidex/db';
 import { desc, gt } from 'drizzle-orm';
-import { authRoutes } from './auth/routes';
+import { authRoutes, SESSION_COOKIE } from './auth/routes';
 import { createAuthService, type GithubProfile } from './auth/service';
 import { createEmailSenderFromEnv, type EmailSender } from './lib/email';
 import type { Env } from './lib/env';
 import { AppError, fail, ok } from './lib/response';
-import { withRole } from './auth/middleware';
+import { withRole, type AuthVars } from './auth/middleware';
+import { deleteCookie } from 'hono/cookie';
+import { kullanicilariSil } from './account/silme';
 import {
   demoInbox,
   demoLoginEmail,
@@ -158,6 +160,18 @@ export function createApp(deps: AppDeps) {
           .limit(50),
       ),
     ),
+  );
+  // Hesabını sil (KVKK): genç ve kurum kendi hesabını ve ona bağlı her şeyi siler. Operatör
+  // hesabı buradan silinmez (karar kayıtlarının sahibi). Oturum çerezi de düşer.
+  app.route(
+    '/api/me/account',
+    new Hono<AuthVars>()
+      .use('*', withRole(auth, 'talent', 'organization'))
+      .delete('/', async (c) => {
+        await kullanicilariSil(deps.db, [c.get('user').id]);
+        deleteCookie(c, SESSION_COOKIE, { path: '/' });
+        return ok(c, { deleted: true });
+      }),
   );
   // Demo ağı: yalnız operatör; yükle (idempotent) / kaldır (yalnız @demo.evidex.dev).
   app.route(

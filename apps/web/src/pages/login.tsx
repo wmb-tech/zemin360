@@ -158,6 +158,10 @@ export function LoginPage() {
         <Link to="/nasil-calisir" className="text-accent font-semibold hover:underline">
           Nasıl çalışır
         </Link>
+        {' · '}
+        <Link to="/gizlilik" className="text-accent font-semibold hover:underline">
+          Aydınlatma metni
+        </Link>
       </p>
     </div>
   );
