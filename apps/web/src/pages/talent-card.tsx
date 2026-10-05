@@ -831,11 +831,10 @@ function Iddialar({
           birikmiş: "Kartı yeniden yaz" hepsini tek seferde, birleştirilmiş hâlde çıkarır.
         </p>
       )}
-      <p className="text-ink-soft border-line border-t pt-4 text-xs leading-relaxed">
-        İddialar beğenmediğin bir dille yazıldıysa ya da işler birleştirilmediyse kartı sıfırdan
-        yazdırabilirsin: mevcut tüm iddialar silinir, bütün repolar güncel bağlamla yeniden okunur
-        (birkaç dakika sürebilir), yeni taslak çıkar; onaylı kart yeni taslağı onaylayana kadar
-        taslağa döner.{' '}
+      <p className="text-ink-soft border-line border-t pt-4 text-sm leading-relaxed">
+        Dili ya da gruplaması hoşuna gitmediyse kartı baştan yazdırabilirsin. Bütün iddialar
+        silinir, repolar yeniden okunur (birkaç dakika); kart, yeni taslağı onaylayana kadar
+        taslakta kalır.{' '}
         <IkiAdim
           onConfirm={onRewrite}
           disabled={busy === 'rewrite'}

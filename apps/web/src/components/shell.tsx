@@ -92,6 +92,14 @@ export function Shell({ nav }: { nav: NavItem[] }) {
             Nasıl çalışır
           </NavLink>
           <div className="mt-1 flex items-center gap-2 px-3 py-2">
+            {/* Gencin kendi GitHub avatarı: yalnız kendisi görür (kurumlara foto gösterilmez). */}
+            {me?.githubLogin && (
+              <img
+                src={`https://github.com/${me.githubLogin}.png?size=64`}
+                alt=""
+                className="border-line size-8 shrink-0 rounded-full border"
+              />
+            )}
             <div className="min-w-0 flex-1">
               <div className="text-ink truncate text-sm font-semibold">{kimlik}</div>
               <div className="text-ink-soft text-xs">{me ? roleLabel[me.role] : ''}</div>

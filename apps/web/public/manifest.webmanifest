@@ -1,0 +1,13 @@
+{
+  "name": "Evidex",
+  "short_name": "Evidex",
+  "description": "Kanıta dayalı yetkinlik kartı ve gerekçeli eşleşme · GİRVAK gençlik ağı",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7ff",
+  "theme_color": "#20253d",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

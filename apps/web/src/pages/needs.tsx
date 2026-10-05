@@ -127,6 +127,9 @@ export function NeedsListPage() {
             >
               Başla
             </Button>
+            {text.trim().length > 0 && text.trim().length < 10 && (
+              <span className="text-ink-soft ml-3 text-sm">Biraz daha anlat (en az 10 harf).</span>
+            )}
           </div>
         </form>
       </Enter>

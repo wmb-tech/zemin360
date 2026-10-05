@@ -87,7 +87,7 @@ export function MetricsPage() {
           deger={
             m.needClarity.avgQuestionsToApproval === null
               ? 'Yeterli veri yok'
-              : `${sayi(m.needClarity.avgQuestionsToApproval)} soru`
+              : `${sayi(m.needClarity.avgQuestionsToApproval)} soru / ihtiyaç`
           }
           payda={`${m.needClarity.approvedNeeds} onaylı ihtiyaç · ilk taslakta ortalama ${m.needClarity.avgInitialMissingFields === null ? '—' : sayi(m.needClarity.avgInitialMissingFields)} eksik alan`}
           kucuk={m.needClarity.approvedNeeds < 5}
