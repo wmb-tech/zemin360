@@ -75,7 +75,7 @@ export function OperatorNeedsPage() {
               </thead>
               <tbody className="divide-y divide-[var(--color-line)]">
                 {list.map((n) => (
-                  <tr key={n.id} className="hover:bg-paper-2/60 h-13">
+                  <tr key={n.id} className="hover:bg-paper-2/60 md:h-13">
                     <td className="text-ink px-4 py-3 font-semibold">
                       {n.title ?? 'Başlıksız (taslak)'}
                     </td>

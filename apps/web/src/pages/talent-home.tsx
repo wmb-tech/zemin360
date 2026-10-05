@@ -367,11 +367,11 @@ export function TalentHomePage() {
 function Ilerleme({ adimlar }: { adimlar: { ad: string; bitti: boolean }[] }) {
   const simdiki = adimlar.findIndex((a) => !a.bitti);
   return (
-    <ol className="flex items-center gap-2" aria-label="Kartının durumu">
+    <ol className="flex items-center justify-between gap-2" aria-label="Kartının durumu">
       {adimlar.map((a, i) => {
         const aktif = i === simdiki;
         return (
-          <li key={a.ad} className="flex min-w-0 flex-1 items-center gap-2">
+          <li key={a.ad} className="flex items-center gap-1.5 sm:min-w-0 sm:flex-1 sm:gap-2">
             <span
               className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${
                 a.bitti
@@ -385,14 +385,14 @@ function Ilerleme({ adimlar }: { adimlar: { ad: string; bitti: boolean }[] }) {
               {a.bitti ? <Check size={13} strokeWidth={3} /> : i + 1}
             </span>
             <span
-              className={`truncate text-sm ${aktif ? 'text-ink font-bold' : a.bitti ? 'text-ink' : 'text-ink-soft'}`}
+              className={`text-sm whitespace-nowrap ${aktif ? 'text-ink font-bold' : a.bitti ? 'text-ink' : 'text-ink-soft'}`}
             >
               {a.ad}
               <span className="sr-only">{a.bitti ? ' — tamam' : aktif ? ' — şimdi' : ''}</span>
             </span>
             {i < adimlar.length - 1 && (
               <span
-                className={`h-px min-w-3 flex-1 ${a.bitti ? 'bg-verified/50' : 'bg-line'}`}
+                className={`hidden h-px min-w-3 flex-1 sm:block ${a.bitti ? 'bg-verified/50' : 'bg-line'}`}
                 aria-hidden
               />
             )}
