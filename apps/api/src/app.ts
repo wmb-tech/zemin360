@@ -11,7 +11,7 @@ import { createEmailSenderFromEnv, type EmailSender } from './lib/email';
 import type { Env } from './lib/env';
 import { AppError, fail, ok } from './lib/response';
 import { withRole, type AuthVars } from './auth/middleware';
-import { deleteCookie } from 'hono/cookie';
+import { deleteCookie, getCookie } from 'hono/cookie';
 import { kullanicilariSil } from './account/silme';
 import {
   demoInbox,
@@ -227,13 +227,49 @@ export function createApp(deps: AppDeps) {
         c.req.path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
       );
     });
+    // Ön kapı: oturumu olmayan ziyaretçi kök adreste ve "Nasıl çalışır"da tanıtım sayfasını
+    // görür (film, döngü, kanıt seviyeleri); oturumu olan doğrudan paneline (SPA) gider.
+    // Çerez geçersizse SPA girişe yönlendirir — döngü yok.
+    const tanitim = serveStatic({ root: webDist, path: 'tanitim/index.html' });
+    for (const yol of ['/', '/nasil-calisir'])
+      app.get(yol, async (c, next) => {
+        if (getCookie(c, SESSION_COOKIE)) return next();
+        return (await tanitim(c, next)) ?? next();
+      });
     app.use('/*', serveStatic({ root: webDist }));
     const indexHtml = serveStatic({ root: webDist, path: 'index.html' });
     app.get('*', async (c, next) => {
       if (c.req.path.startsWith('/api/'))
         return fail(c, new AppError('not_found', 'Kaynak bulunamadı', 404));
+      // Paylaşılan kart (/k/:slug): önizleme etiketleri kartın sahibine göre doldurulur ki Slack /
+      // WhatsApp / LinkedIn linki "Evidex" değil "Ad · başlık" diye açsın. Kapalı kart genel kalır.
+      const kart = /^\/k\/([^/]+)\/?$/.exec(c.req.path);
+      if (kart) {
+        const html = await kartOnizleme(webDist, decodeURIComponent(kart[1]!));
+        if (html) return c.html(html);
+      }
       return (await indexHtml(c, next)) ?? c.notFound();
     });
+  }
+
+  async function kartOnizleme(dist: string, slug: string) {
+    let k: Awaited<ReturnType<typeof talent.publicCard>>;
+    try {
+      k = await talent.publicCard(slug);
+    } catch {
+      return null;
+    }
+    const kac = k.claims.length;
+    const dogrulanmis = k.claims.filter((x) => x.level === 'verified').length;
+    const baslik = `${k.name}${k.headline ? ` · ${k.headline}` : ''}`;
+    const aciklama = `Kanıta dayalı yetkinlik kartı: ${kac} iddia${dogrulanmis ? `, ${dogrulanmis} tanesi sahipliği doğrulanmış kaynaktan` : ''}. Evidex · GİRVAK gençlik ağı.`;
+    const kacis = (v: string) =>
+      v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return (await Bun.file(`${dist}/index.html`).text())
+      .replace(/<title>[^<]*<\/title>/, `<title>${kacis(baslik)} · Evidex</title>`)
+      .replace(/(property="og:title" content=")[^"]*/, `$1${kacis(baslik)}`)
+      .replace(/(property="og:description" content=")[^"]*/, `$1${kacis(aciklama)}`)
+      .replace(/(property="og:type" content=")[^"]*/, '$1profile');
   }
 
   app.notFound((c) => fail(c, new AppError('not_found', 'Kaynak bulunamadı', 404)));

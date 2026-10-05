@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { Check } from 'lucide-react';
 import type { CollaborationStatus } from '@evidex/shared';
 import { api, ApiRequestError } from '../lib/api';
@@ -81,9 +81,9 @@ export function CheckinPage() {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[520px] flex-col justify-center px-4 py-10">
       <Enter i={0} as="header" className="flex items-center justify-between">
-        <Link to="/" className="text-ink text-base font-extrabold tracking-tight">
-          Evidex
-        </Link>
+        <a href="/" className="wordmark text-ink text-[17px]">
+          Evidex.
+        </a>
         <Eyebrow>Takip sorusu</Eyebrow>
       </Enter>
 

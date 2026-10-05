@@ -57,11 +57,8 @@ export function Shell({ nav }: { nav: NavItem[] }) {
     <div className="min-h-screen md:grid md:grid-cols-[232px_1fr]">
       {/* Sol menü — masaüstü */}
       <aside className="border-line bg-surface sticky top-0 hidden h-screen flex-col border-r md:flex">
-        <NavLink
-          to="/"
-          className="text-ink flex h-16 items-center px-6 text-xl font-extrabold tracking-tight"
-        >
-          Evidex
+        <NavLink to="/" className="wordmark text-ink flex h-16 items-center px-6 text-[21px]">
+          Evidex.
         </NavLink>
         <nav className="flex flex-1 flex-col gap-1 px-3 pt-2" aria-label="Ana menü">
           {nav.map((n) => {
@@ -111,8 +108,8 @@ export function Shell({ nav }: { nav: NavItem[] }) {
 
       {/* Üst çubuk — telefon */}
       <header className="border-line bg-surface flex h-14 items-center justify-between border-b px-4 md:hidden">
-        <NavLink to="/" className="text-ink text-lg font-extrabold tracking-tight">
-          Evidex
+        <NavLink to="/" className="wordmark text-ink text-[19px]">
+          Evidex.
         </NavLink>
         <button onClick={() => void logout()} className="text-ink-soft text-sm font-semibold">
           Çıkış

@@ -176,3 +176,12 @@ body {
     transform: none;
   }
 }
+
+/* Marka yazısı: film ve tanıtım sitesiyle aynı (Archivo geniş, noktalı "Evidex."). */
+.wordmark {
+  font-family: 'Archivo', 'Arial Black', var(--font-sans);
+  font-weight: 800;
+  font-variation-settings: 'wdth' 125;
+  letter-spacing: -0.012em;
+  line-height: 1;
+}

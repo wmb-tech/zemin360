@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
 import { useTitle } from '../lib/title';
 
 function Bolum({ baslik, children }: { baslik: string; children: ReactNode }) {
@@ -20,9 +19,9 @@ export function PrivacyPage() {
   return (
     <main className="bg-paper min-h-screen px-4 py-10">
       <article className="mx-auto max-w-[68ch]">
-        <Link to="/" className="text-ink text-lg font-extrabold tracking-[-0.03em]">
-          Evidex
-        </Link>
+        <a href="/" className="wordmark text-ink text-[19px]">
+          Evidex.
+        </a>
         <h1 className="text-ink mt-6 text-[28px] leading-tight font-extrabold tracking-[-0.035em]">
           Kişisel verilerin korunması: aydınlatma metni
         </h1>

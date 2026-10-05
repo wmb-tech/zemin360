@@ -22,6 +22,7 @@ export function testApp(
     publicRepo?: PublicRepoEvidence;
     githubScout?: GithubScout;
     document?: DocumentEvidence;
+    webDist?: string;
   } = {},
 ) {
   const env = loadEnv();
@@ -44,6 +45,7 @@ export function testApp(
     ...(opts.publicRepo ? { publicRepo: opts.publicRepo } : {}),
     ...(opts.githubScout ? { githubScout: opts.githubScout } : {}),
     ...(opts.document ? { document: opts.document } : {}),
+    ...(opts.webDist ? { webDist: opts.webDist } : {}),
     fetchGithubProfile: async () =>
       opts.githubProfile ?? { id: 1, login: 'ayse', name: 'Ayşe', email: 'ayse@example.com' },
   });

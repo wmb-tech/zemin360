@@ -1,0 +1,942 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Evidex · Beyan değil kanıt</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Evidex">
+<meta property="og:title" content="Evidex · Beyan değil kanıt. Skor değil gerekçe.">
+<meta property="og:description" content="GitHub'ını bağla; Evidex işini kanıttan okuyup bir dakikada yetkinlik kartını yazar. GİRVAK gençlik ağı için.">
+<meta property="og:image" content="https://evidex.wmbyazilim.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="Evidex: GİRVAK gençlik ağı için kanıta dayalı yetenek profilleri ve gerekçeli eşleşme. Beyan değil kanıt. Skor değil gerekçe.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Manrope:wght@400..800&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #f6f7ff;
+    --paper-2: #eef0ff;
+    --surface: #fefeff;
+    --line: #dee1f0;
+    --ink: #20253d;
+    --ink-soft: #5c6277;
+    --ink-faint: #8b90a3;
+    --accent: #5048d9;
+    --accent-strong: #3d34b7;
+    --verified: #127a56;
+    --verified-soft: #ecf8f2;
+    --documented: #22669f;
+    --documented-soft: #edf5fc;
+    --referenced: #a55c17;
+    --referenced-soft: #fcf3e6;
+    --declared: #626979;
+    --declared-soft: #f3f4f7;
+    --shadow: 0 1px 2px rgba(32, 37, 61, 0.06), 0 12px 32px rgba(32, 37, 61, 0.08);
+    --r-control: 10px;
+    --r-panel: 16px;
+    --r-feature: 24px;
+    --wrap: 1200px;
+    --gutter: clamp(16px, 4vw, 40px);
+    --display: 'Archivo', 'Arial Black', system-ui, sans-serif;
+    --sans: 'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 17px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+  img, video { max-width: 100%; display: block; }
+  a { color: inherit; }
+  :where(a, button, [tabindex], input):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: var(--wrap); margin-inline: auto; padding-inline: var(--gutter); }
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  .display { font-family: var(--display); font-weight: 800; font-variation-settings: 'wdth' 125; letter-spacing: -0.01em; }
+  .lede { font-size: clamp(18px, 1.6vw, 21px); line-height: 1.55; color: var(--ink-soft); max-width: 36em; }
+  .h2 { font: 800 clamp(32px, 4.4vw, 56px)/1.04 var(--sans); letter-spacing: -0.035em; }
+  .h3 { font: 700 21px/1.3 var(--sans); letter-spacing: -0.02em; }
+  .meta { font-size: 14px; color: var(--ink-soft); }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 22px; border-radius: 999px;
+    font: 700 15px/1 var(--sans); text-decoration: none; border: 0; cursor: pointer; white-space: nowrap;
+    transition: transform 90ms cubic-bezier(0.65, 0, 0.35, 1), background-color 160ms;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-strong); }
+  .btn-ink { background: var(--ink); color: #fff; }
+  .btn-ink:hover { background: #151a2e; }
+  .btn-quiet { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+  .btn-quiet:hover { box-shadow: inset 0 0 0 1px #c9cde2; }
+
+  /* ---------- top bar ---------- */
+  .bar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40;
+    background: color-mix(in oklab, var(--paper) 88%, transparent);
+    border-bottom: 1px solid transparent; transition: border-color 200ms;
+  }
+  .bar.scrolled { border-color: var(--line); background: var(--paper); }
+  .bar .wrap { display: flex; align-items: center; gap: 28px; height: 68px; }
+  .bar .mark { font: 800 22px/1 var(--display); font-variation-settings: 'wdth' 125; text-decoration: none; }
+  .bar nav { display: flex; gap: 24px; margin-left: 12px; font-size: 15px; font-weight: 600; color: var(--ink-soft); }
+  .bar nav a { text-decoration: none; }
+  .bar nav a:hover { color: var(--ink); }
+  .bar .btn { margin-left: auto; height: 40px; padding: 0 18px; font-size: 14px; }
+  @media (max-width: 860px) { .bar nav { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero { padding-block: clamp(40px, 7vw, 96px) clamp(56px, 7vw, 96px); }
+  .wm {
+    position: relative; font-family: var(--display); font-weight: 800; font-variation-settings: 'wdth' 125;
+    font-size: clamp(76px, 17.2vw, 262px); line-height: 0.86; letter-spacing: -0.012em; white-space: nowrap;
+    user-select: none; margin-left: -0.04em;
+  }
+  .wm .l { display: inline-block; position: relative; }
+  .wm .l > span { display: inline-block; transform-origin: 0 50%; }
+  .wm .p { color: transparent; display: inline-block; position: relative; }
+  .wm .dot {
+    position: absolute; background: var(--ink); border-radius: 999px; overflow: hidden; border: 0; padding: 0; cursor: pointer;
+    display: grid; place-items: center; color: #fff;
+  }
+  .wm .dot .pl { font: 700 0.19em/1 var(--sans); letter-spacing: -0.025em; white-space: nowrap; position: absolute; left: 50%; top: 50%; }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); margin-top: clamp(36px, 5vw, 64px); align-items: end; }
+  .hero h1 { font: 800 clamp(34px, 4.6vw, 64px)/1.02 var(--sans); letter-spacing: -0.04em; }
+  .hero .side { display: grid; gap: 28px; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+  .context { margin-top: clamp(40px, 5vw, 64px); display: flex; flex-wrap: wrap; gap: 10px 28px; font-size: 14px; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 18px; }
+  .context strong { color: var(--ink); font-weight: 700; }
+  @media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- film ---------- */
+  .film { padding-block: clamp(24px, 4vw, 48px) clamp(80px, 10vw, 140px); }
+  .film .grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); gap: clamp(28px, 5vw, 64px); align-items: center; }
+  .film .copy { display: grid; gap: 20px; align-content: start; }
+  .reel { position: relative; margin: 0; border-radius: var(--r-feature); overflow: hidden; background: var(--ink); aspect-ratio: 1; box-shadow: 0 30px 80px rgba(32, 37, 61, 0.16); }
+  .reel video { width: 100%; height: 100%; object-fit: cover; }
+  .reel .controls { position: absolute; left: 16px; bottom: 16px; display: flex; gap: 8px; }
+  .reel .controls button {
+    height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: rgba(254, 254, 255, 0.94); color: var(--ink);
+    font: 700 14px/1 var(--sans); cursor: pointer; box-shadow: 0 4px 16px rgba(32, 37, 61, 0.18);
+  }
+  .beats { display: grid; grid-template-columns: repeat(5, auto); gap: 6px 18px; font-size: 14px; color: var(--ink-soft); justify-content: start; }
+  .beats b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+  @media (max-width: 860px) {
+    .film .grid { grid-template-columns: 1fr; }
+    .reel.vertical { aspect-ratio: 9 / 16; max-height: 82vh; margin-inline: auto; width: min(100%, 46vh); }
+    .beats { grid-template-columns: repeat(3, auto); }
+  }
+
+  /* ---------- loop (sticky morph) ---------- */
+  .loop { padding-block: clamp(56px, 8vw, 120px); border-top: 1px solid var(--line); }
+  .loop .head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: end; margin-bottom: clamp(32px, 5vw, 64px); }
+  .loop .body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 6vw, 96px); }
+  .stage-wrap { position: sticky; top: 108px; height: min(560px, 70vh); }
+  .stage {
+    position: relative; height: 100%; border-radius: var(--r-feature); background: var(--paper-2); overflow: hidden;
+  }
+  .morph { position: absolute; left: 50%; top: 50%; background: var(--ink); color: #fff; overflow: hidden; will-change: width, height; }
+  .morph .face { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; }
+  .morph .face-inner { display: grid; gap: 10px; justify-items: center; }
+  .morph .t { font: 800 clamp(22px, 2.4vw, 30px)/1.1 var(--sans); letter-spacing: -0.03em; }
+  .morph .s { font-size: 14px; color: rgba(255, 255, 255, 0.7); line-height: 1.4; max-width: 24ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .chip { font: 700 12px/1 var(--sans); padding: 5px 9px; border-radius: 7px; white-space: nowrap; }
+  .c-verified { color: var(--verified); background: var(--verified-soft); }
+  .c-documented { color: var(--documented); background: var(--documented-soft); }
+  .c-referenced { color: var(--referenced); background: var(--referenced-soft); }
+  .c-declared { color: var(--declared); background: var(--declared-soft); }
+  .stage .code { position: absolute; left: 22px; top: 18px; font-size: 13px; font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .stage .rail { position: absolute; left: 22px; right: 22px; bottom: 22px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .stage .rail i { height: 4px; border-radius: 2px; background: var(--line); display: block; overflow: hidden; }
+  .stage .rail i b { display: block; height: 100%; width: 0; background: var(--ink); }
+  .steps { display: grid; }
+  .step { min-height: 62vh; display: grid; align-content: center; gap: 14px; padding-block: 24px; max-width: 30em; }
+  .step .area { font-size: 13px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .step h3 { font: 800 clamp(26px, 2.8vw, 36px)/1.08 var(--sans); letter-spacing: -0.035em; }
+  .step p { color: var(--ink-soft); }
+  .step:first-child { min-height: 40vh; align-content: start; }
+  .step:last-child { min-height: 56vh; }
+  @media (max-width: 860px) {
+    .loop .head, .loop .body { grid-template-columns: 1fr; }
+    .stage-wrap { top: 76px; height: 38vh; z-index: 2; }
+    .step { min-height: 52vh; }
+    .step:first-child { min-height: 30vh; }
+  }
+
+  /* ---------- evidence levels ---------- */
+  .levels { padding-block: clamp(64px, 9vw, 130px); background: var(--surface); border-block: 1px solid var(--line); }
+  .levels .head { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; align-items: end; margin-bottom: clamp(28px, 4vw, 48px); }
+  .demo { position: relative; border-radius: var(--r-feature); overflow: hidden; aspect-ratio: 16 / 10; background: #1a1d2c; touch-action: pan-y; }
+  .demo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .demo .after { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+  .slider {
+    position: absolute; left: 50%; bottom: clamp(16px, 3vw, 32px); transform: translateX(-50%);
+    width: min(720px, calc(100% - 32px)); height: 64px; border-radius: 999px; background: var(--surface);
+    box-shadow: 0 16px 36px rgba(8, 10, 25, 0.34), 0 2px 6px rgba(8, 10, 25, 0.22); display: flex; align-items: center; padding: 0 20px; gap: 14px;
+  }
+  .slider .end { width: 26px; height: 26px; flex: none; }
+  .track { position: relative; flex: 1; height: 44px; cursor: pointer; }
+  .track .bgline, .track .fill { position: absolute; left: 0; top: 50%; height: 5px; margin-top: -2.5px; border-radius: 3px; }
+  .track .bgline { right: 0; background: var(--line); }
+  .track .fill { background: var(--ink); }
+  .track .stop { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 2px var(--line); }
+  .knob {
+    position: absolute; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: var(--ink); cursor: grab;
+    box-shadow: 0 4px 14px rgba(8, 10, 25, 0.3); touch-action: none;
+  }
+  .knob:active { cursor: grabbing; }
+  .readout {
+    position: absolute; top: -58px; left: 20px; height: 44px; padding: 0 16px; border-radius: 999px; background: var(--surface); transform: translateX(-50%);
+    box-shadow: 0 10px 24px rgba(8, 10, 25, 0.28); overflow: hidden; display: flex; align-items: flex-start; pointer-events: none; min-width: 150px; justify-content: center;
+  }
+  .readout .col { display: grid; }
+  .readout .row { height: 44px; display: flex; align-items: center; gap: 8px; font: 700 16px/1 var(--sans); white-space: nowrap; }
+  .readout .row i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .claim {
+    margin-top: 20px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 24px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 20px 24px;
+  }
+  .claim .txt { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .claim .row2 { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; font-size: 14px; color: var(--ink-soft); grid-column: 1 / -1; }
+  .claim .chip { transition: none; }
+  .claim .state { font-size: 14px; font-weight: 700; color: var(--verified); display: flex; gap: 6px; align-items: center; }
+  .legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
+  .legend button { text-align: left; background: none; border: 0; padding: 14px 0 0; border-top: 2px solid var(--line); cursor: pointer; color: var(--ink); font: inherit; display: grid; gap: 6px; }
+  .legend button[aria-pressed="true"] { border-top-color: var(--ink); }
+  .legend .name { font-weight: 800; font-size: 16px; }
+  .legend .def { font-size: 14px; color: var(--ink-soft); line-height: 1.5; }
+  @media (max-width: 860px) {
+    .levels .head { grid-template-columns: 1fr; }
+    .demo { aspect-ratio: 4 / 5; }
+    .legend { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ---------- match ---------- */
+  .match { padding-block: clamp(64px, 9vw, 130px); }
+  .match .head { max-width: 760px; display: grid; gap: 18px; margin-bottom: clamp(32px, 5vw, 56px); }
+  .match .grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+  .chat { display: grid; gap: 12px; }
+  .bubble { max-width: 88%; padding: 13px 17px; border-radius: 18px; font-size: 15px; line-height: 1.5; }
+  .bubble.org { background: var(--ink); color: #fff; justify-self: end; border-bottom-right-radius: 6px; }
+  .bubble.agent { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 6px; }
+  .bubble .who { display: block; font-size: 12px; font-weight: 700; opacity: 0.66; margin-bottom: 4px; }
+  .need { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 24px; display: grid; gap: 16px; box-shadow: var(--shadow); }
+  .need .top { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+  .need h3 { font: 800 22px/1.2 var(--sans); letter-spacing: -0.02em; }
+  .need dl { margin: 0; display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px 16px; font-size: 15px; }
+  .need dt { color: var(--ink-soft); font-weight: 600; }
+  .need dd { margin: 0; }
+  .cand { margin-top: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); padding: 24px; display: grid; gap: 16px; }
+  .cand .who { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .cand .rank { color: var(--ink-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .cand .name { font: 800 20px/1 var(--sans); letter-spacing: -0.02em; }
+  .cand .role { color: var(--ink-soft); }
+  .cand .why { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 15px; }
+  .cand .lab { font-size: 12px; font-weight: 800; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .cand .lab.ok { color: var(--verified); }
+  .cand .lab.miss { color: var(--ink-soft); }
+  .cand .foot { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; }
+  .intro-btn { position: relative; height: 46px; border-radius: 999px; background: var(--accent); color: #fff; border: 0; cursor: pointer; padding: 0; overflow: hidden; font: 700 15px/1 var(--sans); }
+  .intro-btn .face { position: absolute; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+  .intro-btn[data-sent="true"] { background: var(--ink); cursor: default; }
+  @media (max-width: 860px) { .match .grid, .cand .why { grid-template-columns: 1fr; } .need dl { grid-template-columns: 1fr; gap: 2px; } .need dd { margin-bottom: 8px; } }
+
+  /* ---------- approval (ink) ---------- */
+  .approve { background: var(--ink); color: #fff; padding-block: clamp(64px, 9vw, 130px); }
+  .approve .lede { color: rgba(255, 255, 255, 0.72); }
+  .approve .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: clamp(28px, 5vw, 72px); align-items: start; margin-top: clamp(32px, 5vw, 56px); }
+  .qstage { position: relative; aspect-ratio: 1 / 0.82; border-radius: var(--r-feature); background: #2a3050; overflow: hidden; }
+  .qshape { position: absolute; left: 50%; top: 50%; background: var(--surface); color: var(--ink); overflow: hidden; }
+  .qshape .face { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .qtabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .qtabs button {
+    height: 36px; padding: 0 14px; border-radius: 999px; border: 0; cursor: pointer; font: 700 14px/1 var(--sans);
+    background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.78);
+  }
+  .qtabs button[aria-selected="true"] { background: #fff; color: var(--ink); }
+  .agents { overflow-x: auto; }
+  .agents table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 560px; }
+  .agents th { text-align: left; font-weight: 700; color: rgba(255, 255, 255, 0.6); padding: 0 12px 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.14); }
+  .agents td { padding: 12px 12px 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); vertical-align: top; color: rgba(255, 255, 255, 0.86); }
+  .agents td:first-child { font-weight: 700; color: #fff; white-space: nowrap; }
+  .agents td.gate { color: #c9c6ff; }
+  @media (max-width: 860px) { .approve .grid { grid-template-columns: 1fr; } }
+
+  /* ---------- wall ---------- */
+  .wall { position: relative; overflow: hidden; min-height: min(92vh, 900px); display: grid; align-items: center; }
+  .wall video.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .wall .wrap { position: relative; width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: center; padding-block: 72px; }
+  .wall .copy { display: grid; gap: 18px; max-width: 30em; }
+  .wall .copy .lede { color: #3e4459; }
+  .frame { position: relative; width: clamp(260px, 30vw, 380px); aspect-ratio: 500 / 660; background: var(--ink); padding: 4%; box-shadow: 18px 26px 34px rgba(40, 34, 26, 0.3), 4px 6px 8px rgba(40, 34, 26, 0.25), inset 1.5px 1.5px 0 rgba(255, 255, 255, 0.14); }
+  .frame .mat { height: 100%; background: #f7f7fb; padding: 7.5%; box-shadow: inset 3px 4px 6px rgba(0, 0, 0, 0.22); }
+  .frame .card { height: 100%; background: var(--surface); overflow: hidden; display: grid; grid-template-rows: 43% auto; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08); container-type: inline-size; }
+  .frame .card .ph { background: url(/tanitim/media/03_hero.jpg) 50% 28% / cover; }
+  .frame .card .tx { padding: 5.5cqw 6cqw; display: grid; gap: 2.4cqw; align-content: start; }
+  .frame .k { font-size: 3cqw; font-weight: 800; letter-spacing: 0.08em; color: var(--ink-soft); }
+  .frame .n { font: 800 7.4cqw/1 var(--sans); letter-spacing: -0.03em; }
+  .frame .r { font-size: 3.6cqw; color: var(--ink-soft); }
+  .frame .c { font-size: 3.4cqw; line-height: 1.4; }
+  .frame .c .chip { font-size: 3cqw; padding: 0.6cqw 1.8cqw; }
+  .frame .sig { font: 800 3.8cqw/1 var(--display); font-variation-settings: 'wdth' 125; margin-top: 1cqw; }
+  .frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; mix-blend-mode: multiply; filter: grayscale(1) brightness(1.1) contrast(1.4); opacity: 0.9; pointer-events: none; }
+  @media (max-width: 860px) { .wall .wrap { grid-template-columns: 1fr; justify-items: start; } }
+
+  /* ---------- measure ---------- */
+  .measure { padding-block: clamp(64px, 9vw, 130px); }
+  .measure .grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 72px); }
+  .measure dl { margin: 0; display: grid; }
+  .measure .item { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 20px; padding-block: 20px; border-top: 1px solid var(--line); }
+  .measure .item:last-child { border-bottom: 1px solid var(--line); }
+  .measure dt { font-weight: 800; letter-spacing: -0.01em; }
+  .measure dd { margin: 0; color: var(--ink-soft); font-size: 16px; }
+  .fate { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  @media (max-width: 860px) { .measure .grid, .measure .item { grid-template-columns: 1fr; gap: 6px; } }
+
+  /* ---------- context + footer ---------- */
+  .context-sec { padding-block: clamp(56px, 8vw, 110px); border-top: 1px solid var(--line); }
+  .context-sec .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); }
+  .timeline { list-style: none; margin: 0; padding: 0; display: grid; }
+  .timeline li { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; padding-block: 16px; border-top: 1px solid var(--line); }
+  .timeline time { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .timeline span { color: var(--ink-soft); }
+  .facts { display: grid; gap: 20px; align-content: start; }
+  .facts p { color: var(--ink-soft); }
+  .facts p strong { color: var(--ink); }
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; }
+  .stack span { font-size: 14px; font-weight: 600; padding: 7px 12px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+  footer { padding-block: clamp(48px, 8vw, 96px) 40px; }
+  footer .wm { font-size: clamp(64px, 14vw, 210px); }
+  footer .row { margin-top: 36px; display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 20px; font-size: 14px; color: var(--ink-soft); }
+  footer .row a { font-weight: 700; color: var(--ink); text-decoration: none; }
+  footer .links { display: flex; flex-wrap: wrap; gap: 20px; }
+  @media (max-width: 860px) { .context-sec .grid { grid-template-columns: 1fr; } .timeline li { grid-template-columns: 1fr; gap: 2px; } }
+
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+
+<header class="bar" id="bar">
+  <div class="wrap">
+    <a class="mark" href="#top" aria-label="Evidex, başa dön">Evidex.</a>
+    <nav aria-label="Bölümler">
+      <a href="#film">Film</a>
+      <a href="#dongu">Döngü</a>
+      <a href="#kanit">Kanıt</a>
+      <a href="#eslesme">Eşleşme</a>
+      <a href="#onay">Onay</a>
+    </nav>
+    <a class="btn btn-ink" href="/giris" target="_blank" rel="noopener">Canlı ürünü aç</a>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO: the film's opening, live -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="wm" id="wm-hero" data-label="Beyan değil kanıt." aria-label="Evidex."></div>
+      <div class="hero-grid">
+        <h1>Beyan değil kanıt.<br>Skor değil gerekçe.</h1>
+        <div class="side">
+          <p class="lede">Evidex, GİRVAK gençlik ağı için bir platform. Genç kendini anlatmaz, kanıtını bağlar. Kurum ilan yazmaz, derdini anlatır. Yapay zekâ kartı yazar, soruyu sorar ve eşleşmeyi gerekçelendirir; dışarı giden her adımı GİRVAK onaylar.</p>
+          <div class="ctas">
+            <a class="btn btn-primary" href="/giris" target="_blank" rel="noopener">Canlı ürünü aç</a>
+            <a class="btn btn-quiet" href="#film">Filmi izle</a>
+            <a class="btn btn-quiet" href="https://github.com/wmb-tech/zemin360" target="_blank" rel="noopener">Kaynak kodu</a>
+          </div>
+        </div>
+      </div>
+      <div class="context">
+        <span><strong>Zemin360 Hackathon 2026</strong> için geliştirildi</span>
+        <span>GİRVAK, İstanbul Kalkınma Ajansı ve İstanbul Bilgi Üniversitesi</span>
+        <span>Açık kaynak, MIT lisanslı</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FILM -->
+  <section class="film" id="film" aria-label="Tanıtım filmi">
+    <div class="wrap grid">
+      <div class="copy">
+        <h2 class="h2">Tek plan, 29 saniye.</h2>
+        <p class="lede">Kanıt, kart, ihtiyaç, eşleşme, onay ve referans. Evidex'in bütün döngüsü kesintisiz tek bir çekimde, her beat'te bir adım.</p>
+        <div class="beats" aria-label="Filmin bölümleri">
+          <span><b>0:00</b> Açılış</span><span><b>0:08</b> Kanıt</span><span><b>0:14</b> Kart</span><span><b>0:19</b> Eşleşme</span><span><b>0:21</b> Onay</span>
+        </div>
+      </div>
+      <figure class="reel" id="reel">
+        <video id="reel-video" muted loop playsinline preload="metadata" poster="/tanitim/media/film-poster.jpg" aria-label="Evidex tanıtım filmi">
+          <source src="/tanitim/media/film-square.mp4" type="video/mp4">
+        </video>
+        <div class="controls">
+          <button type="button" id="reel-play">Durdur</button>
+          <button type="button" id="reel-sound">Sesi aç</button>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- LOOP: one ink shape keeps changing as the steps scroll by -->
+  <section class="loop" id="dongu" aria-labelledby="loop-title">
+    <div class="wrap">
+      <div class="head">
+        <h2 class="h2" id="loop-title">Altı ihtiyaç alanı, tek döngü.</h2>
+        <p class="lede">GİRVAK'ın altı ihtiyaç alanı ayrı araçlar değil, birbirini besleyen tek bir akış. Evidex bu akışı baştan sona yürütür; her turda kartlar biraz daha güçlenir.</p>
+      </div>
+      <div class="body">
+        <div class="stage-wrap">
+          <div class="stage" id="loop-stage" aria-hidden="true">
+            <span class="code" id="loop-code">İhtiyaç alanı 01</span>
+            <div class="morph" id="loop-morph"></div>
+            <div class="rail" id="loop-rail"><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i></div>
+          </div>
+        </div>
+        <ol class="steps" id="loop-steps" style="list-style:none;margin:0;padding:0">
+          <li class="step" data-i="0"><span class="area">İhtiyaç alanı 01</span><h3>Keşfet</h3><p>Kanıtı olmayan genç de görünür olur. Gerçek ihtiyaçlardan türeyen 24–48 saatlik meydan okumalar ve açık GitHub profillerinde keşif; davetler yalnızca GİRVAK onayından sonra gider.</p></li>
+          <li class="step" data-i="1"><span class="area">İhtiyaç alanı 02</span><h3>Doğrula</h3><p>Genç GitHub repolarını, canlı ürünlerini ve belgelerini bağlar. Ajan bu kanıttan bir yetkinlik kartı taslağı yazar; her iddia kaynağını, seviyesini ve dönemini taşır. Sahibi onaylamadan hiçbiri ağa girmez.</p></li>
+          <li class="step" data-i="2"><span class="area">İhtiyaç alanı 05</span><h3>İhtiyacı tanımla</h3><p>Kurum ilan yazmaz, derdini düz cümlelerle anlatır. Ajan en fazla yedi soru sorar ve kurumun onaylayacağı net bir ihtiyaç kartı çıkarır.</p></li>
+          <li class="step" data-i="3"><span class="area">İhtiyaç alanı 03</span><h3>Eşleştir</h3><p>Eşleşme bir sayı değil, bir gerekçe: şu kanıt var, ihtiyaçla örtüşüyor; şu eksik. Kurum, GİRVAK tanıştırana kadar adayın yalnızca ilk adını görür.</p></li>
+          <li class="step" data-i="4"><span class="area">İhtiyaç alanı 06</span><h3>İzle</h3><p>Tanıştırmadan üç gün sonra ajan iki tarafa tek kullanımlık bir bağlantıyla tek soru sorar. Cevaplar, çelişkiler ve sessizlik operatörün tek ekranında toplanır.</p></li>
+          <li class="step" data-i="5"><span class="area">İhtiyaç alanı 04</span><h3>Canlı tut</h3><p>Biten iş birliği, GİRVAK onaylı bir kurumdan geliyorsa gencin kartına referanslı iddia olarak döner. Doksan gün yeni kanıt gelmeyen kart sessize alınır.</p></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVIDENCE LEVELS: drag the level, the desk comes alive -->
+  <section class="levels" id="kanit" aria-labelledby="levels-title">
+    <div class="wrap">
+      <div class="head">
+        <h2 class="h2" id="levels-title">Her iddianın bir seviyesi var.</h2>
+        <p class="lede">Kartta rozet ya da puan yok. Her iddia neye dayandığını söyler: kişinin sözü mü, bir belge mi, bir kurumun değerlendirmesi mi, yoksa makineyle kanıtlanmış bir sahiplik mi. Seviyeyi sürükle.</p>
+      </div>
+      <div class="demo" id="demo">
+        <img src="/tanitim/media/02_before.jpg" alt="Gece bir masada kapalı ekranlı dizüstü bilgisayar, telefon ve uygulama eskizleri">
+        <img class="after" id="demo-after" src="/tanitim/media/02_after_aligned.jpg" alt="" aria-hidden="true">
+        <div class="slider">
+          <svg class="end" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="9" fill="none" stroke="#626979" stroke-width="2.6" stroke-dasharray="3.4 3.8"/></svg>
+          <div class="track" id="track">
+            <span class="bgline"></span><span class="fill" id="fill"></span>
+            <span class="stop" style="left:0%"></span><span class="stop" style="left:33.333%"></span><span class="stop" style="left:66.667%"></span><span class="stop" style="left:100%"></span>
+            <div class="knob" id="knob" role="slider" tabindex="0" aria-label="Kanıt seviyesi" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0" aria-valuetext="Beyan">
+              <div class="readout" id="readout"><div class="col" id="readout-col"></div></div>
+            </div>
+          </div>
+          <svg class="end" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="11" fill="#127a56"/><path d="M8 13.4l3.3 3.3 6.3-7" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="claim" aria-live="polite">
+        <div class="txt">React Native ile sekiz aydır sürdürülen kafe sipariş uygulaması, canlıda.</div>
+        <div class="state" id="claim-state"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.4l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Onaylı</div>
+        <div class="row2"><span class="chip" id="claim-chip">Beyan</span><span>Oca 2026 → devam</span><span id="claim-src">kaynak yok</span></div>
+      </div>
+      <div class="legend" id="legend" role="group" aria-label="Seviyeler">
+        <button type="button" data-l="0" aria-pressed="true"><span class="name">Beyan</span><span class="def">Kişinin sözü, henüz kanıtsız.</span></button>
+        <button type="button" data-l="1" aria-pressed="false"><span class="name">Belgeli</span><span class="def">Bir belgeyle destekli; örneğin bir PDF.</span></button>
+        <button type="button" data-l="2" aria-pressed="false"><span class="name">Referanslı</span><span class="def">Platformda izlenen bir iş birliğinin sonunda GİRVAK onaylı kurumun değerlendirmesi.</span></button>
+        <button type="button" data-l="3" aria-pressed="false"><span class="name">Doğrulanmış</span><span class="def">Sahipliği makineyle kanıtlandı: GitHub App ya da alan adı etiketi.</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- MATCH: the organisation's side -->
+  <section class="match" id="eslesme" aria-labelledby="match-title">
+    <div class="wrap">
+      <div class="head">
+        <h2 class="h2" id="match-title">Kurum derdini anlatır. Aday gerekçesiyle gelir.</h2>
+        <p class="lede">KOBİ sahibi, startup kurucusu ya da STK yöneticisi teknik bir ilan yazmak zorunda değil. Bir dakikada karar verebilmesi için gerekçe her zaman sayının önünde.</p>
+      </div>
+      <div class="grid">
+        <div class="chat" aria-label="Kurum ve ajan konuşması">
+          <div class="bubble org"><span class="who">Demo Mağaza A.Ş.</span>E-ticaret mağazamız var ama mobil tarafımız yok. Siparişleri telefondan da alabilmek istiyoruz.</div>
+          <div class="bubble agent"><span class="who">Evidex ajanı</span>Uygulama yalnızca sipariş mi alacak, yoksa kampanya bildirimleri de gönderecek mi?</div>
+          <div class="bubble org"><span class="who">Demo Mağaza A.Ş.</span>İkisi de. Ürün listesi ve sepet en önemlisi.</div>
+          <div class="bubble agent"><span class="who">Evidex ajanı</span>Anladım. İhtiyaç kartını çıkardım; onaylarsan adayları gerekçeleriyle getiririm.</div>
+        </div>
+        <div>
+          <article class="need" aria-label="İhtiyaç kartı">
+            <div class="top"><h3>E-ticaret mağazası için mobil uygulama</h3><span class="chip c-verified">Onaylı</span></div>
+            <dl>
+              <dt>Sorun</dt><dd>Siparişler yalnızca web mağazasından geliyor.</dd>
+              <dt>Beklenen</dt><dd>Ürün listesi, sepet ve bildirimleri olan bir mobil uygulama.</dd>
+              <dt>Süre</dt><dd>İki ay, yarı zamanlı</dd>
+              <dt>Beceriler</dt><dd><span class="chips" style="justify-content:flex-start"><span class="chip c-declared">React Native</span><span class="chip c-declared">REST API</span><span class="chip c-declared">Mağaza yayını</span></span></dd>
+            </dl>
+          </article>
+          <article class="cand" aria-label="Aday kartı">
+            <div class="who"><span class="rank">#1</span><span class="name">Ayşe</span><span class="role">Mobil ve web geliştirici</span><span class="chip c-verified">Güçlü eşleşme</span></div>
+            <p>Sürdürülmüş, canlıda bir mobil işi var; ihtiyacın çekirdeğini karşılıyor.</p>
+            <div class="why">
+              <div><div class="lab ok">UYUYOR, ÇÜNKÜ</div>Kanıtta ihtiyaçla örtüşen sürdürülmüş iş var. <span class="meta">1 doğrulanmış kanıt</span></div>
+              <div><div class="lab miss">EKSİK OLAN</div>Mağaza yayını deneyimi kanıtta görünmüyor.</div>
+            </div>
+            <div class="foot">
+              <button class="intro-btn" id="intro-btn" type="button" style="width:230px">
+                <span class="face" id="intro-a">Tanıştırılmak istiyorum</span>
+                <span class="face" id="intro-b" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8.4l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>GİRVAK onayında</span>
+              </button>
+              <span class="meta" id="intro-note">Tam kart ve iletişim, GİRVAK tanıştırdıktan sonra açılır.</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- APPROVAL: ink section, one shape keeps morphing -->
+  <section class="approve" id="onay" aria-labelledby="approve-title">
+    <div class="wrap">
+      <h2 class="h2" id="approve-title">Ajan önerir. GİRVAK onaylar.</h2>
+      <p class="lede" style="margin-top:18px">Hiçbir ajan bir insanla doğrudan konuşmaz. Kısa listeler, tanıştırma e-postaları, takip soruları ve davetler tek bir onay kuyruğunda bekler. Her ajan çalışması kaydedilir.</p>
+      <div class="grid">
+        <div>
+          <div class="qstage" id="qstage" aria-hidden="true"><div class="qshape" id="qshape"></div></div>
+          <div class="qtabs" role="tablist" aria-label="Bir tanıştırmanın yolu" id="qtabs">
+            <button role="tab" aria-selected="true" data-q="0">Onaylandı</button>
+            <button role="tab" aria-selected="false" data-q="1">Tanıştırma</button>
+            <button role="tab" aria-selected="false" data-q="2">Takipte</button>
+            <button role="tab" aria-selected="false" data-q="3">Referanslı</button>
+          </div>
+        </div>
+        <div class="agents">
+          <table>
+            <thead><tr><th scope="col">Ajan</th><th scope="col">Ne yapar</th><th scope="col">İnsan kapısı</th></tr></thead>
+            <tbody>
+              <tr><td>Kart yazarı</td><td>Kanıt sinyallerinden kaynaklı iddialar, başlık ve hikâye çıkarır.</td><td class="gate">Genç her iddiayı onaylar</td></tr>
+              <tr><td>İhtiyaç yapılandırıcı</td><td>Serbest metinden ve cevaplardan ihtiyaç kartı ve sıradaki soruyu üretir.</td><td class="gate">Kurum kartı onaylar</td></tr>
+              <tr><td>Eşleştirici</td><td>İhtiyaç kartına karşı adayları gerekçeleriyle sıralar.</td><td class="gate">Operatör kısa listeyi yayınlar</td></tr>
+              <tr><td>Tanıştırıcı</td><td>İhtiyaç ve gerekçeden tanıştırma e-postası taslağı yazar.</td><td class="gate">Operatör düzenler ve onaylar</td></tr>
+              <tr><td>Takipçi</td><td>İş birliği bağlamından her tarafa tek soru hazırlar.</td><td class="gate">Operatör gönderimi onaylar</td></tr>
+              <tr><td>Cevap yorumcusu</td><td>Serbest cevaptan özet, işaret ve referans iddiası çıkarır.</td><td class="gate">Operatör işaretlileri okur</td></tr>
+              <tr><td>Meydan okuma tasarımcısı</td><td>İhtiyaçtan 24–48 saatlik görev ve değerlendirme ölçütü türetir.</td><td class="gate">Operatör meydan okumayı açar</td></tr>
+              <tr><td>Teslim değerlendiricisi</td><td>Görevi ve repo sinyallerini ölçütle puanlar, karta iddia önerir.</td><td class="gate">Genç iddiayı onaylar</td></tr>
+              <tr><td>Kaşif</td><td>Açık GitHub profillerinden ihtiyaca uyanları gerekçeyle seçer.</td><td class="gate">Operatör davetleri onaylar</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WALL: real footage, the card that stays -->
+  <section class="wall" aria-labelledby="wall-title">
+    <video class="bg" id="wall-video" muted loop playsinline preload="metadata" poster="/tanitim/media/wall-poster.jpg" aria-hidden="true">
+      <source src="/tanitim/media/wall-loop.mp4" type="video/mp4">
+    </video>
+    <div class="wrap">
+      <div class="copy">
+        <h2 class="h2" id="wall-title">Kanıt kalıcıdır.</h2>
+        <p class="lede">Yetkinlik kartı paylaşılabilir bir bağlantıya dönüşür. Her iddia kaynağını gösterir; biten her iş birliği karta bir referans ekler. Bir gencin işi, kendi cümlelerinden daha çok şey anlatır.</p>
+      </div>
+      <div class="frame" id="frame">
+        <div class="mat">
+          <div class="card">
+            <div class="ph" role="img" aria-label="Ayşe Yılmaz portresi"></div>
+            <div class="tx">
+              <div class="k">YETKİNLİK KARTI</div>
+              <div class="n">Ayşe Yılmaz</div>
+              <div class="r">Mobil ve web geliştirici, GİRVAK ağı</div>
+              <div class="c"><span class="chip c-referenced">Referanslı</span> E-ticaret mağazası için mobil uygulama; kurum iş birliğinden memnun kaldı.</div>
+              <div class="c"><span class="chip c-verified">Doğrulanmış</span> React Native ile sürdürülen sipariş uygulaması, canlıda.</div>
+              <div class="sig">Evidex.</div>
+            </div>
+          </div>
+        </div>
+        <canvas id="frame-shadow" aria-hidden="true"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- MEASURE -->
+  <section class="measure" aria-labelledby="measure-title">
+    <div class="wrap grid">
+      <div style="display:grid;gap:18px;align-content:start">
+        <h2 class="h2" id="measure-title">Yapay zekânın katkısı ölçülür.</h2>
+        <p class="lede">Ölçüm paneli bir sayaç değil. Her metrik ürünün kendi tablolarından türetilir ve paydasıyla birlikte gösterilir; örneklem küçükse bunu da söyler.</p>
+      </div>
+      <dl>
+        <div class="item"><dt>Kart doğruluğu</dt><dd>Ajanın yazdığı iddiaların kaçı gencin elinde değişmeden onaylandı.</dd></div>
+        <div class="item"><dt>İhtiyaç netliği</dt><dd>Onaylı bir ihtiyaç için kaç soru soruldu, ilk taslakta kaç alan eksik kaldı.</dd></div>
+        <div class="item"><dt>İhtiyaçtan tanıştırmaya</dt><dd>Onaylı ihtiyaçtan ilk tanıştırmaya geçen süre.</dd></div>
+        <div class="item"><dt>İlk beşten görüşme</dt><dd>Tanıştırılan ilk beş adaydan kaçı görüşmeye döndü.</dd></div>
+        <div class="item"><dt>Ajan önerilerinin akıbeti</dt><dd>Her dışa dönük önerinin sonu kayıt altında.<span class="fate"><span class="chip c-verified">onaylanan</span><span class="chip c-documented">düzeltilen</span><span class="chip c-referenced">reddedilen</span><span class="chip c-declared">bekleyen</span></span></dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- CONTEXT -->
+  <section class="context-sec" aria-labelledby="context-title">
+    <div class="wrap grid">
+      <div style="display:grid;gap:24px;align-content:start">
+        <h2 class="h2" id="context-title">Bir demo değil, vakfın günlük aracı.</h2>
+        <ol class="timeline">
+          <li><time>18 Eyl – 9 Eki</time><span>Çevrim içi geliştirme</span></li>
+          <li><time>9 – 11 Ekim</time><span>Kolektif House Levent, İstanbul</span></li>
+          <li><time>11 Ekim</time><span>Jüri</span></li>
+          <li><time>Sonraki 4 ay</time><span>Kazanan ekip platformu GİRVAK için canlı ürüne taşır</span></li>
+        </ol>
+      </div>
+      <div class="facts">
+        <p><strong>Kim için.</strong> Kendini anlatmaktan hoşlanmayan, işiyle değerlendirilmek isteyen 18–30 yaş gençler; ilan yazmak yerine derdini anlatmak isteyen kurumlar; günlük işi onaylamak olan iki üç kişilik GİRVAK ekibi.</p>
+        <p><strong>Nasıl kuruldu.</strong> Tek monorepo, tek dil. Her ajan şema ile doğrulanan bir sonuç döndürür ve her çalışma kaydedilir. Kanıt ham içerik olarak değil, sinyal olarak saklanır; GitHub erişimi gencin seçtiği repolarla sınırlı bir GitHub App üzerinden.</p>
+        <div class="stack" aria-label="Teknoloji"><span>Bun</span><span>Hono</span><span>PostgreSQL</span><span>Drizzle</span><span>React 19</span><span>Expo</span><span>Zod</span><span>Gemini 2.5 Pro</span></div>
+        <p><strong>Ekip.</strong> WMB; İstinye Üniversitesi ve Boğaziçi Üniversitesi.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="wm" id="wm-foot" data-label="Skor değil gerekçe." aria-label="Evidex."></div>
+    <div class="row">
+      <span>Beyan değil kanıt. Skor değil gerekçe.</span>
+      <span class="links">
+        <a href="/giris" target="_blank" rel="noopener">evidex.wmbyazilim.com</a>
+        <a href="https://github.com/wmb-tech/zemin360" target="_blank" rel="noopener">GitHub</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  // Closed-form spring step response, as in the film.
+  function springStep(t, k = 420, c = 32) {
+    if (t <= 0) return 0;
+    const w0 = Math.sqrt(k), z = c / (2 * w0);
+    if (z < 1) { const wd = w0 * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + ((z * w0) / wd) * Math.sin(wd * t)); }
+    return 1 - Math.exp(-w0 * t) * (1 + w0 * t);
+  }
+  // A value that springs to new targets from wherever it is (stateful, for interactive UI).
+  class Spring {
+    constructor(v, k = 260, c = 26) { this.v = v; this.t = v; this.vel = 0; this.k = k; this.c = c; }
+    step(dt) { const f = -this.k * (this.v - this.t) - this.c * this.vel; this.vel += f * dt; this.v += this.vel * dt; return this.v; }
+    get done() { return Math.abs(this.v - this.t) < 0.05 && Math.abs(this.vel) < 0.05; }
+    snap(v) { this.v = this.t = v; this.vel = 0; }
+  }
+
+  /* ---------------- top bar border on scroll ---------------- */
+  const bar = document.getElementById('bar');
+  const onScrollBar = () => bar.classList.toggle('scrolled', scrollY > 8);
+  addEventListener('scroll', onScrollBar, { passive: true }); onScrollBar();
+
+  /* ---------------- wordmark: letters squeeze into the period, the dot becomes a pill ---------------- */
+  function Wordmark(root) {
+    const chars = ['E', 'v', 'i', 'd', 'e', 'x'];
+    root.innerHTML = chars.map((c) => `<span class="l"><span>${c}</span></span>`).join('') + '<span class="p">.<i style="display:inline-block;width:0;height:0"></i></span><button class="dot" type="button" aria-label="Sloganı göster"><span class="pl"></span></button>';
+    const L = [...root.querySelectorAll('.l')], G = L.map((l) => l.firstChild);
+    const P = root.querySelector('.p'), dot = root.querySelector('.dot'), pl = dot.querySelector('.pl');
+    pl.textContent = root.dataset.label;
+    let m = null;
+    const WD = [62, 70, 80, 90, 100, 110, 125];
+    function measure() {
+      const px = parseFloat(getComputedStyle(root).fontSize);
+      const rr = root.getBoundingClientRect();
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+      root.appendChild(probe);
+      const table = chars.map((c) => WD.map((wd) => { probe.style.fontVariationSettings = `'wdth' ${wd}`; probe.textContent = c; return [wd, probe.getBoundingClientRect().width]; }));
+      probe.remove();
+      L.forEach((l, i) => { l.style.width = `${table[i][WD.length - 1][1]}px`; });
+      const xs = L.map((l) => l.getBoundingClientRect().left - rr.left);
+      const pr = P.getBoundingClientRect();
+      const base = P.lastChild.getBoundingClientRect().top - rr.top;
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.font = `800 ${px}px Archivo`; ctx.fontStretch = 'expanded';
+      const mm = ctx.measureText('.');
+      const d = mm.actualBoundingBoxAscent + mm.actualBoundingBoxDescent;
+      const dotX = pr.left - rr.left;
+      const cx = dotX - mm.actualBoundingBoxLeft + d / 2, cy = base - mm.actualBoundingBoxAscent + d / 2;
+      const capMid = base - px * 0.36;
+      m = { px, table, xs, dotX, d, cx, cy, capMid, w: rr.width };
+    }
+    function widthAt(i, target) {
+      const tb = m.table[i];
+      if (target >= tb[tb.length - 1][1]) return [125, target / tb[tb.length - 1][1]];
+      if (target <= tb[0][1]) return [62, target / tb[0][1]];
+      for (let j = 0; j < tb.length - 1; j++) if (target <= tb[j + 1][1]) return [lerp(tb[j][0], tb[j + 1][0], (target - tb[j][1]) / (tb[j + 1][1] - tb[j][1])), 1];
+      return [125, 1];
+    }
+    function draw(f, shape, label) {
+      L.forEach((l, i) => {
+        const w0 = m.table[i][WD.length - 1][1];
+        const [wd, sx] = widthAt(i, w0 * f);
+        const tx = (m.dotX - m.xs[i]) * (1 - f);
+        G[i].style.transform = `translateX(${tx}px) scaleX(${sx})`;
+        G[i].style.fontVariationSettings = `'wdth' ${wd.toFixed(2)}`;
+        G[i].style.visibility = f > 0.012 ? 'visible' : 'hidden';
+      });
+      Object.assign(dot.style, { left: `${shape.cx - shape.w / 2}px`, top: `${shape.cy - shape.h / 2}px`, width: `${shape.w}px`, height: `${shape.h}px` });
+      pl.style.transform = `translate(-50%, ${-50 + label * 0}%) translateY(${(1 - label) * m.px * 0.4}px)`;
+      pl.style.opacity = label > 0.01 ? 1 : 0;
+    }
+    const rest = () => draw(1, { cx: m.cx, cy: m.cy, w: m.d, h: m.d }, 0);
+    let t0 = null, running = false;
+    function frame(now) {
+      const t = (now - t0) / 1000;
+      const sq = easeInOut(clamp((t - 0.05) / 0.5));
+      const back = t > 2.55 ? springStep(t - 2.55, 520, 30) : 0;
+      const f = t < 2.55 ? 1 - sq : back;
+      const d0 = m.d * (1 + 0.7 * sq);
+      const pw = Math.min(m.w * 0.84, m.px * 3.6), ph = m.px * 0.56;
+      const grow = springStep(t - 0.55), growW = springStep(t - 0.62);
+      const shrink = springStep(t - 2.25);
+      const cx = lerp(lerp(m.cx, m.w / 2, springStep(t - 0.55, 190, 27)), m.cx, springStep(t - 2.25, 190, 27));
+      const cy = lerp(lerp(m.cy, m.capMid, springStep(t - 0.55, 190, 27)), m.cy, springStep(t - 2.25, 190, 27));
+      const w = lerp(lerp(d0, pw, growW), m.d, shrink), h = lerp(lerp(d0, ph, grow), m.d, shrink);
+      const lab = springStep(t - 0.95) * (1 - springStep(t - 2.0, 520, 34));
+      draw(f, { cx, cy, w: Math.max(0, w), h: Math.max(0, h) }, lab);
+      if (t < 3.4) requestAnimationFrame(frame); else { running = false; rest(); }
+    }
+    function play() { if (running || reduce) return; running = true; t0 = performance.now(); requestAnimationFrame(frame); }
+    dot.addEventListener('click', play);
+    const ready = () => { measure(); rest(); };
+    document.fonts.ready.then(() => { ready(); addEventListener('resize', () => { if (!running) ready(); }); });
+    return { play, ready };
+  }
+  const heroWM = Wordmark(document.getElementById('wm-hero'));
+  const footWM = Wordmark(document.getElementById('wm-foot'));
+  document.fonts.ready.then(() => setTimeout(() => heroWM.play(), 350));
+  new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { footWM.play(); o.disconnect(); } }, { threshold: 0.8 }).observe(document.getElementById('wm-foot'));
+
+  /* ---------------- film reel ---------------- */
+  const reel = document.getElementById('reel'), rv = document.getElementById('reel-video');
+  const playBtn = document.getElementById('reel-play'), soundBtn = document.getElementById('reel-sound');
+  if (matchMedia('(max-width: 860px)').matches) {
+    reel.classList.add('vertical');
+    rv.poster = '/tanitim/media/film-vertical-poster.jpg';
+    rv.querySelector('source').src = '/tanitim/media/film-vertical.mp4';
+    rv.load();
+  }
+  let userPaused = false;
+  const syncPlay = () => { playBtn.textContent = rv.paused ? 'Oynat' : 'Durdur'; };
+  playBtn.addEventListener('click', () => { if (rv.paused) { rv.play(); userPaused = false; } else { rv.pause(); userPaused = true; } });
+  soundBtn.addEventListener('click', () => { rv.muted = !rv.muted; soundBtn.textContent = rv.muted ? 'Sesi aç' : 'Sesi kapat'; if (rv.paused) rv.play(); });
+  rv.addEventListener('play', syncPlay); rv.addEventListener('pause', syncPlay);
+  if (reduce) { playBtn.textContent = 'Oynat'; }
+  new IntersectionObserver((es) => {
+    const vis = es[0].isIntersecting;
+    if (vis && !userPaused && !reduce) rv.play().catch(() => {}); else if (!vis) rv.pause();
+  }, { threshold: 0.35 }).observe(reel);
+
+  /* ---------------- loop: sticky morph ---------------- */
+  const morph = document.getElementById('loop-morph'), stage = document.getElementById('loop-stage');
+  const code = document.getElementById('loop-code'), rail = [...document.querySelectorAll('#loop-rail b')];
+  const steps = [...document.querySelectorAll('#loop-steps .step')];
+  const FACES = [
+    { k: 'circle', html: '<div class="face-inner"><div class="t">Keşif</div><div class="s">Meydan okuma ve açık GitHub</div></div>' },
+    { k: 'card', html: '<div class="face-inner"><div class="t">Yetkinlik kartı</div><div class="chips"><span class="chip c-verified">Doğrulanmış</span><span class="chip c-documented">Belgeli</span><span class="chip c-referenced">Referanslı</span><span class="chip c-declared">Beyan</span></div></div>' },
+    { k: 'pill', html: '<div class="face-inner"><div class="t">En fazla 7 soru</div></div>' },
+    { k: 'wide', html: '<div class="face-inner" style="justify-items:start;text-align:left"><div class="s" style="color:#8fe0bf;font-weight:800;letter-spacing:.05em;font-size:12px">UYUYOR, ÇÜNKÜ</div><div class="t" style="font-size:clamp(18px,2vw,24px)">Sürdürülmüş, canlıda bir iş var</div><div class="s" style="max-width:none">Eksik olan: mağaza yayını</div></div>' },
+    { k: 'route', html: '<div class="face-inner" style="width:100%"><div class="t">Takipte</div><div class="s">3. gün, iki tarafa tek soru</div><svg viewBox="0 0 300 60" width="80%" style="max-width:340px;overflow:visible" aria-hidden="true"><path d="M8 44 C 70 10, 120 58, 170 32 S 250 18, 292 36" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3" stroke-linecap="round" stroke-dasharray="1.5 9"/><circle cx="8" cy="44" r="5" fill="#fff"/><circle cx="292" cy="36" r="8" fill="none" stroke="#fff" stroke-width="3"/></svg></div>' },
+    { k: 'circle', html: '<div class="face-inner"><svg width="54" height="54" viewBox="-27 -27 54 54" aria-hidden="true"><circle r="23" fill="none" stroke="#fff" stroke-width="3.4"/><path d="M-10 0.5 L-2.5 8 L11 -7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="t">Referanslı</div></div>' },
+  ];
+  const geo = (k, W, H) => {
+    const s = Math.min(W, H);
+    return ({
+      circle: { w: s * 0.6, h: s * 0.6, r: s * 0.3 },
+      card: { w: Math.min(W * 0.78, 460), h: s * 0.52, r: 28 },
+      pill: { w: Math.min(W * 0.72, 420), h: s * 0.24, r: s * 0.12 },
+      wide: { w: Math.min(W * 0.84, 520), h: s * 0.42, r: 28 },
+      route: { w: Math.min(W * 0.86, 540), h: s * 0.5, r: 40 },
+    })[k];
+  };
+  const faces = FACES.map((f, i) => { const d = document.createElement('div'); d.className = 'face'; d.innerHTML = f.html; morph.appendChild(d); return d; });
+  const mw = new Spring(0), mh = new Spring(0), mr = new Spring(0);
+  const faceY = FACES.map((_, i) => new Spring(i === 0 ? 0 : 100, 300, 30));
+  let active = -1, loopRaf = null;
+  function setStep(i) {
+    if (i === active) return;
+    const dir = i > active ? 1 : -1;
+    faceY.forEach((s, j) => { if (j === i) { if (active >= 0) s.snap(100 * dir); s.t = 0; } else if (j === active) s.t = -100 * dir; else s.snap(100); });
+    active = i;
+    const r = stage.getBoundingClientRect(), g = geo(FACES[i].k, r.width, r.height);
+    mw.t = g.w; mh.t = g.h; mr.t = g.r;
+    code.textContent = steps[i].querySelector('.area').textContent;
+    if (reduce) { mw.snap(g.w); mh.snap(g.h); mr.snap(g.r); faceY.forEach((s, j) => s.snap(j === i ? 0 : 100)); }
+    kick();
+  }
+  let last = 0;
+  function loopFrame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000 || 0.016); last = now;
+    [mw, mh, mr, ...faceY].forEach((s) => s.step(dt));
+    morph.style.width = `${mw.v}px`; morph.style.height = `${mh.v}px`;
+    morph.style.borderRadius = `${Math.max(0, Math.min(mr.v, mw.v / 2, mh.v / 2))}px`;
+    morph.style.transform = 'translate(-50%, -50%)';
+    faces.forEach((f, j) => { f.style.transform = `translateY(${faceY[j].v}%)`; f.style.visibility = Math.abs(faceY[j].v) < 99.5 ? 'visible' : 'hidden'; });
+    if ([mw, mh, mr, ...faceY].every((s) => s.done)) { loopRaf = null; return; }
+    loopRaf = requestAnimationFrame(loopFrame);
+  }
+  function kick() { if (!loopRaf) { last = performance.now(); loopRaf = requestAnimationFrame(loopFrame); } }
+  function loopScroll() {
+    const mid = innerHeight * 0.55;
+    let idx = 0;
+    steps.forEach((s, i) => { if (s.getBoundingClientRect().top < mid) idx = i; });
+    setStep(idx);
+    steps.forEach((s, i) => {
+      const r = s.getBoundingClientRect();
+      const p = i < idx ? 1 : i > idx ? 0 : clamp((mid - r.top) / Math.max(1, r.height));
+      rail[i].style.width = `${p * 100}%`;
+    });
+  }
+  { const r = stage.getBoundingClientRect(), g = geo(FACES[0].k, r.width, r.height); mw.snap(g.w); mh.snap(g.h); mr.snap(g.r); setStep(0); }
+  addEventListener('scroll', loopScroll, { passive: true });
+  addEventListener('resize', () => { const i = active; active = -1; setStep(i); });
+  loopScroll();
+
+  /* ---------------- evidence level slider ---------------- */
+  const LV = [
+    { n: 'Beyan', c: '#626979', cls: 'c-declared', src: 'kaynak yok' },
+    { n: 'Belgeli', c: '#22669f', cls: 'c-documented', src: 'belge: siparis-uygulamasi-sunum.pdf' },
+    { n: 'Referanslı', c: '#a55c17', cls: 'c-referenced', src: 'Demo Mağaza A.Ş. referansı, iş birliği kaydı' },
+    { n: 'Doğrulanmış', c: '#127a56', cls: 'c-verified', src: 'GitHub App: ayse-dev/siparis, canlı alan adı' },
+  ];
+  const track = document.getElementById('track'), knob = document.getElementById('knob'), fill = document.getElementById('fill');
+  const after = document.getElementById('demo-after'), col = document.getElementById('readout-col');
+  const readout = document.getElementById('readout');
+  const chip = document.getElementById('claim-chip'), src = document.getElementById('claim-src');
+  const legend = [...document.querySelectorAll('#legend button')];
+  col.innerHTML = LV.map((l) => `<div class="row"><i style="background:${l.c}"></i>${l.n}</div>`).join('');
+  const pos = new Spring(0, 300, 30);
+  let dragging = false, level = 0, sliderRaf = null;
+  function renderSlider() {
+    const p = clamp(pos.v, 0, 1);
+    knob.style.left = `${p * 100}%`; fill.style.width = `${p * 100}%`;
+    readout.style.transform = `translateX(${-p * 100}%)`;
+    const e = lerp(-30, 130, p);
+    after.style.webkitMaskImage = after.style.maskImage = `linear-gradient(100deg, #000 ${e - 16}%, transparent ${e + 16}%)`;
+    let kc = 0;
+    for (const edge of [1 / 6, 1 / 2, 5 / 6]) { const u = clamp((p - edge) / 0.08 + 0.5); kc += u * u * (3 - 2 * u); }
+    col.style.transform = `translateY(${-44 * kc}px)`;
+    const l = Math.round(p * 3);
+    if (l !== level) setLevel(l, false);
+  }
+  function setLevel(l, move = true) {
+    level = l;
+    chip.className = `chip ${LV[l].cls}`; chip.textContent = LV[l].n; src.textContent = LV[l].src;
+    legend.forEach((b, i) => b.setAttribute('aria-pressed', String(i === l)));
+    knob.setAttribute('aria-valuenow', String(l)); knob.setAttribute('aria-valuetext', LV[l].n);
+    if (move) { pos.t = l / 3; if (reduce) pos.snap(l / 3); kickSlider(); }
+  }
+  function sliderFrame(now) {
+    if (!dragging) pos.step(1 / 60);
+    renderSlider();
+    if (dragging || !pos.done) sliderRaf = requestAnimationFrame(sliderFrame); else { pos.snap(pos.t); renderSlider(); sliderRaf = null; }
+  }
+  function kickSlider() { if (!sliderRaf) sliderRaf = requestAnimationFrame(sliderFrame); }
+  const toP = (x) => { const r = track.getBoundingClientRect(); return clamp((x - r.left) / r.width); };
+  track.addEventListener('pointerdown', (e) => { dragging = true; track.setPointerCapture(e.pointerId); pos.v = toP(e.clientX); pos.vel = 0; kickSlider(); });
+  track.addEventListener('pointermove', (e) => { if (dragging) pos.v = toP(e.clientX); });
+  const endDrag = () => { if (!dragging) return; dragging = false; pos.t = Math.round(pos.v * 3) / 3; kickSlider(); };
+  track.addEventListener('pointerup', endDrag); track.addEventListener('pointercancel', endDrag);
+  knob.addEventListener('keydown', (e) => {
+    const k = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+    if (k) { e.preventDefault(); setLevel(clamp(level + k, 0, 3)); }
+    if (e.key === 'Home') { e.preventDefault(); setLevel(0); }
+    if (e.key === 'End') { e.preventDefault(); setLevel(3); }
+  });
+  legend.forEach((b) => b.addEventListener('click', () => setLevel(Number(b.dataset.l))));
+  renderSlider(); setLevel(0, false);
+
+  /* ---------------- introduction request: the button becomes the queue entry ---------------- */
+  const ib = document.getElementById('intro-btn'), ia = document.getElementById('intro-a'), ibb = document.getElementById('intro-b'), note = document.getElementById('intro-note');
+  ia.style.top = '0'; ibb.style.top = '46px';
+  ib.addEventListener('click', () => {
+    if (ib.dataset.sent === 'true') return;
+    ib.dataset.sent = 'true'; ia.setAttribute('aria-hidden', 'true'); ibb.removeAttribute('aria-hidden');
+    note.textContent = 'İstek GİRVAK onay kuyruğuna düştü; onaylanınca e-posta iki tarafa gider.';
+    const w = new Spring(230, 380, 30); w.t = 196; const y = new Spring(0, 420, 32); y.t = -46;
+    let lastT = performance.now();
+    const f = (now) => { const dt = Math.min(0.033, (now - lastT) / 1000); lastT = now; w.step(dt); y.step(dt); ib.style.width = `${w.v}px`; ia.style.top = `${y.v}px`; ibb.style.top = `${46 + y.v}px`; if (!(w.done && y.done)) requestAnimationFrame(f); };
+    if (reduce) { ib.style.width = '196px'; ia.style.top = '-46px'; ibb.style.top = '0'; } else requestAnimationFrame(f);
+  });
+
+  /* ---------------- approval: one shape, four states ---------------- */
+  const qstage = document.getElementById('qstage'), qshape = document.getElementById('qshape');
+  const qtabs = [...document.querySelectorAll('#qtabs button')];
+  const CHECK = (r, s) => `<svg width="${2 * r + 8}" height="${2 * r + 8}" viewBox="${-r - 4} ${-r - 4} ${2 * r + 8} ${2 * r + 8}" aria-hidden="true"><circle r="${r}" fill="none" stroke="currentColor" stroke-width="${s}"/><path d="M${-r * 0.42} ${r * 0.02} L${-r * 0.1} ${r * 0.32} L${r * 0.45} ${-r * 0.3}" fill="none" stroke="currentColor" stroke-width="${s * 1.2}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const Q = [
+    { k: 'pill', html: `<div style="display:flex;gap:14px;align-items:center;font:800 clamp(24px,3vw,40px)/1 var(--sans);letter-spacing:-.03em">${CHECK(18, 3.4)}Onaylandı</div>` },
+    { k: 'pill', html: '<div style="display:flex;gap:14px;align-items:center;font:800 clamp(24px,3vw,40px)/1 var(--sans);letter-spacing:-.03em">Tanıştırma<span class="pct" style="color:var(--ink-soft);min-width:3.2ch;font-variant-numeric:tabular-nums">0%</span></div><div class="qbar" style="position:absolute;left:0;top:0;bottom:0;width:0;background:#e6e8f6;z-index:-1"></div>' },
+    { k: 'card', html: '<div style="position:absolute;left:8%;top:14%;text-align:left"><div style="font:800 clamp(22px,2.6vw,34px)/1 var(--sans);letter-spacing:-.03em">Takipte</div><div style="color:var(--ink-soft);font-size:15px;margin-top:6px">3. gün, iki tarafa tek soru</div></div><svg viewBox="0 0 400 120" style="position:absolute;left:6%;right:6%;bottom:10%;width:88%;overflow:visible" aria-hidden="true"><path d="M10 96 C 90 40, 150 110, 220 70 S 330 40, 390 78" fill="none" stroke="#20253d" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="1.5 11"/><circle cx="10" cy="96" r="6" fill="#20253d"/><circle cx="390" cy="78" r="10" fill="none" stroke="#20253d" stroke-width="3.5"/></svg>' },
+    { k: 'circle', html: `<div style="display:grid;gap:10px;justify-items:center;font:800 clamp(18px,2vw,26px)/1 var(--sans);letter-spacing:-.02em;color:var(--referenced)">${CHECK(26, 4)}Referanslı</div>` },
+  ];
+  const qgeo = (k, W, H) => ({ pill: { w: Math.min(W * 0.78, 460), h: H * 0.26, r: H * 0.13 }, card: { w: W * 0.84, h: H * 0.62, r: 32 }, circle: { w: H * 0.52, h: H * 0.52, r: H * 0.26 } })[k];
+  const qfaces = Q.map((q) => { const d = document.createElement('div'); d.className = 'face'; d.innerHTML = q.html; d.style.isolation = 'isolate'; qshape.appendChild(d); return d; });
+  const qw = new Spring(0), qh = new Spring(0), qr = new Spring(0);
+  const qy = Q.map((_, i) => new Spring(i ? 100 : 0, 300, 30));
+  let qi = -1, qRaf = null, qStart = 0, qAuto = true, qTimer = null;
+  function setQ(i, fromUser) {
+    if (fromUser) qAuto = false;
+    if (i !== qi) {
+      qy.forEach((s, j) => { if (j === i) { if (qi >= 0) s.snap(100); s.t = 0; } else if (j === qi) s.t = -100; else s.snap(100); });
+      qi = i; qStart = performance.now();
+      const r = qstage.getBoundingClientRect(), g = qgeo(Q[i].k, r.width, r.height);
+      qw.t = g.w; qh.t = g.h; qr.t = g.r;
+      if (reduce) { qw.snap(g.w); qh.snap(g.h); qr.snap(g.r); qy.forEach((s, j) => s.snap(j === i ? 0 : 100)); }
+    }
+    qtabs.forEach((b, j) => b.setAttribute('aria-selected', String(j === i)));
+    if (!qRaf) { qLast = performance.now(); qRaf = requestAnimationFrame(qFrame); }
+  }
+  let qLast = 0;
+  function qFrame(now) {
+    const dt = Math.min(0.033, (now - qLast) / 1000); qLast = now;
+    [qw, qh, qr, ...qy].forEach((s) => s.step(dt));
+    Object.assign(qshape.style, { width: `${qw.v}px`, height: `${qh.v}px`, borderRadius: `${Math.max(0, Math.min(qr.v, qw.v / 2, qh.v / 2))}px`, transform: 'translate(-50%, -50%)' });
+    qfaces.forEach((f, j) => { f.style.transform = `translateY(${qy[j].v}%)`; f.style.visibility = Math.abs(qy[j].v) < 99.5 ? 'visible' : 'hidden'; });
+    if (qi === 1) {
+      const p = reduce ? 1 : easeInOut(clamp((now - qStart - 250) / 1300));
+      qfaces[1].querySelector('.pct').textContent = `${Math.round(p * 100)}%`;
+      qfaces[1].querySelector('.qbar').style.width = `${p * 100}%`;
+    }
+    const busy = ![qw, qh, qr, ...qy].every((s) => s.done) || (qi === 1 && now - qStart < 1700);
+    if (busy) qRaf = requestAnimationFrame(qFrame); else qRaf = null;
+  }
+  qtabs.forEach((b) => b.addEventListener('click', () => setQ(Number(b.dataset.q), true)));
+  qtabs.forEach((b, i) => b.addEventListener('keydown', (e) => { const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (k) { e.preventDefault(); const n = (i + k + 4) % 4; qtabs[n].focus(); setQ(n, true); } }));
+  { const r = qstage.getBoundingClientRect(), g = qgeo('pill', r.width, r.height); qw.snap(g.w); qh.snap(g.h); qr.snap(g.r); setQ(0); }
+  new IntersectionObserver((es) => {
+    clearInterval(qTimer);
+    if (es[0].isIntersecting && !reduce) qTimer = setInterval(() => { if (qAuto) setQ((qi + 1) % 4); }, 2200);
+  }, { threshold: 0.5 }).observe(qstage);
+  addEventListener('resize', () => { const i = qi; qi = -1; setQ(i); });
+
+  /* ---------------- wall: leaf shadows fall across the framed card ---------------- */
+  const wv = document.getElementById('wall-video'), frame = document.getElementById('frame'), fc = document.getElementById('frame-shadow');
+  const fctx = fc.getContext('2d');
+  let wallOn = false;
+  function drawShadow() {
+    if (!wallOn) return;
+    if (wv.readyState >= 2 && wv.videoWidth) {
+      const vr = wv.getBoundingClientRect(), fr = frame.getBoundingClientRect();
+      const scale = Math.max(vr.width / wv.videoWidth, vr.height / wv.videoHeight);
+      const ox = (vr.width - wv.videoWidth * scale) / 2, oy = (vr.height - wv.videoHeight * scale) / 2;
+      const sx = (fr.left - 14 - vr.left - ox) / scale, sy = (fr.top - 10 - vr.top - oy) / scale;
+      const W = Math.round(fr.width), H = Math.round(fr.height);
+      if (fc.width !== W || fc.height !== H) { fc.width = W; fc.height = H; }
+      fctx.drawImage(wv, sx, sy, fr.width / scale, fr.height / scale, 0, 0, W, H);
+    }
+    requestAnimationFrame(drawShadow);
+  }
+  new IntersectionObserver((es) => {
+    wallOn = es[0].isIntersecting;
+    if (wallOn) { if (!reduce) wv.play().catch(() => {}); requestAnimationFrame(drawShadow); } else wv.pause();
+  }, { threshold: 0.1 }).observe(wv);
+  wv.addEventListener('loadeddata', () => { if (reduce) { wallOn = true; drawShadow(); wallOn = false; } });
+})();
+</script>

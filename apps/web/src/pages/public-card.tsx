@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import type { EvidenceLevel, EvidenceSourceKind } from '@evidex/shared';
 import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
@@ -55,12 +55,9 @@ export function PublicCardPage() {
           Sahibi paylaşımı kapatmış ya da bağlantı yanlış. Evidex kartları yalnız sahibinin açtığı
           sürece görünür.
         </p>
-        <Link
-          to="/"
-          className="text-accent mt-6 inline-block text-sm font-semibold hover:underline"
-        >
+        <a href="/" className="text-accent mt-6 inline-block text-sm font-semibold hover:underline">
           Evidex nedir?
-        </Link>
+        </a>
       </Kabuk>
     );
   if (!card)
@@ -186,9 +183,9 @@ function Kabuk({ children, wide = false }: { children: React.ReactNode; wide?: b
   return (
     <div className={`mx-auto px-4 py-10 md:py-14 ${wide ? 'max-w-[1040px]' : 'max-w-[640px]'}`}>
       <div className="text-ink-soft mb-8 flex items-center justify-between text-xs font-bold tracking-wide uppercase">
-        <Link to="/" className="text-ink text-base font-extrabold tracking-tight normal-case">
-          Evidex
-        </Link>
+        <a href="/" className="wordmark text-ink text-[17px] normal-case">
+          Evidex.
+        </a>
         <span>Kanıta dayalı kart</span>
       </div>
       {children}

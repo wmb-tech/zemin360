@@ -75,9 +75,9 @@ export function LoginPage() {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[440px] flex-col justify-center px-4 py-10">
       <Enter i={0} as="header">
-        <Link to="/" className="text-ink text-2xl font-extrabold tracking-tight">
-          Evidex
-        </Link>
+        <a href="/" className="wordmark text-ink text-[30px]">
+          Evidex.
+        </a>
         <p className="text-ink-soft mt-1">Beyan değil kanıt. Skor değil gerekçe.</p>
       </Enter>
 
@@ -155,9 +155,9 @@ export function LoginPage() {
       <p className="text-ink-soft mt-10 text-xs">
         Giriş yaparak yalnız seçtiğin kaynakların okunmasına izin verirsin; kimliğin tanıştırma
         onaylanana kadar kurumlara görünmez.{' '}
-        <Link to="/nasil-calisir" className="text-accent font-semibold hover:underline">
+        <a href="/nasil-calisir" className="text-accent font-semibold hover:underline">
           Nasıl çalışır
-        </Link>
+        </a>
         {' · '}
         <Link to="/gizlilik" className="text-accent font-semibold hover:underline">
           Aydınlatma metni
