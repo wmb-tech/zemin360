@@ -13,6 +13,7 @@ import {
   users,
 } from '@evidex/db';
 import { cookieOf, testApp } from '../test/setup';
+import { removeDemoNetwork } from '../demo/network';
 
 const json = (body: unknown, cookie?: string) => ({
   method: 'POST',
@@ -105,6 +106,9 @@ describe('takip (izle)', () => {
       },
     });
     const { app, db, gonderilen, followUp } = testApp({ llm });
+    // Taramanın sayısı yalnız bu testin iş birliğini ölçsün: başka dosyadan kalan demo ağı
+    // (4 gün önce tanıştırılmış Deniz) sırası değişen koşularda sayıyı 2 yapıyordu.
+    await removeDemoNetwork(db);
     await db
       .insert(users)
       .values({ email: 'op4@girvak.org', name: 'Op', role: 'operator' })

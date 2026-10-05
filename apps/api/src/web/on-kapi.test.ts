@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { testApp } from '../test/setup';
-import { seedDemoNetwork } from '../demo/network';
+import { removeDemoNetwork, seedDemoNetwork } from '../demo/network';
 
 describe('ön kapı', () => {
   it('oturumsuz ziyaretçi tanıtımı, oturumlu kullanıcı paneli görür; derin linkler SPA', async () => {
@@ -38,5 +38,6 @@ describe('ön kapı', () => {
     expect(html).toContain('SPA');
     const kapali = await (await app.request('/k/yok-boyle-kart')).text();
     expect(kapali).toContain('og:title" content="Evidex"');
+    await removeDemoNetwork(db);
   });
 });
