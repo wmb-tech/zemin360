@@ -1,8 +1,8 @@
-import { HesapSil } from '../components/hesap-sil';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import {
   ArrowRight,
+  Check,
   ChevronRight,
   FileCheck2,
   FileText,
@@ -148,12 +148,20 @@ export function TalentHomePage() {
         to: '/davetler',
         cta: 'Görevleri gör',
       };
+    if (!o.card.publicSlug)
+      return {
+        baslik: 'Kartını paylaş',
+        aciklama:
+          'Linki bilen yalnız onaylı iddialarını ve kanıt seviyelerini görür; e-posta ve GitHub adın görünmez.',
+        to: '/kart?bolum=paylas',
+        cta: 'Paylaşımı aç',
+      };
     return {
-      baslik: 'Kartın ağda',
+      baslik: 'Kartın ağda ve paylaşımda',
       aciklama:
         'Kurumlar ihtiyaç açtıkça ajan seni gerekçesiyle değerlendirir; güçlü eşleşmede e-posta alırsın.',
-      to: '/kart',
-      cta: 'Kartımı gör',
+      to: '/kart?bolum=paylas',
+      cta: 'Paylaşım linki',
     };
   })();
 
@@ -175,17 +183,19 @@ export function TalentHomePage() {
               </h1>
               <p className="text-ink-soft tnum mt-1 text-base">{durumCumlesi}</p>
             </div>
-            <Link
-              to="/kart"
-              className="pressable border-line bg-surface text-ink hover:bg-paper-2 hidden min-h-11 items-center gap-2 rounded-[var(--radius-control)] border px-4 text-sm font-semibold md:inline-flex"
-            >
-              <IdCard size={18} aria-hidden /> Kartımı gör
-            </Link>
           </div>
         </Enter>
 
         <Enter i={1} y={10} as="section" className="mt-6">
-          <div className="bg-accent-soft rounded-[var(--radius-feature)] p-5 md:p-6">
+          <Ilerleme
+            adimlar={[
+              { ad: 'Bağla', bitti: o.card.sources > 0 },
+              { ad: 'Okut', bitti: o.card.claims > 0 || o.card.approvedClaims > 0 },
+              { ad: 'Onayla', bitti: agda },
+              { ad: 'Paylaş', bitti: Boolean(o.card.publicSlug) },
+            ]}
+          />
+          <div className="bg-accent-soft mt-4 rounded-[var(--radius-feature)] p-5 md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center">
               <div className="bg-surface text-accent hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl md:flex">
                 <FileCheck2 size={26} aria-hidden />
@@ -349,8 +359,47 @@ export function TalentHomePage() {
           </div>
         )}
       </Enter>
-      <HesapSil rol="talent" />
     </div>
+  );
+}
+
+/** İlk kullanımın dört adımı: hangisinde olduğun tek bakışta görünsün (ilk gelen genç için). */
+function Ilerleme({ adimlar }: { adimlar: { ad: string; bitti: boolean }[] }) {
+  const simdiki = adimlar.findIndex((a) => !a.bitti);
+  return (
+    <ol className="flex items-center gap-2" aria-label="Kartının durumu">
+      {adimlar.map((a, i) => {
+        const aktif = i === simdiki;
+        return (
+          <li key={a.ad} className="flex min-w-0 flex-1 items-center gap-2">
+            <span
+              className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${
+                a.bitti
+                  ? 'bg-verified text-surface'
+                  : aktif
+                    ? 'bg-accent text-surface'
+                    : 'border-line text-ink-soft border bg-surface'
+              }`}
+              aria-hidden
+            >
+              {a.bitti ? <Check size={13} strokeWidth={3} /> : i + 1}
+            </span>
+            <span
+              className={`truncate text-sm ${aktif ? 'text-ink font-bold' : a.bitti ? 'text-ink' : 'text-ink-soft'}`}
+            >
+              {a.ad}
+              <span className="sr-only">{a.bitti ? ' — tamam' : aktif ? ' — şimdi' : ''}</span>
+            </span>
+            {i < adimlar.length - 1 && (
+              <span
+                className={`h-px min-w-3 flex-1 ${a.bitti ? 'bg-verified/50' : 'bg-line'}`}
+                aria-hidden
+              />
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

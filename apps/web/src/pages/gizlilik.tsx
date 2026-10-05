@@ -82,7 +82,7 @@ export function PrivacyPage() {
 
         <Bolum baslik="Ne kadar saklanır">
           <p>
-            Hesabınızı silene kadar. <b className="text-ink">Hesabımı sil</b> düğmesi (genç: Durum
+            Hesabınızı silene kadar. <b className="text-ink">Hesabımı sil</b> düğmesi (genç: Hesap
             sayfası, kurum: Kurum bilgileri) hesabınızı ve ona bağlı her şeyi hemen ve kalıcı olarak
             siler; denetim kaydında yalnız kişiyle bağı koparılmış işlem satırları kalır. GitHub
             uygulamasını{' '}

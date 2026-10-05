@@ -15,6 +15,7 @@ import {
   Network,
   Users,
   type LucideIcon,
+  UserRound,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 
@@ -34,6 +35,7 @@ const ICONS = {
   collab: Handshake,
   metrics: ChartColumn,
   users: Users,
+  account: UserRound,
 } satisfies Record<string, LucideIcon>;
 
 const roleLabel = { talent: 'Genç', organization: 'Kurum', operator: 'GİRVAK' } as const;

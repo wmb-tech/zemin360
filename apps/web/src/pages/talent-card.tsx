@@ -1265,6 +1265,23 @@ function Paylas({
               >
                 Aç <ExternalLink size={14} aria-hidden />
               </a>
+              <span className="text-ink-soft text-sm">·</span>
+              <a
+                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent text-sm font-semibold hover:underline"
+              >
+                LinkedIn'de paylaş
+              </a>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`Kanıta dayalı yetkinlik kartım: ${link}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent text-sm font-semibold hover:underline"
+              >
+                WhatsApp
+              </a>
             </>
           )}
         </div>

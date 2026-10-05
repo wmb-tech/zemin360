@@ -9,6 +9,7 @@ import { TalentCardPage } from './pages/talent-card';
 import { MetricsPage } from './pages/metrics';
 import { DemoMailPage } from './pages/demo-mail';
 import { PrivacyPage } from './pages/gizlilik';
+import { AccountPage } from './pages/account';
 import { OperatorChallengesPage } from './pages/operator-challenges';
 import { TalentChallengesPage } from './pages/talent-challenges';
 import { CollaborationsPage } from './pages/collaborations';
@@ -25,6 +26,7 @@ const NAV = {
     { to: '/durum', label: 'Durum', icon: 'home' },
     { to: '/kart', label: 'Kartım', icon: 'card' },
     { to: '/davetler', label: 'Meydan okumalar', icon: 'flag' },
+    { to: '/hesap', label: 'Hesap', icon: 'account' },
   ],
   organization: [
     { to: '/ihtiyaclar', label: 'İhtiyaçlar', icon: 'needs' },
@@ -69,6 +71,7 @@ function Routed() {
             <Route path="/kart" element={<TalentCardPage />} />
             <Route path="/kanit" element={<TalentCardPage />} />
             <Route path="/davetler" element={<TalentChallengesPage />} />
+            <Route path="/hesap" element={<AccountPage />} />
           </>
         )}
         {me.role === 'organization' && (

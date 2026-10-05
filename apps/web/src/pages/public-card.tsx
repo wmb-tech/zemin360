@@ -1,3 +1,4 @@
+import { ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import type { EvidenceLevel, EvidenceSourceKind } from '@evidex/shared';
@@ -189,6 +190,19 @@ function Kabuk({ children, wide = false }: { children: React.ReactNode; wide?: b
         <span>Kanıta dayalı kart</span>
       </div>
       {children}
+      {/* Paylaşılan her kart bir davetiye: okuyan genç kendi kartına bir tıkla gider. */}
+      <a
+        href="/"
+        className="bg-accent-soft text-ink pressable mt-12 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-panel)] px-5 py-4 hover:opacity-90"
+      >
+        <span className="text-sm">
+          <b className="font-bold">Bu kart kanıttan yazıldı.</b>{' '}
+          <span className="text-ink-soft">GitHub'ını bağla, kendi kartını bir dakikada çıkar.</span>
+        </span>
+        <span className="text-accent inline-flex items-center gap-1 text-sm font-semibold">
+          Kartını çıkar <ArrowRight size={14} aria-hidden />
+        </span>
+      </a>
     </div>
   );
 }
