@@ -132,8 +132,8 @@ export function OperatorChallengesPage() {
         <Enter i={1} as="section" className="lg:sticky lg:top-6">
           <Panel className="p-4">
             <Eyebrow>İhtiyaçtan tasarla</Eyebrow>
-            <form onSubmit={(e) => void design(e)} className="mt-2 flex gap-2">
-              <div className="flex-1">
+            <form onSubmit={(e) => void design(e)} className="mt-2 grid gap-2">
+              <div className="min-w-0">
                 <NeedPicker value={needId} onChange={(id) => setNeedId(id)} />
               </div>
               <Button
