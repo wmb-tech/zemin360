@@ -6,6 +6,9 @@ University). Open source, MIT.
 
 > Beyan değil kanıt · skor değil gerekçe · AI yapar, insan onaylar.
 
+**Live:** https://evidex.wmbyazilim.com · launch film on the home page · privacy notice:
+[/gizlilik](https://evidex.wmbyazilim.com/gizlilik)
+
 [![ci](https://github.com/wmb-tech/zemin360/actions/workflows/ci.yml/badge.svg)](https://github.com/wmb-tech/zemin360/actions/workflows/ci.yml)
 
 ## What it does
@@ -86,12 +89,35 @@ packages/evidence  Evidence providers: GitHub App, live URL (SSRF-guarded), publ
 
 ### Roles and screens
 
-| Role         | Screens                                                                               |
-| ------------ | ------------------------------------------------------------------------------------- |
-| Talent       | `/kanit` evidence & card (GitHub App, live URL, claims, share link) · `/davetler` challenges |
-| Organization | `/ihtiyaclar` needs (agent conversation, live card preview, approval) · candidates · results |
-| Operator     | `/kuyruk` approval queue · `/ag` network (silent cards, org approval, scouting, invites) · `/meydan` challenges · `/isbirlikleri` collaborations · `/olcum` metrics |
-| Public       | `/k/:slug` shared card · `/takip/:token` follow-up answer                             |
+| Role         | Screens                                                                                                  |
+| ------------ | -------------------------------------------------------------------------------------------------------- |
+| Talent       | `/durum` status and next step · `/kart` sources, claims, card, sharing · `/davetler` challenges · `/hesap` account and deletion |
+| Organization | `/ihtiyaclar` needs (agent conversation, live card preview, approval) · candidates · `/kurum` settings and deletion |
+| Operator     | `/kuyruk` approval queue · `/ihtiyaclar` · `/ag` network (silent cards, org approval, scouting, invites, demo network) · `/meydan` challenges · `/isbirlikleri` collaborations · `/olcum` metrics |
+| Public       | `/` launch site · `/k/:slug` shared card · `/takip/:token` follow-up answer · `/gizlilik` privacy notice |
+
+## Security and privacy
+
+- **No raw content.** Repositories, live products and documents are reduced to signals; code
+  and files are never stored. Private repository and product names cannot appear on a card
+  (checked in code, with one rewrite retry).
+- **Identity hidden until introduction.** Organizations see first name and reasoning only;
+  shared cards carry no e-mail or GitHub handle.
+- **Sessions:** random tokens stored hashed, `HttpOnly` + `Secure` + `SameSite=Lax` cookie;
+  single-use, 15-minute magic links (race-free consumption); OAuth `state` checked on every
+  GitHub callback.
+- **Authorization:** role guard on every route; every talent/organization query is scoped to
+  the caller (no cross-account IDs); operators cannot be deleted through the self-service path.
+- **Abuse limits:** per-IP and per-address limits on magic links (e-mail bombing), per-session
+  limits on agent-heavy endpoints (need conversation, card rewrite, GitHub sync, evidence),
+  request bodies capped before parsing (1 MB, documents 6 MB).
+- **SSRF:** live-URL checks resolve DNS and refuse private, loopback, link-local and metadata
+  ranges; redirects are not followed.
+- **Errors:** users see a correlation id only; the cause is logged for operators.
+- **Headers (edge):** CSP without inline scripts, HSTS, `X-Frame-Options: DENY`, `nosniff`,
+  strict referrer and permissions policies.
+- **KVKK:** privacy notice at `/gizlilik`; talents and organizations delete their account and
+  everything bound to it in one step (`DELETE /api/me/account`).
 
 ## Run locally
 
@@ -119,7 +145,7 @@ token. GitHub App installation runs the same way (`/api/auth/github/install?clie
 
 ## Quality gates
 
-`bun run check` = lint + format + typecheck + tests (36 tests: API end-to-end on a real
+`bun run check` = lint + format + typecheck + tests (74 tests: API end-to-end on a real
 Postgres, agents, evidence providers). Husky runs it before every commit; CI runs it on
 every push with a Postgres service. Conventions:
 [`docs/03-gelistirme-kurallari.md`](docs/03-gelistirme-kurallari.md).

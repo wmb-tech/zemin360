@@ -1,5 +1,6 @@
-import { Hono } from 'hono';
+import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { cors } from 'hono/cors';
+import { bodyLimit } from 'hono/body-limit';
 import { serveStatic } from 'hono/bun';
 import { existsSync } from 'node:fs';
 import { logger } from 'hono/logger';
@@ -14,6 +15,7 @@ import { withRole, type AuthVars } from './auth/middleware';
 import { deleteCookie, getCookie } from 'hono/cookie';
 import { kullanicilariSil } from './account/silme';
 import { withHtml } from './lib/email-html';
+import { ipOf, sinir, sinirAsildi, sinirlayici } from './lib/rate-limit';
 import {
   demoInbox,
   demoLoginEmail,
@@ -73,6 +75,8 @@ export interface AppDeps {
    * satır içi (sonuç hemen doğrulanabilsin). Varsayılan arka plan.
    */
   inlineMatching?: boolean;
+  /** İstek sınırları (varsayılan açık); testler kapatır, sınır testi ayrıca açar. */
+  rateLimit?: boolean;
 }
 
 /** Bağımlılıklar dışarıdan gelir; testler sahte DB/e-posta/GitHub ile aynı uygulamayı kurar. */
@@ -104,6 +108,43 @@ export function createApp(deps: AppDeps) {
 
   app.use('*', logger());
   app.use('/api/*', cors({ origin: deps.env.WEB_ORIGIN, credentials: true }));
+
+  // Kötüye kullanım sınırları (bkz. lib/rate-limit). Anahtar: oturum varsa oturum, yoksa IP.
+  const sn = deps.rateLimit === false ? null : sinirlayici();
+  const oturumVeyaIp = (c: Context) => getCookie(c, SESSION_COOKIE) ?? ipOf(c);
+  const yalnizPost =
+    (mw: ReturnType<typeof sinir>): MiddlewareHandler =>
+    async (c, next) =>
+      c.req.method === 'POST' ? mw(c, next) : next();
+  app.use('/api/*', sinir(sn, 'genel', 600, 60_000));
+  // Gövde sınırı okunmadan önce: belge 5 MB (+ form payı), gerisi 1 MB. Aksi hâlde dev bir istek
+  // boyut kontrolüne varmadan belleğe alınıyordu.
+  const asiriBuyuk = () => {
+    throw new AppError('too_large', 'İstek çok büyük', 413);
+  };
+  app.use(
+    '/api/me/evidence/document',
+    bodyLimit({ maxSize: 6 * 1024 * 1024, onError: asiriBuyuk }),
+  );
+  app.use('/api/*', async (c, next) =>
+    c.req.path === '/api/me/evidence/document'
+      ? next()
+      : bodyLimit({ maxSize: 1024 * 1024, onError: asiriBuyuk })(c, next),
+  );
+  app.use('/api/auth/magic-link', yalnizPost(sinir(sn, 'giris-ip', 8, 10 * 60_000)));
+  app.use('/api/auth/magic-link', async (c, next) => {
+    // Aynı adrese art arda bağlantı: e-posta bombardımanını adres başına keser.
+    const govde = (await c.req.json().catch(() => ({}))) as { email?: unknown };
+    const adres = typeof govde.email === 'string' ? govde.email.trim().toLowerCase() : '';
+    if (sn && adres && !sn.izin(`giris-adres:${adres}`, 3, 15 * 60_000)) throw sinirAsildi();
+    await next();
+  });
+  app.use('/api/needs', yalnizPost(sinir(sn, 'ihtiyac', 40, 3_600_000, oturumVeyaIp)));
+  app.use('/api/needs/*', yalnizPost(sinir(sn, 'ihtiyac', 40, 3_600_000, oturumVeyaIp)));
+  for (const yol of ['/api/me/card/rewrite', '/api/me/evidence/github/sync'])
+    app.use(yol, yalnizPost(sinir(sn, 'kart-okuma', 8, 3_600_000, oturumVeyaIp)));
+  app.use('/api/me/evidence/*', yalnizPost(sinir(sn, 'kanit', 30, 3_600_000, oturumVeyaIp)));
+  app.use('/api/checkin/*', yalnizPost(sinir(sn, 'takip', 20, 10 * 60_000)));
 
   app.route('/api/health', health);
   const matching = createMatchingService(deps.db, llm);

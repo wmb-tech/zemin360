@@ -64,7 +64,14 @@ export function createAuthService(db: Db) {
         )
         .limit(1);
       if (!kayit) throw new AppError('invalid_link', 'Bağlantı geçersiz veya süresi dolmuş', 401);
-      await db.update(loginTokens).set({ usedAt: new Date() }).where(eq(loginTokens.id, kayit.id));
+      // Tek kullanım yarışsız: iki eşzamanlı açılıştan yalnız biri bağlantıyı "kullanılmış" yapabilir.
+      const kullanilan = await db
+        .update(loginTokens)
+        .set({ usedAt: new Date() })
+        .where(and(eq(loginTokens.id, kayit.id), isNull(loginTokens.usedAt)))
+        .returning({ id: loginTokens.id });
+      if (kullanilan.length === 0)
+        throw new AppError('invalid_link', 'Bağlantı geçersiz veya süresi dolmuş', 401);
 
       let [kullanici] = await db.select().from(users).where(eq(users.email, kayit.email)).limit(1);
       if (!kullanici) {

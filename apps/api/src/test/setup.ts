@@ -23,6 +23,7 @@ export function testApp(
     githubScout?: GithubScout;
     document?: DocumentEvidence;
     webDist?: string;
+    rateLimit?: boolean;
   } = {},
 ) {
   const env = loadEnv();
@@ -40,6 +41,7 @@ export function testApp(
     email,
     llm: opts.llm ?? createFakeProvider(),
     inlineMatching: true,
+    rateLimit: opts.rateLimit ?? false,
     github: opts.github ?? null,
     ...(opts.liveUrl ? { liveUrl: opts.liveUrl } : {}),
     ...(opts.publicRepo ? { publicRepo: opts.publicRepo } : {}),
