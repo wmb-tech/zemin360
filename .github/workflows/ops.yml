@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       is:
-        description: 'teshis: yalnız okur'
+        description: 'teshis: yalnız okur · ci-incele: sunucu CI loglarını okur'
         required: true
         default: teshis
         type: choice
-        options: [teshis]
+        options: [teshis, ci-incele]
 
 jobs:
   sunucu:
@@ -36,3 +36,16 @@ jobs:
             echo "== yedekler"; ls -la /opt/evidex/backups 2>&1 | tail -n 10
             echo "== disk"; df -h / | tail -n 1
             echo "== konteynerler"; sudo -n /usr/bin/docker compose -f /opt/evidex/docker-compose.yml ps 2>&1
+
+      - name: Sunucu CI incele (değişiklik yapmaz)
+        if: inputs.is == 'ci-incele'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "== unit"; cat /etc/systemd/system/*-ci.service /etc/systemd/system/*-ci.timer 2>&1
+            echo "== loglar"; ls -la /opt/*/ci/logs 2>&1 | tail -n 8
+            son=$(ls -t /opt/*/ci/logs/* 2>/dev/null | head -n 1); echo "== son log: $son"; tail -n 40 "$son" 2>&1
+            echo "== last_sha"; cat /opt/*/ci/last_sha 2>&1
