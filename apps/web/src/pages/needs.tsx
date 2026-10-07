@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Pencil, Send, Users, ListChecks } from 'lucide-react';
 import { CollaborationType, WorkMode, type NeedCardEdits } from '@evidex/shared';
 import { api } from '../lib/api';
+import { Secim } from '../components/secim';
 import { useTitle } from '../lib/title';
 import { Enter, Live } from '../components/motion';
 import {
@@ -508,30 +509,20 @@ function EditForm({
       </FormField>
       <div className="grid grid-cols-2 gap-4">
         <FormField label="İş birliği türü">
-          <select
+          <Secim
             value={card.collaborationType ?? ''}
-            onChange={(e) => set('collaborationType', e.target.value)}
-            className="border-line bg-surface w-full rounded-[var(--radius-control)] border px-3 py-2.5 text-base"
-          >
-            {CollaborationType.options.map((o) => (
-              <option key={o} value={o}>
-                {TYPE_LABEL[o]}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => set('collaborationType', v)}
+            placeholder="Seç"
+            options={CollaborationType.options.map((o) => ({ value: o, label: TYPE_LABEL[o] }))}
+          />
         </FormField>
         <FormField label="Çalışma biçimi">
-          <select
+          <Secim
             value={card.workMode ?? ''}
-            onChange={(e) => set('workMode', e.target.value)}
-            className="border-line bg-surface w-full rounded-[var(--radius-control)] border px-3 py-2.5 text-base"
-          >
-            {WorkMode.options.map((o) => (
-              <option key={o} value={o}>
-                {MODE_LABEL[o]}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => set('workMode', v)}
+            placeholder="Seç"
+            options={WorkMode.options.map((o) => ({ value: o, label: MODE_LABEL[o] }))}
+          />
         </FormField>
         <FormField label="Süre (hafta)">
           <Input

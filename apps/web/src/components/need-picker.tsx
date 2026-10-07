@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { Secim } from './secim';
 
 export interface OperatorNeed {
   id: string;
@@ -27,17 +28,17 @@ export function NeedPicker({
     );
   }, []);
   return (
-    <select
+    <Secim
       value={value}
-      onChange={(e) => onChange(e.target.value, needs.find((n) => n.id === e.target.value) ?? null)}
-      className="border-line bg-surface focus:border-accent w-full rounded-[var(--radius-control)] border px-3.5 py-2.5 text-base outline-none"
-    >
-      <option value="">{placeholder}</option>
-      {needs.map((n) => (
-        <option key={n.id} value={n.id}>
-          {n.title ?? 'Başlıksız'} · {n.organizationName} · {n.matches.strong} güçlü
-        </option>
-      ))}
-    </select>
+      onChange={(id) => onChange(id, needs.find((n) => n.id === id) ?? null)}
+      placeholder={placeholder}
+      bos="Onaylı ihtiyaç yok"
+      ariaLabel="İhtiyaç"
+      options={needs.map((n) => ({
+        value: n.id,
+        label: n.title ?? 'Başlıksız',
+        meta: `${n.organizationName} · ${n.matches.strong} güçlü · ${n.matches.possible} olası aday`,
+      }))}
+    />
   );
 }
