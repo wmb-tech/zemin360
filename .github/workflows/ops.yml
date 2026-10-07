@@ -1,0 +1,38 @@
+name: ops
+# Sunucu işletimi, elle tetiklenir (yalnız repo yazma yetkisi olanlar). Komutlar sabit: girdi
+# olarak serbest komut alınmaz. Deploy kullanıcısıyla bağlanır; sudo yetkisi compose ile sınırlı.
+on:
+  workflow_dispatch:
+    inputs:
+      is:
+        description: 'teshis: yalnız okur'
+        required: true
+        default: teshis
+        type: choice
+        options: [teshis]
+
+jobs:
+  sunucu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Teşhis (değişiklik yapmaz)
+        if: inputs.is == 'teshis'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "== kim"; whoami; id
+            echo "== sudo"; sudo -n -l 2>&1 | tail -n 15
+            echo "== zamanlayicilar"; systemctl list-timers --all --no-pager 2>&1 | grep -i -E "evidex|ci|deploy|backup|yedek" || echo "(eşleşen yok)"
+            echo "== servisler"; systemctl list-units --all --no-pager --type=service 2>&1 | grep -i -E "evidex|ci" || echo "(eşleşen yok)"
+            echo "== unit dosyalari"; ls -la /etc/systemd/system 2>&1 | grep -i -E "evidex|ci" || echo "(yok)"
+            echo "== cron (deploy)"; crontab -l 2>&1 | grep -v "^#" || true
+            echo "== cron (sistem)"; ls -la /etc/cron.d 2>&1; grep -il evidex /etc/cron.d/* /etc/crontab 2>/dev/null || echo "(evidex geçen cron yok)"
+            echo "== /opt/evidex"; ls -la /opt/evidex 2>&1
+            echo "== ci klasoru"; ls -la /opt/evidex/ci 2>&1 | head -n 20
+            echo "== yedekler"; ls -la /opt/evidex/backups 2>&1 | tail -n 10
+            echo "== disk"; df -h / | tail -n 1
+            echo "== konteynerler"; sudo -n /usr/bin/docker compose -f /opt/evidex/docker-compose.yml ps 2>&1
