@@ -181,7 +181,48 @@ export function createOperatorService(
       const matchIds = kayitlar
         .filter((k) => k.action === 'publish_shortlist')
         .flatMap((k) => ((k.payload as { matchIds?: string[] }).matchIds ?? []) as string[]);
-      if (matchIds.length === 0) return kayitlar;
+      // Tanıştırma ve takip önerilerinde taraflar adıyla: operatör "Kime: Gence" değil kime
+      // gittiğini görsün. Tanıştırmanın öznesi eşleşme, takibinki iş birliği.
+      const collabIds = kayitlar
+        .filter((k) => k.action === 'send_follow_up')
+        .map((k) => (k.payload as { collaborationId?: string }).collaborationId)
+        .filter((x): x is string => Boolean(x));
+      const collabMatch = new Map(
+        collabIds.length
+          ? (
+              await db
+                .select({ id: collaborations.id, matchId: collaborations.matchId })
+                .from(collaborations)
+                .where(inArray(collaborations.id, collabIds))
+            ).map((c) => [c.id, c.matchId])
+          : [],
+      );
+      const eslesmeOf = (k: (typeof kayitlar)[number]) =>
+        k.action === 'introduce' && k.subjectType === 'match'
+          ? k.subjectId
+          : k.action === 'send_follow_up'
+            ? collabMatch.get((k.payload as { collaborationId?: string }).collaborationId ?? '')
+            : undefined;
+      const tarafIds = [...new Set(kayitlar.map(eslesmeOf).filter((x): x is string => Boolean(x)))];
+      const taraflar = new Map(
+        tarafIds.length
+          ? (
+              await db
+                .select({ id: matches.id, genc: users.name, kurum: organizations.name })
+                .from(matches)
+                .innerJoin(talents, eq(talents.id, matches.talentId))
+                .innerJoin(users, eq(users.id, talents.userId))
+                .innerJoin(needs, eq(needs.id, matches.needId))
+                .innerJoin(organizations, eq(organizations.id, needs.organizationId))
+                .where(inArray(matches.id, tarafIds))
+            ).map((t) => [t.id, { talent: t.genc, organization: t.kurum }])
+          : [],
+      );
+      const tarafli = kayitlar.map((k) => {
+        const t = taraflar.get(eslesmeOf(k) ?? '');
+        return t ? { ...k, parties: t } : k;
+      });
+      if (matchIds.length === 0) return tarafli;
       const adaylar = await db
         .select({
           id: matches.id,
@@ -196,7 +237,7 @@ export function createOperatorService(
         .innerJoin(users, eq(users.id, talents.userId))
         .where(inArray(matches.id, matchIds));
       const byId = new Map(adaylar.map((a) => [a.id, a]));
-      return kayitlar.map((k) => {
+      return tarafli.map((k) => {
         if (k.action !== 'publish_shortlist') return k;
         const ids = ((k.payload as { matchIds?: string[] }).matchIds ?? []) as string[];
         const liste = ids

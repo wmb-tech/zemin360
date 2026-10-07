@@ -23,6 +23,8 @@ interface QueueItem {
   subjectId: string;
   payload: Record<string, unknown>;
   createdAt: string;
+  /** Tanıştırma ve takipte: e-postanın gittiği taraflar (operatör tam adı görür). */
+  parties?: { talent: string; organization: string };
   /** Yalnız kısa liste önerisinde: yayınlanacak adaylar (operatör tam adı görür). */
   candidates?: {
     rank: number;
@@ -219,8 +221,8 @@ export function OperatorQueuePage() {
           </Empty>
         </div>
       ) : (
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(320px,40fr)_60fr]">
-          <Enter i={2} as="section" className="min-w-0">
+        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+          <Enter i={2} as="section" className="min-w-0 lg:sticky lg:top-6">
             <ul
               className="bg-surface border-line divide-y divide-[var(--color-line)] rounded-[var(--radius-panel)] border"
               role="listbox"
@@ -248,6 +250,9 @@ export function OperatorQueuePage() {
                         </span>
                       </div>
                       <div className="text-ink truncate text-sm font-semibold">{konu(it)}</div>
+                      {baglam(it) && (
+                        <div className="text-ink-soft truncate text-xs">{baglam(it)}</div>
+                      )}
                     </button>
                   </li>
                 );
@@ -363,6 +368,18 @@ function konu(it: QueueItem): string {
   return String(p.subject ?? p.needTitle ?? '');
 }
 
+/** Listede başlığın altındaki tek satır: kaydın hangi iş için olduğu. */
+function baglam(it: QueueItem): string | null {
+  const p = it.payload;
+  if (it.action === 'publish_shortlist') {
+    const c = (p.counts ?? {}) as { strong?: number; possible?: number; weak?: number };
+    return `${c.strong ?? 0} güçlü · ${c.possible ?? 0} olası · ${c.weak ?? 0} zayıf aday`;
+  }
+  if (it.action === 'introduce' || it.action === 'send_follow_up')
+    return p.needTitle ? `İhtiyaç: ${String(p.needTitle)}` : null;
+  return null;
+}
+
 /** Tam giden yük: alıcılar ve metin. Operatör ne gideceğini görmeden onaylamaz. */
 function Payload({ item }: { item: QueueItem }) {
   const p = item.payload;
@@ -403,22 +420,27 @@ function Payload({ item }: { item: QueueItem }) {
       <Mektup
         konu={String(p.subject ?? '')}
         govde={String(p.message ?? '')}
-        kime="Genç + kurum üyeleri"
+        kime={
+          item.parties
+            ? `${item.parties.talent} ve ${item.parties.organization}`
+            : 'Genç + kurum üyeleri'
+        }
         not={p.requestedBy === 'organization' ? 'Kurum istedi · ajan taslağı' : undefined}
       />
     );
   if (item.action === 'send_follow_up')
     return (
       <div className="grid gap-3 md:grid-cols-2">
-        <Mektup konu={String(p.subject ?? '')} govde={String(p.messageTalent ?? '')} kime="Gence" />
+        <Mektup
+          konu={String(p.subject ?? '')}
+          govde={String(p.messageTalent ?? '')}
+          kime={item.parties ? `${item.parties.talent} (genç)` : 'Genç'}
+        />
         <Mektup
           konu={String(p.subject ?? '')}
           govde={String(p.messageOrganization ?? '')}
-          kime="Kuruma"
+          kime={item.parties ? `${item.parties.organization} (kurum)` : 'Kurum'}
         />
-        <p className="text-ink-soft text-xs md:col-span-2">
-          [link] yerine tek kullanımlık cevap linki girer.
-        </p>
       </div>
     );
   const emails = (p.emails ?? []) as string[];
@@ -464,6 +486,10 @@ function Payload({ item }: { item: QueueItem }) {
     </div>
   );
 }
+/**
+ * E-posta önizlemesi: alıcının göreceği hâle yakın (marka, konu, paragraflar, düğme). "[link]"
+ * gönderimde tek kullanımlık cevap linkine dönüşür; burada o linkin düğmesi gösterilir.
+ */
 function Mektup({
   konu,
   govde,
@@ -475,16 +501,42 @@ function Mektup({
   kime: string;
   not?: string | undefined;
 }) {
+  const paragraflar = govde
+    .replace(/\r/g, '')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
   return (
-    <div className="border-line rounded-[var(--radius-control)] border p-4 text-sm">
-      <div className="text-ink-soft flex flex-wrap gap-x-3 text-xs">
+    <div className="border-line bg-surface overflow-hidden rounded-[var(--radius-panel)] border text-sm">
+      <div className="bg-paper-2 border-line text-ink-soft flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-xs">
         <span>
           Kime: <b className="text-ink">{kime}</b>
         </span>
         {not && <span>· {not}</span>}
+        <span className="wordmark text-ink ml-auto text-[13px]">Evidex.</span>
       </div>
-      <div className="text-ink mt-1 font-semibold">{konu}</div>
-      <p className="text-ink mt-2 whitespace-pre-wrap">{govde}</p>
+      <div className="px-4 py-4">
+        <div className="text-ink text-[15px] font-bold leading-snug">{konu}</div>
+        <div className="mt-3 space-y-3">
+          {paragraflar.map((p, i) =>
+            p === '[link]' || p.endsWith('\n[link]') ? (
+              <div key={i} className="space-y-3">
+                {p !== '[link]' && (
+                  <p className="text-ink whitespace-pre-wrap">{p.replace(/\n\[link\]$/, '')}</p>
+                )}
+                <span className="bg-accent text-surface inline-flex rounded-[var(--radius-control)] px-4 py-2 text-sm font-bold">
+                  Cevapla
+                </span>
+                <span className="text-ink-soft ml-2 text-xs">tek kullanımlık link</span>
+              </div>
+            ) : (
+              <p key={i} className="text-ink whitespace-pre-wrap leading-relaxed">
+                {p}
+              </p>
+            ),
+          )}
+        </div>
+      </div>
     </div>
   );
 }

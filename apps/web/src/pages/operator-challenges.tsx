@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { useTitle } from '../lib/title';
 import { NeedPicker } from '../components/need-picker';
 import { Enter, Live } from '../components/motion';
-import { Button, Empty, ErrorNote, Eyebrow, Metin, Panel, Skeleton } from '../components/ui';
+import { Button, ErrorNote, Eyebrow, Metin, Panel, Skeleton } from '../components/ui';
 
 interface Challenge {
   id: string;
@@ -68,6 +68,10 @@ export function OperatorChallengesPage() {
   useEffect(() => {
     void load();
   }, []);
+  // Liste doluysa ilk görev açık gelsin: sağ yarı boş "seç" yazısıyla beklemesin.
+  useEffect(() => {
+    if (list && list.length > 0 && !selected) void openDetail(list[0]!.id);
+  }, [list]);
 
   async function run(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
@@ -124,8 +128,8 @@ export function OperatorChallengesPage() {
           Ajan görev ve rubrik taslağı yazar, puanlar; açmak, kapatmak ve değerlendirmek senin.
         </p>
       </Enter>
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(320px,40fr)_60fr]">
-        <Enter i={1} as="section">
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <Enter i={1} as="section" className="lg:sticky lg:top-6">
           <Panel className="p-4">
             <Eyebrow>İhtiyaçtan tasarla</Eyebrow>
             <form onSubmit={(e) => void design(e)} className="mt-2 flex gap-2">
@@ -142,39 +146,39 @@ export function OperatorChallengesPage() {
                 Tasarla
               </Button>
             </form>
+            {!needId.trim() && (
+              <p className="text-ink-soft mt-2 text-xs">
+                Onaylı bir ihtiyaç seç; ajan ondan 24–48 saatlik bir görev ve puanlama ölçütü yazar.
+              </p>
+            )}
             {error && <ErrorNote>{error}</ErrorNote>}
           </Panel>
-          <ul className="bg-surface border-line mt-4 divide-y divide-[var(--color-line)] rounded-[var(--radius-panel)] border">
-            {list.length === 0 && (
-              <li className="p-4">
-                <Empty icon={Flag} title="Henüz meydan okuma yok">
-                  Onaylı bir ihtiyaç seçip tasarla; taslak burada birikir.
-                </Empty>
-              </li>
-            )}
-            {list.map((c) => {
-              const on = selected?.challenge.id === c.id;
-              return (
-                <li key={c.id}>
-                  <button
-                    onClick={() => void openDetail(c.id)}
-                    className={`pressable w-full px-4 py-3 text-left ${on ? 'bg-accent-soft' : 'hover:bg-paper-2'}`}
-                  >
-                    <div className="text-ink text-sm font-semibold">{c.title}</div>
-                    <div className="text-ink-soft tnum mt-0.5 text-xs">
-                      {STATUS[c.status]} · {c.durationHours} saat
-                      {c.closesAt && c.status === 'open' && ` · kapanış ${tarihSaat(c.closesAt)}`}
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          {list.length > 0 && (
+            <ul className="bg-surface border-line mt-4 divide-y divide-[var(--color-line)] rounded-[var(--radius-panel)] border">
+              {list.map((c) => {
+                const on = selected?.challenge.id === c.id;
+                return (
+                  <li key={c.id}>
+                    <button
+                      onClick={() => void openDetail(c.id)}
+                      className={`pressable w-full px-4 py-3 text-left ${on ? 'bg-accent-soft' : 'hover:bg-paper-2'}`}
+                    >
+                      <div className="text-ink text-sm font-semibold">{c.title}</div>
+                      <div className="text-ink-soft tnum mt-0.5 text-xs">
+                        {STATUS[c.status]} · {c.durationHours} saat
+                        {c.closesAt && c.status === 'open' && ` · kapanış ${tarihSaat(c.closesAt)}`}
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </Enter>
 
         <section>
           {!selected ? (
-            <p className="text-ink-soft text-sm">Bir meydan okuma seç.</p>
+            <NasilIsler bos={list.length === 0} />
           ) : (
             <Panel key={selected.challenge.id} className="pane-enter p-6">
               <div className="flex items-center justify-between">
@@ -314,3 +318,53 @@ const tarihSaat = (d: string) =>
     hour: '2-digit',
     minute: '2-digit',
   });
+
+const AKIS = [
+  {
+    ad: 'Tasarla',
+    metin: 'Onaylı bir kurum ihtiyacından ajan görev metni ve puanlama ölçütü yazar.',
+  },
+  {
+    ad: 'Aç',
+    metin: 'Taslağı okur, açarsın; davet kanıtı zayıf gençlere gider, süre işlemeye başlar.',
+  },
+  { ad: 'Teslim', metin: 'Genç 24–48 saat içinde bağlantı ya da dosyayla teslim eder.' },
+  {
+    ad: 'Değerlendir',
+    metin: 'Ajan ölçüte göre puanlar; sen onaylarsın, geçen teslim karta doğrulanmış kanıt olur.',
+  },
+];
+
+/** Görev seçilmemişken sağ yarı: akışın kendisi (boş "seç" yazısı yerine). */
+function NasilIsler({ bos }: { bos: boolean }) {
+  return (
+    <Panel className="p-6">
+      <div className="flex items-center gap-3">
+        <div className="bg-accent-soft text-accent grid size-11 place-items-center rounded-xl">
+          <Flag size={20} aria-hidden />
+        </div>
+        <div>
+          <h2 className="text-ink text-lg font-bold tracking-[-0.02em]">
+            {bos ? 'Henüz meydan okuma yok' : 'Bir görev seç'}
+          </h2>
+          <p className="text-ink-soft text-sm">
+            GitHub'ı olmayan ya da kanıtı zayıf genç, gerçek bir işle kanıt kazanır.
+          </p>
+        </div>
+      </div>
+      <ol className="mt-6 grid gap-4 sm:grid-cols-2">
+        {AKIS.map((a, i) => (
+          <li key={a.ad} className="bg-paper-2 rounded-[var(--radius-control)] p-4">
+            <div className="flex items-center gap-2">
+              <span className="bg-ink text-surface grid size-6 place-items-center rounded-full text-[11px] font-bold">
+                {i + 1}
+              </span>
+              <span className="text-ink text-sm font-bold">{a.ad}</span>
+            </div>
+            <p className="text-ink-soft mt-2 text-sm leading-relaxed">{a.metin}</p>
+          </li>
+        ))}
+      </ol>
+    </Panel>
+  );
+}

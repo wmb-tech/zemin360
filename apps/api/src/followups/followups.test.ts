@@ -131,6 +131,9 @@ describe('takip (izle)', () => {
     );
     expect(oneri).toBeTruthy();
     expect(oneri.payload.messageTalent).toContain('[link]');
+    // Operatör e-postanın kime gittiğini adıyla görür.
+    expect(oneri.parties.organization).toBe('Lodos Yazılım');
+    expect(oneri.parties.talent).toBeTruthy();
 
     // Onay → iki e-posta, her birinde farklı /takip/ linki; [link] yer tutucusu dolduruldu.
     const onceki = gonderilen.length;

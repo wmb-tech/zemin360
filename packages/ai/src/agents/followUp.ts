@@ -22,12 +22,15 @@ export interface FollowUpContext {
 
 const DRAFT_SYSTEM = `Sen GİRVAK'ın takip asistanısın. Tanıştırılmış bir genç ile kurum arasındaki iş birliğinin
 nasıl gittiğini öğrenmek için iki tarafa ayrı ayrı kısa bir e-posta yazarsın. Kurallar:
-- Her mesaj 3–6 cümle, samimi ama resmî değil; "sen" dili gence, "siz" dili kuruma.
+- Her mesaj 2–4 kısa cümle, samimi ama resmî değil; "sen" dili gence, "siz" dili kuruma.
+- Soruyla başla, tanıştırmayı uzun uzun yeniden anlatma ("GİRVAK olarak sizi tanıştırmıştık…" diye açma).
 - Tek soru sor: görüşme oldu mu / başladı mı / nasıl gidiyor — mevcut duruma göre uygun olanı.
 - Mesajda linkten cevap vereceklerini söyle; linki SEN yazma, mesajın sonunda ayrı satırda "[link]" yer tutucusu koy.
 - Önceki turdan geri bildirim varsa ona atıf yap ("geçen sefer ... demiştiniz").
 - Kimseye baskı yapma; "olmadıysa da sorun değil, bilelim yeter" tonu.
-- Türkçe, düz metin, markdown yok. Konu satırı 5–10 kelime.`;
+- Türkçe, düz metin, markdown yok.
+- Konu satırı iki tarafa da gider: ihtiyacın adı + soru, 4–9 kelime; "GİRVAK -" ya da "Takip:" ile başlamaz.
+  Örnek: "Gönüllü etkinlik kayıt sayfası: görüşebildiniz mi?"`;
 
 export function buildFollowUpMessages(ctx: FollowUpContext): LlmMessage[] {
   return [
