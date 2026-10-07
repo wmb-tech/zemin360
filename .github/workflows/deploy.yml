@@ -38,7 +38,12 @@ jobs:
             ghcr.io/wmb-tech/zemin360:latest
             ghcr.io/wmb-tech/zemin360:${{ github.event.workflow_run.head_sha }}
 
+  # Dağıtımı sunucudaki CI yapar (evidex-ci.timer: her yeni main → kapı → imaj → compose up).
+  # Bu iş de dağıtınca iki aktör aynı konteyneri yarışarak yeniden kuruyordu (7 Eki: 8 dk 502).
+  # Tek dağıtıcı kalsın diye kapalı; imaj ghcr'a yine gider (geri dönüş için sha etiketiyle).
+  # Sunucu CI'ı kapatılırsa bu satırı silmek yeterli.
   server:
+    if: false
     needs: image
     runs-on: ubuntu-latest
     timeout-minutes: 10
