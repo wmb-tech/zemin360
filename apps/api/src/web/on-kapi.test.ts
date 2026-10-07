@@ -32,8 +32,12 @@ describe('ön kapı', () => {
     const { app, db } = testApp({ webDist: dist });
     await seedDemoNetwork(db);
     const html = await (await app.request('/k/demo-elif')).text();
-    expect(html).toContain('og:title" content="Elif Karaca · Mobil uygulama geliştirici"');
-    expect(html).toContain('<title>Elif Karaca · Mobil uygulama geliştirici · Evidex</title>');
+    expect(html).toContain(
+      'og:title" content="Elif Karaca · Mobil uygulama geliştirici (örnek kart)"',
+    );
+    expect(html).toContain(
+      '<title>Elif Karaca · Mobil uygulama geliştirici (örnek kart) · Evidex</title>',
+    );
     expect(html).toContain('og:type" content="profile"');
     expect(html).toContain('SPA');
     const kapali = await (await app.request('/k/yok-boyle-kart')).text();

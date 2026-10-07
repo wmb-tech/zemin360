@@ -67,7 +67,7 @@ düzeltme / red), ajan başına token ve tahmini maliyet (bir kart yazımı < 5 
 kartlar, haftalık kanıt yenileme. "AI süs değil: her çağrı kayıtlı, her öneri insan kararıyla
 ölçülüyor." *(AI ölçülebilir, canlı tut 04)*
 
-**4:45 — Kapanış.** GitHub: 74 test, CI kırmızıyken yayın yok, 7 ADR, devir + 4 aylık yol
+**4:45 — Kapanış.** GitHub: 75 test, CI kırmızıyken yayın yok, 7 ADR, devir + 4 aylık yol
 haritası + eğitim planı (`docs/04`). "İlk ay GİRVAK'ın masasında pilot; dört ayın sonunda sizin
 ekibinizin işlettiği bir ağ."
 

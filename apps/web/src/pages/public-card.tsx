@@ -79,6 +79,12 @@ export function PublicCardPage() {
       <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_260px]">
         <div>
           <Enter i={0} as="header">
+            {/* Demo ağının kartları kurgusal kişilerdir; gerçekmiş gibi dolaşmasın. */}
+            {slug.startsWith('demo-') && (
+              <p className="bg-referenced-soft text-referenced mb-3 inline-block rounded-[var(--radius-control)] px-2.5 py-1 text-xs font-bold">
+                Örnek kart · kurgusal kişi, sunum ve eğitim için
+              </p>
+            )}
             <h1 className="text-ink text-[32px] leading-tight font-extrabold tracking-[-0.035em] md:text-[40px]">
               {card.name}
             </h1>

@@ -145,7 +145,7 @@ token. GitHub App installation runs the same way (`/api/auth/github/install?clie
 
 ## Quality gates
 
-`bun run check` = lint + format + typecheck + tests (74 tests: API end-to-end on a real
+`bun run check` = lint + format + typecheck + tests (75 tests: API end-to-end on a real
 Postgres, agents, evidence providers). Husky runs it before every commit; CI runs it on
 every push with a Postgres service. Conventions:
 [`docs/03-gelistirme-kurallari.md`](docs/03-gelistirme-kurallari.md).

@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, like, notLike } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import {
+  organizationMembers,
   approvalQueue,
   cardClaims,
   matches,
@@ -14,6 +15,7 @@ import type { MatchReasoning, NeedCard } from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
 import { skillsForTalent } from '../talent/skills';
 import { AppError } from '../lib/response';
+import { DEMO_DOMAIN } from '../demo/network';
 
 const MAX_CANDIDATES = 15;
 
@@ -24,7 +26,7 @@ const MAX_CANDIDATES = 15;
  * ⚠ Kurum, operatör onaylayana kadar hiçbir adayı görmez (KARAR-09).
  */
 export function createMatchingService(db: Db, llm: LlmProvider) {
-  async function loadCandidates(need: NeedCard): Promise<CandidateCard[]> {
+  async function loadCandidates(need: NeedCard, demoKurum: boolean): Promise<CandidateCard[]> {
     const satirlar = await db
       .select({
         talentId: talents.id,
@@ -35,7 +37,13 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
       })
       .from(talents)
       .innerJoin(users, eq(users.id, talents.userId))
-      .where(eq(talents.cardStatus, 'approved'));
+      .where(
+        // Gerçek bir kurumun ihtiyacına kurgusal demo genci aday gösterilmez (kurum var olmayan
+        // birini tanımak ister). Demo kurumu gerçek gençleri de görebilir: sunumda gerçek kart.
+        demoKurum
+          ? eq(talents.cardStatus, 'approved')
+          : and(eq(talents.cardStatus, 'approved'), notLike(users.email, `%${DEMO_DOMAIN}`)),
+      );
     if (satirlar.length === 0) return [];
 
     const iddialar = await db
@@ -91,7 +99,18 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         throw new AppError('need_not_approved', 'İhtiyaç kartı onaylı değil', 409);
       const kart = need.card as NeedCard;
 
-      const adaylar = await loadCandidates(kart);
+      const [demoUye] = await db
+        .select({ id: users.id })
+        .from(organizationMembers)
+        .innerJoin(users, eq(users.id, organizationMembers.userId))
+        .where(
+          and(
+            eq(organizationMembers.organizationId, need.organizationId),
+            like(users.email, `%${DEMO_DOMAIN}`),
+          ),
+        )
+        .limit(1);
+      const adaylar = await loadCandidates(kart, Boolean(demoUye));
       const [kurum] = await db
         .select({ city: organizations.city })
         .from(organizations)

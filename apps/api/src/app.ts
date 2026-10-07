@@ -303,7 +303,7 @@ export function createApp(deps: AppDeps) {
     }
     const kac = k.claims.length;
     const dogrulanmis = k.claims.filter((x) => x.level === 'verified').length;
-    const baslik = `${k.name}${k.headline ? ` · ${k.headline}` : ''}`;
+    const baslik = `${k.name}${k.headline ? ` · ${k.headline}` : ''}${slug.startsWith('demo-') ? ' (örnek kart)' : ''}`;
     const aciklama = `Kanıta dayalı yetkinlik kartı: ${kac} iddia${dogrulanmis ? `, ${dogrulanmis} tanesi sahipliği doğrulanmış kaynaktan` : ''}. Evidex · GİRVAK gençlik ağı.`;
     const kacis = (v: string) =>
       v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
