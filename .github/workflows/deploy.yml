@@ -7,6 +7,11 @@ on:
     types: [completed]
     branches: [main]
 
+# Üst üste iki deploy aynı konteyneri yeniden kurmasın (yarışta biri ötekinin konteynerini siler).
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
   image:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -54,8 +59,17 @@ jobs:
           script: |
             set -e
             # Sunucuda deploy kullanıcısının sudo yetkisi yalnız bu compose dosyasıyla sınırlı
-            sudo /usr/bin/docker compose -f /opt/evidex/docker-compose.yml pull api
-            sudo /usr/bin/docker compose -f /opt/evidex/docker-compose.yml up -d
+            # Sunucuda başka bir aktör (eski CI zamanlayıcısı) aynı anda yeniden kurarsa çekme ya da
+            # yeniden kurma "No such container" / "commit failed" ile düşebilir; 7 Eki'de site bu
+            # yüzden 8 dk kapalı kaldı. Üç deneme: biri tutar, konteyner açıkta kalmaz.
+            for t in 1 2 3; do
+              sudo /usr/bin/docker compose -f /opt/evidex/docker-compose.yml pull api && break
+              echo "pull denemesi $t düştü"; sleep 15
+            done
+            for t in 1 2 3; do
+              sudo /usr/bin/docker compose -f /opt/evidex/docker-compose.yml up -d && break
+              echo "up denemesi $t düştü"; sleep 15
+            done
             sudo /usr/bin/docker image prune -f
             for i in $(seq 1 30); do
               if curl -sf http://127.0.0.1:3100/api/health >/dev/null 2>&1 || sudo /usr/bin/docker logs evidex-api 2>&1 | grep -q "evidex-api :3100"; then echo "api ayakta"; exit 0; fi
