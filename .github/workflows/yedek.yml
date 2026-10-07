@@ -1,0 +1,48 @@
+name: yedek
+# Sunucu dışı yedek: sunucudaki gece yedeğinin (03:00, backup.sh) en yenisi her gün çekilir,
+# AES-256 ile şifrelenip 30 gün saklanan bir artifact olur. Repo herkese açık olduğu için yedek
+# şifresiz yüklenmez. Şifre: BACKUP_PASSPHRASE sırrı (kopyası Hasan'ın Anahtar Zinciri'nde).
+# Açmak: gpg --batch --passphrase "<şifre>" -d evidex-yedek.sql.gz.gpg > evidex.sql.gz
+on:
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: yedek
+  cancel-in-progress: false
+
+jobs:
+  cek:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Son yedeği çek
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          KULLANICI: ${{ secrets.DEPLOY_USER }}
+          ANAHTAR: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s\n' "$ANAHTAR" > anahtar
+          ssh -i anahtar -o StrictHostKeyChecking=accept-new -o BatchMode=yes "$KULLANICI@$HOST" \
+            'f=$(ls -t /opt/evidex/backups/*.sql.gz | head -n 1); echo "$f" >&2; cat "$f"' > yedek.sql.gz
+          rm -f anahtar
+          gzip -t yedek.sql.gz
+          echo "boyut: $(wc -c < yedek.sql.gz) bayt"
+      - name: Şifrele
+        env:
+          SIFRE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$SIFRE"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$SIFRE" \
+            --symmetric --cipher-algo AES256 -o evidex-yedek.sql.gz.gpg yedek.sql.gz
+          rm -f yedek.sql.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evidex-yedek-${{ github.run_id }}
+          path: evidex-yedek.sql.gz.gpg
+          retention-days: 30
+          if-no-files-found: error
