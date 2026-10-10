@@ -17,7 +17,7 @@ import { groupWork, MAX_CLAIMS, runCardDrafter, type LlmProvider } from '@evidex
 import type { DocumentEvidence, GithubEvidence, LiveUrlEvidence } from '@evidex/evidence';
 import { newRawToken } from '../auth/tokens';
 import { assertPublicUrl } from '@evidex/evidence';
-import { MatchReasoning } from '@evidex/shared';
+import { MatchReasoning, type TalentPreferences } from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
 import { AppError } from '../lib/response';
 import { skillsForTalent } from './skills';
@@ -296,11 +296,14 @@ export function createTalentService(
           strength: matches.strength,
           reasoning: matches.reasoning,
           introducedAt: matches.introducedAt,
+          introductionRequestedAt: matches.introductionRequestedAt,
+          talentConsent: matches.talentConsent,
           needTitle: sql<string | null>`${needs.card}->>'title'`,
           collaborationType: sql<string | null>`${needs.card}->>'collaborationType'`,
           orgName: organizations.name,
           orgCity: organizations.city,
           status: collaborations.status,
+          shortlistedAt: matches.shortlistedAt,
           shortlistPublishedAt: needs.shortlistPublishedAt,
         })
         .from(matches)
@@ -324,7 +327,7 @@ export function createTalentService(
           lastSignalAt: talent.lastSignalAt,
         },
         matches: eslesmeler
-          .filter((m) => m.shortlistPublishedAt)
+          .filter((m) => m.shortlistedAt || m.introducedAt || m.introductionRequestedAt)
           .map((m) => {
             // Gerekçe ajanın kaydettiği MatchReasoning'den; ilk "uyuyor" ve ilk "eksik" — uydurma yok.
             // ⚠ Kayıtlı gerekçe `strength` taşımaz (ayrı sütunda); tam şemayla doğrulamak her
@@ -339,6 +342,8 @@ export function createTalentService(
               organization: m.introducedAt ? m.orgName : null,
               city: m.orgCity,
               introduced: Boolean(m.introducedAt),
+              consentRequested: Boolean(m.introductionRequestedAt),
+              talentConsent: m.talentConsent,
               collaborationStatus: m.status ?? null,
               fit: r.success ? (r.data.fits[0]?.text ?? null) : null,
               gap: r.success ? (r.data.gaps[0] ?? null) : null,
@@ -605,6 +610,20 @@ export function createTalentService(
         .returning({ id: cardClaims.id });
       if (!silinen.length) throw new AppError('not_found', 'İddia bulunamadı', 404);
       await kartiKontrolEt(talent.id);
+    },
+
+    async preferences(userId: string) {
+      const { talent } = await talentOf(userId);
+      return talent.preferences;
+    },
+
+    async savePreferences(userId: string, preferences: TalentPreferences) {
+      const { talent } = await talentOf(userId);
+      await db
+        .update(talents)
+        .set({ preferences, updatedAt: new Date() })
+        .where(eq(talents.id, talent.id));
+      return preferences;
     },
 
     async updateProfile(

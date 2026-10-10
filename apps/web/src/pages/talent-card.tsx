@@ -22,6 +22,7 @@ import {
   Eyebrow,
   Input,
   LevelBadge,
+  EvidenceGuide,
   LinkButton,
   Panel,
   IkiAdim,
@@ -307,6 +308,7 @@ export function TalentCardPage() {
         )}
       </Enter>
 
+      <EvidenceGuide />
       {params.get('installed') && (
         <p
           className="bg-verified-soft text-verified mt-4 rounded-[var(--radius-control)] px-4 py-3 text-sm font-semibold"

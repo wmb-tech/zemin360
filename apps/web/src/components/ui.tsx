@@ -42,7 +42,7 @@ export function Button({
       {...rest}
       disabled={disabled || pending}
       aria-busy={pending || undefined}
-      className={`pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] font-semibold whitespace-nowrap disabled:opacity-50 ${
+      className={`pressable inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] font-semibold whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 ${
         size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2.5 text-sm'
       } ${BTN[variant]} ${className}`}
     >
@@ -91,7 +91,7 @@ export function Field({
 }
 
 const CONTROL =
-  'border-line bg-surface text-ink placeholder:text-ink-soft/70 focus:border-accent w-full rounded-[var(--radius-control)] border px-3.5 py-2.5 text-base outline-none';
+  'border-line bg-surface text-ink placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/10 hover:border-ink-soft/40 w-full min-w-0 rounded-[var(--radius-control)] border px-3.5 py-2.5 text-base outline-none transition-colors disabled:bg-paper-2 disabled:cursor-not-allowed';
 export function Input(p: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...p} className={`${CONTROL} ${p.className ?? ''}`} />;
 }
@@ -103,17 +103,17 @@ export function Textarea(p: TextareaHTMLAttributes<HTMLTextAreaElement>) {
 export const LEVEL: Record<EvidenceLevel, { label: string; note: string; cls: string }> = {
   verified: {
     label: 'Doğrulanmış',
-    note: 'Sahipliği makineyle doğrulanmış kaynak',
+    note: 'Kaynakla bağın GitHub katkısı veya site kontrolüyle doğrulandı. İddianın tamamının ya da yetkinlik düzeyinin bağımsız denetlendiği anlamına gelmez.',
     cls: 'bg-verified-soft text-verified',
   },
   documented: {
     label: 'Belgeli',
-    note: 'Belgeyle destekli',
+    note: 'Yüklenen PDF içeriği iddiayı destekliyor. Belgeyi düzenleyen kurum ve belgenin özgünlüğü ayrıca doğrulanmadı.',
     cls: 'bg-documented-soft text-documented',
   },
   referenced: {
     label: 'Referanslı',
-    note: 'Platformda izlenen iş birliğinden kurum değerlendirmesi',
+    note: 'Platformda izlenen iş birliği sonunda GİRVAK onaylı kurumun değerlendirmesi. Bağımsız bir yetkinlik sınavı değil.',
     cls: 'bg-referenced-soft text-referenced',
   },
   declared: {
@@ -131,6 +131,28 @@ export function LevelBadge({ level }: { level: EvidenceLevel }) {
     >
       {l.label}
     </span>
+  );
+}
+
+export function EvidenceGuide() {
+  return (
+    <details className="border-line text-ink-soft mt-6 border-t pt-4 text-sm">
+      <summary className="text-ink min-h-11 cursor-pointer font-semibold">
+        Kanıt seviyeleri ne anlama geliyor?
+      </summary>
+      <p className="mt-2">
+        Kart metnini yapay zekâ taslaklar, kişi onaylar. Bir kaynakla bağın doğrulanması, metindeki
+        her cümlenin bağımsız denetlendiği anlamına gelmez.
+      </p>
+      <dl className="mt-4 space-y-4">
+        {Object.entries(LEVEL).map(([key, level]) => (
+          <div key={key}>
+            <dt className="text-ink font-semibold">{level.label}</dt>
+            <dd className="mt-1">{level.note}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   );
 }
 
@@ -207,16 +229,18 @@ export function Empty({
   bekliyor?: boolean;
 }) {
   return (
-    <div className="bg-surface border-line flex gap-4 rounded-[var(--radius-panel)] border p-5 md:p-6">
-      <div className="bg-accent-soft text-accent relative grid size-11 shrink-0 place-items-center rounded-xl">
+    <div className="bg-surface border-line flex flex-col items-start gap-4 rounded-[var(--radius-panel)] border px-6 py-8 sm:flex-row sm:py-7">
+      <div className="bg-paper-2 text-ink-soft relative grid size-11 shrink-0 place-items-center rounded-xl">
         <Icon size={20} aria-hidden />
         {bekliyor && (
           <span className="bg-accent absolute -top-0.5 -right-0.5 size-2.5 animate-pulse rounded-full motion-reduce:animate-none" />
         )}
       </div>
       <div className="min-w-0">
-        <p className="text-ink font-semibold">{title}</p>
-        {children && <p className="text-ink-soft mt-1 max-w-prose text-sm">{children}</p>}
+        <p className="text-ink text-base font-bold">{title}</p>
+        {children && (
+          <p className="text-ink-soft mt-1.5 max-w-prose text-sm leading-relaxed">{children}</p>
+        )}
         {action && <div className="mt-4">{action}</div>}
       </div>
     </div>
@@ -238,7 +262,9 @@ export function ErrorNote({ children }: { children: ReactNode }) {
 /** Beyaz çalışma yüzeyi: gölge yok, 1 px çizgi. */
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`bg-surface border-line rounded-[var(--radius-panel)] border ${className}`}>
+    <div
+      className={`work-panel bg-surface border-line rounded-[var(--radius-panel)] border ${className}`}
+    >
       {children}
     </div>
   );
@@ -326,7 +352,10 @@ export function Skills({ skills, compact = false }: { skills: SkillRow[]; compac
   return (
     <ul className={`grid gap-x-6 gap-y-1.5 ${compact ? '' : 'sm:grid-cols-2'}`}>
       {skills.map((s) => (
-        <li key={s.name} className="flex items-baseline justify-between gap-3 text-sm">
+        <li
+          key={s.name}
+          className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-1 text-sm"
+        >
           <span className="text-ink font-semibold">{s.name}</span>
           <span className="text-ink-soft tnum shrink-0 text-xs">
             {s.repos} repo

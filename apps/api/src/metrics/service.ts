@@ -36,7 +36,9 @@ export function createMetricsService(db: Db) {
           select count(*)::int as needs_with_intro,
                  avg(extract(epoch from (m.first_intro - n.card_approved_at)) / 3600)::float as avg_hours
           from needs n
-          join (select need_id, min(introduced_at) as first_intro from matches where introduced_at is not null group by need_id) m
+          join (select m.need_id, min(case when d.id is null then m.introduced_at else d.sent_at end) as first_intro
+                from matches m left join introduction_deliveries d on d.match_id = m.id
+                where m.introduced_at is not null and (d.id is null or d.status = 'sent') group by m.need_id) m
             on m.need_id = n.id
           -- Tanıştırma kart onayından önce görünüyorsa tarih sırası bozuktur (elle düzeltilmiş
           -- kayıt); negatif süre üretmek yerine dışarıda bırakılır (docs/redesign/04 §API notes).
@@ -46,16 +48,21 @@ export function createMetricsService(db: Db) {
       // 4. İlk beşten görüşmeye dönüş
       const [donus] = (
         await db.execute(sql`
-          select count(*)::int as top5_introduced,
-                 count(*) filter (where c.status in ('meeting','started','ongoing','completed'))::int as reached_meeting
-          from matches m
+          select count(*)::int as top5_shortlisted,
+                 count(*) filter (where m.introduced_at is not null and (d.id is null or d.status = 'sent'))::int as top5_introduced,
+                 count(*) filter (where c.status in ('meeting','started','ongoing','completed') and (d.id is null or d.status = 'sent'))::int as reached_meeting
+          from shortlist_entries s
+          left join matches m on m.id = s.match_id
           left join collaborations c on c.match_id = m.id
-          where m.rank <= 5 and m.introduced_at is not null`)
-      ).rows as { top5_introduced: number; reached_meeting: number }[];
+          left join introduction_deliveries d on d.match_id = m.id
+          where s.rank <= 5`)
+      ).rows as { top5_shortlisted: number; top5_introduced: number; reached_meeting: number }[];
 
       // 5. Ajan önerilerinin akıbeti
       const kuyruk = (
-        await db.execute(sql`select status, count(*)::int as n from approval_queue group by status`)
+        await db.execute(
+          sql`select q.status, count(*)::int as n from approval_queue q left join users u on u.id = q.decided_by where q.status = 'proposed' or u.role = 'operator' group by q.status`,
+        )
       ).rows as { status: string; n: number }[];
       const q = Object.fromEntries(kuyruk.map((k) => [k.status, k.n])) as Record<string, number>;
 
@@ -63,6 +70,7 @@ export function createMetricsService(db: Db) {
         await db.execute(
           sql`select agent,
                      count(*)::int as runs,
+                     string_agg(distinct model, ' / ' order by model) as models,
                      avg(duration_ms)::float as avg_ms,
                      sum(coalesce(input_tokens, 0))::int as in_tokens,
                      sum(coalesce(output_tokens, 0))::int as out_tokens,
@@ -71,6 +79,7 @@ export function createMetricsService(db: Db) {
         )
       ).rows as {
         agent: string;
+        models: string;
         runs: number;
         avg_ms: number | null;
         in_tokens: number;
@@ -97,6 +106,7 @@ export function createMetricsService(db: Db) {
           avgHours: sure?.avg_hours ?? null,
         },
         topFiveConversion: {
+          shortlisted: donus?.top5_shortlisted ?? 0,
           introduced: donus?.top5_introduced ?? 0,
           reachedMeeting: donus?.reached_meeting ?? 0,
         },
@@ -111,7 +121,10 @@ export function createMetricsService(db: Db) {
           totalUsd: ajanlar.reduce((t, a) => t + (a.cost_usd ?? 0), 0),
           last30dUsd: son30?.cost_usd ?? 0,
           last30dRuns: son30?.runs ?? 0,
-          model: ajanlar.length > 0 ? 'gemini-2.5-pro' : null,
+          model:
+            ajanlar.length > 0
+              ? [...new Set(ajanlar.flatMap((agent) => agent.models.split(' / ')))].join(' / ')
+              : null,
         },
       };
     },

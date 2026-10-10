@@ -56,6 +56,15 @@ export type ApprovalStatus = z.infer<typeof ApprovalStatus>;
 export const WorkMode = z.enum(['remote', 'onsite', 'hybrid']);
 export type WorkMode = z.infer<typeof WorkMode>;
 
+export const TalentPreferences = z.object({
+  availability: z.enum(['open', 'limited', 'unavailable']).default('open'),
+  collaborationTypes: z.array(CollaborationType).max(7).default([]),
+  workModes: z.array(WorkMode).max(3).default([]),
+  maxDurationWeeks: z.number().int().min(1).max(260).nullable().default(null),
+  weeklyHours: z.number().int().min(1).max(80).nullable().default(null),
+});
+export type TalentPreferences = z.infer<typeof TalentPreferences>;
+
 /** Kartta görünen tek bir iddia. Kaynağı olmayan iddia yalnız `declared` olabilir. */
 export const CardClaim = z.object({
   id: z.string().uuid(),

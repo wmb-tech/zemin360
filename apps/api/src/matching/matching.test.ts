@@ -193,6 +193,19 @@ describe('eşleştir + onay kuyruğu', () => {
     ).data;
     expect(adaylar.candidates[0].introRequested).toBe(true);
     const oneri = { id: (await istek.json()).data.queued as string };
+    expect(
+      (
+        await app.request(
+          `/api/operator/queue/${oneri.id}`,
+          json({ decision: 'approve' }, opCookie),
+        )
+      ).status,
+    ).toBe(409);
+    const talentCookie = await oturum(app, gonderilen, 'ayse@example.com');
+    expect(
+      (await app.request(`/api/introductions/${matchId}`, json({ accepted: true }, talentCookie)))
+        .status,
+    ).toBe(200);
     const oncekiMail = gonderilen.length;
     expect(
       (

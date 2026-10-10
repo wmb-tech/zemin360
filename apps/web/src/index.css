@@ -9,12 +9,12 @@
 @theme {
   --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
 
-  --color-ink: oklch(0.272 0.045 274);
-  --color-ink-soft: oklch(0.499 0.034 273);
-  --color-paper: oklch(0.978 0.011 281);
+  --color-ink: oklch(0.265 0.025 276);
+  --color-ink-soft: oklch(0.49 0.02 276);
+  --color-paper: oklch(0.982 0.005 280);
   --color-surface: oklch(0.998 0.002 280);
-  --color-paper-2: oklch(0.958 0.02 280);
-  --color-line: oklch(0.912 0.021 277);
+  --color-paper-2: oklch(0.966 0.01 280);
+  --color-line: oklch(0.905 0.01 277);
   --color-accent: oklch(0.503 0.214 278);
   --color-accent-strong: oklch(0.428 0.197 277);
   --color-accent-soft: oklch(0.958 0.02 280);
@@ -31,17 +31,18 @@
   --color-negative-soft: oklch(0.97 0.015 8);
 
   /* Köşe dili: kontrol / panel / öne çıkan tek alan */
-  --radius-control: 10px;
-  --radius-panel: 16px;
-  --radius-feature: 24px;
+  --radius-control: 9px;
+  --radius-panel: 14px;
+  --radius-feature: 20px;
+  --shadow-panel: 0 2px 4px oklch(0.265 0.025 276 / 0.025);
 
   /* Hareket tokenleri (docs/redesign/03-motion-system.md) */
   --duration-instant: 90ms;
   --duration-quick: 160ms;
   --duration-standard: 240ms;
   --duration-emphasis: 360ms;
-  --duration-page: 520ms;
-  --duration-stagger: 55ms;
+  --duration-page: 240ms;
+  --duration-stagger: 30ms;
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-state: cubic-bezier(0.65, 0, 0.35, 1);
@@ -55,6 +56,42 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: 'ss01';
+  line-height: 1.6;
+}
+
+.workspace main h1 {
+  text-wrap: balance;
+}
+.workspace main header > p,
+.workspace main header > div > p {
+  max-width: 65ch;
+}
+.work-panel {
+  box-shadow: var(--shadow-panel);
+}
+.work-panel .work-panel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 60;
+  transform: translateY(-160%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+.workspace .region-enter {
+  animation: none;
+}
+.workspace .pane-enter {
+  animation-duration: var(--duration-standard);
+}
+.workspace input[type='checkbox'] {
+  accent-color: var(--color-accent);
 }
 
 /* Sayısal sütunlar (tarih, sayı) hizalı kalsın */
@@ -63,10 +100,12 @@ body {
 }
 
 /* Odak: anında, kalıcı, animasyonsuz */
-:where(a, button, input, textarea, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: 6px;
+@layer base {
+  :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
 }
 
 /*
@@ -126,7 +165,7 @@ body {
     color var(--duration-quick) var(--ease-state);
 }
 .pressable:active {
-  transform: scale(0.98);
+  transform: scale(0.99);
 }
 
 /* Açılır bölüm: yükseklik değil grid satırı */

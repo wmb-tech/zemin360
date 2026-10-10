@@ -97,17 +97,28 @@ export function NeedsListPage() {
     }
   }
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <Enter i={0} as="section">
+    <div className="grid gap-7 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+      <header className="xl:col-span-2">
+        <Eyebrow>Kurum çalışma alanı</Eyebrow>
         <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
-          Yeni ihtiyaç
+          İhtiyaçların, doğru insanlarla buluşsun.
         </h1>
         <p className="text-ink-soft mt-2 max-w-[60ch]">
-          İlan yazma. Derdini anlat; birkaç soru sorup net bir ihtiyaç kartına çevirelim. Adaylar
-          gerekçesiyle gelir, tanıştırmayı GİRVAK yapar.
+          İhtiyacını birlikte netleştirelim. Kanıtlarıyla uygun adayları incele, tanıştırmayı
+          GİRVAK'a bırak.
+        </p>
+      </header>
+      <Enter
+        i={0}
+        as="section"
+        className="work-panel bg-surface border-line rounded-[var(--radius-panel)] border p-6 md:p-7"
+      >
+        <h2 className="text-ink text-xl font-bold tracking-[-0.02em]">Yeni ihtiyaç oluştur</h2>
+        <p className="text-ink-soft mt-2 text-sm">
+          Teknik bir ilan hazırlamana gerek yok. Çözmek istediğin problemi anlatman yeterli.
         </p>
         <form onSubmit={(e) => void create(e)} className="mt-6">
-          <FormField label="Ne lazım?" hint="Kendi cümlelerinle; ajan gerisini sorar.">
+          <FormField label="Neyi çözmek istiyorsun?" hint="Beklediğin sonucu ve varsa süreyi yaz.">
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -126,7 +137,7 @@ export function NeedsListPage() {
               pendingText="Başlıyor…"
               disabled={text.trim().length < 10}
             >
-              Başla
+              İhtiyacı netleştir
             </Button>
             {text.trim().length > 0 && text.trim().length < 10 && (
               <span className="text-ink-soft ml-3 text-sm">Biraz daha anlat (en az 10 harf).</span>
@@ -134,8 +145,11 @@ export function NeedsListPage() {
           </div>
         </form>
       </Enter>
-      <Enter i={1} as="section">
-        <h2 className="text-ink-soft text-xs font-bold tracking-wide uppercase">İhtiyaçlarım</h2>
+      <Enter i={1} as="section" className="min-w-0">
+        <div className="border-line flex items-center justify-between border-b pb-4">
+          <h2 className="text-ink text-lg font-bold">İhtiyaçlarım</h2>
+          {needs && <span className="text-ink-soft text-sm">{needs.length} ihtiyaç</span>}
+        </div>
         {needs === null ? (
           <div className="mt-3">
             <Skeleton rows={3} />
@@ -143,13 +157,14 @@ export function NeedsListPage() {
         ) : needs.length === 0 ? (
           <div className="mt-3">
             <Empty icon={ListChecks} title="Henüz ihtiyaç yok">
-              İlkini soldan başlat; kart onaylanınca eşleştirme kendiliğinden koşar.
+              Yeni ihtiyaç formuyla başla. Kartını onaylayınca GİRVAK uygun adayları değerlendirmeye
+              alır.
             </Empty>
           </div>
         ) : (
           <ul className="mt-3 divide-y divide-[var(--color-line)]">
             {needs.map((n) => (
-              <li key={n.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
+              <li key={n.id} className="flex flex-col items-start gap-3 py-5">
                 <Link
                   to={`/ihtiyaclar/${n.id}`}
                   className="text-ink min-w-0 flex-1 font-semibold hover:underline"

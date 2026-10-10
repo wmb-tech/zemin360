@@ -26,3 +26,8 @@ Karar verilmeden varsayım yapılmaz; yapılırsa "varsayım" olarak yazılır. 
 - V-01: Demo ve UI dili Türkçe; kod, API, DB İngilizce; yerel değişken/yorum Türkçe (ekip tarzı).
 - V-02: Tek kiracı (GİRVAK); çok kiracılılık yol haritasında.
 - V-03: GİRVAK'ın bugünkü süreci form + tablo + e-posta (21 Eyl'de teyit edilecek).
+
+
+## Product completion update — 10 October 2026
+
+The web implementation now extends KARAR-07 with email-based talent signup and KARAR-09 with mutual introduction consent before operator approval. Matching includes declared work preferences. See [Product completion](09-product-completion.md) for the updated behavior, migration requirements, measurement semantics, and validation scope. Earlier descriptions of GitHub-only talent entry are superseded for the web application.

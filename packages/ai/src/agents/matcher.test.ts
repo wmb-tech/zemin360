@@ -68,6 +68,29 @@ describe('matcher', () => {
     expect(results[0]!.fits[0]!.claimIds).toEqual([K1]);
   });
 
+  it('does not attach another candidate’s claim to a match', async () => {
+    const second = {
+      ...adaylar[0]!,
+      talentId: SAHTE_ADAY,
+      claims: [{ ...adaylar[0]!.claims[0]!, id: SAHTE_IDDIA }],
+    };
+    const llm = createFakeProvider({
+      value: {
+        results: [
+          {
+            talentId: A,
+            strength: 'possible',
+            fits: [{ text: 'Borrowed evidence', claimIds: [SAHTE_IDDIA] }],
+            gaps: [],
+            summaryForOrganization: 'Needs clarification.',
+          },
+        ],
+      },
+    });
+    const { results } = await runMatcher(llm, need, [...adaylar, second]);
+    expect(results[0]!.fits).toEqual([]);
+  });
+
   it('konum: kurum şehri ve aday şehri istem metnine girer, kural yerinde/hibritle sınırlı', () => {
     const mesajlar = buildMatchMessages({ ...need, workMode: 'hybrid' }, adaylar, 'İzmir');
     const kullanici = mesajlar.find((m) => m.role === 'user')!.content;

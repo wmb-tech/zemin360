@@ -5,6 +5,7 @@ import { useTitle } from '../lib/title';
 import { Enter } from '../components/motion';
 import { HesapSil } from '../components/hesap-sil';
 import { Panel } from '../components/ui';
+import { WorkPreferences } from '../components/work-preferences';
 
 /**
  * Gencin hesabı: kim olarak girdiği, GitHub bağlantısı, verisi ve hesabı silme. Durum sayfası
@@ -52,6 +53,7 @@ export function AccountPage() {
           </Satir>
         </Panel>
       </Enter>
+      <WorkPreferences />
       <HesapSil rol="talent" />
     </div>
   );

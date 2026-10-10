@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { TalentPreferences } from '@evidex/shared';
 import { getCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
 import { withRole } from '../auth/middleware';
@@ -38,6 +39,11 @@ export function talentRoutes(env: Env, auth: AuthService, svc: TalentService) {
     new Hono()
       .use('*', withRole(auth, 'talent'))
       .get('/overview', async (c) => ok(c, await svc.overview(c.get('user').id)))
+      .get('/preferences', async (c) => ok(c, await svc.preferences(c.get('user').id)))
+      .put('/preferences', async (c) => {
+        const body = await parse(TalentPreferences, await c.req.json().catch(() => ({})));
+        return ok(c, await svc.savePreferences(c.get('user').id, body));
+      })
       .get('/card', async (c) => ok(c, await svc.card(c.get('user').id)))
       .patch('/card', async (c) => {
         const body = await parse(ProfilePatch, await c.req.json().catch(() => ({})));

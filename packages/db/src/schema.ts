@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { TalentPreferences } from '@evidex/shared';
 import {
   boolean,
   date,
@@ -99,6 +100,7 @@ export const sessions = pgTable('sessions', {
 export const loginTokens = pgTable('login_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull(),
+  signupRole: text('signup_role').default('organization').notNull(),
   tokenHash: text('token_hash').notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
@@ -117,6 +119,16 @@ export const talents = pgTable('talents', {
   story: text('story'), // kanıttan otomatik yazılan hikâye bloğu; kişi düzenler
   city: text('city'),
   birthYear: integer('birth_year'),
+  preferences: jsonb('preferences')
+    .$type<TalentPreferences>()
+    .default({
+      availability: 'open',
+      collaborationTypes: [],
+      workModes: [],
+      maxDurationWeeks: null,
+      weeklyHours: null,
+    })
+    .notNull(),
   cardStatus: cardStatusEnum('card_status').default('draft').notNull(),
   cardApprovedAt: timestamp('card_approved_at', { withTimezone: true }),
   publicSlug: text('public_slug').unique(), // paylaşılabilir kart (keşfet)
@@ -272,6 +284,10 @@ export const matches = pgTable(
     reasoning: jsonb('reasoning').$type<Record<string, unknown>>().notNull(), // MatchReasoning
     rank: integer('rank').notNull(),
     introducedAt: timestamp('introduced_at', { withTimezone: true }),
+    shortlistedAt: timestamp('shortlisted_at', { withTimezone: true }),
+    introductionRequestedAt: timestamp('introduction_requested_at', { withTimezone: true }),
+    talentConsent: text('talent_consent'),
+    organizationConsent: text('organization_consent'),
     ...timestamps,
   },
   (t) => [index('matches_need_idx').on(t.needId), index('matches_talent_idx').on(t.talentId)],
@@ -291,6 +307,23 @@ export const collaborations = pgTable('collaborations', {
   organizationFeedback: text('organization_feedback'),
   ...timestamps,
 });
+
+export const shortlistEntries = pgTable(
+  'shortlist_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    needId: uuid('need_id')
+      .notNull()
+      .references(() => needs.id, { onDelete: 'cascade' }),
+    talentId: uuid('talent_id')
+      .notNull()
+      .references(() => talents.id, { onDelete: 'cascade' }),
+    matchId: uuid('match_id').references(() => matches.id, { onDelete: 'set null' }),
+    rank: integer('rank').notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex('shortlist_entries_need_talent_uq').on(table.needId, table.talentId)],
+);
 
 export const checkinSideEnum = pgEnum('checkin_side', ['talent', 'organization']);
 
@@ -357,6 +390,23 @@ export const approvalQueue = pgTable(
   },
   (t) => [index('approval_queue_status_idx').on(t.status)],
 );
+
+export const introductionDeliveries = pgTable('introduction_deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  queueId: uuid('queue_id')
+    .notNull()
+    .unique()
+    .references(() => approvalQueue.id, { onDelete: 'cascade' }),
+  matchId: uuid('match_id')
+    .notNull()
+    .references(() => matches.id, { onDelete: 'cascade' }),
+  recipients: text('recipients').array().notNull(),
+  subject: text('subject').notNull(),
+  message: text('message').notNull(),
+  status: text('status').default('pending').notNull(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  ...timestamps,
+});
 
 export const auditLog = pgTable('audit_log', {
   id: uuid('id').primaryKey().defaultRandom(),

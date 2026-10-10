@@ -1,9 +1,11 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@evidex/db';
 import {
   approvalQueue,
   auditLog,
   collaborations,
+  introductionDeliveries,
+  shortlistEntries,
   matches,
   needs,
   organizationMembers,
@@ -15,6 +17,8 @@ import {
 import type { ApprovalAction, CollaborationStatus } from '@evidex/shared';
 import type { EmailSender } from '../lib/email';
 import { AppError } from '../lib/response';
+import { createIntroductionDeliveryService } from '../introductions/deliveries';
+import { notifyIntroduction } from '../introductions/notifications';
 import type { FollowUpPayload, FollowUpService } from '../followups/service';
 
 /**
@@ -29,6 +33,7 @@ export function createOperatorService(
   followUp: FollowUpService,
   webOrigin: string,
 ) {
+  const deliveries = createIntroductionDeliveryService(db, email);
   async function audit(
     actorId: string,
     action: string,
@@ -44,17 +49,47 @@ export function createOperatorService(
   async function execute(
     item: typeof approvalQueue.$inferSelect,
     payload: Record<string, unknown>,
+    store: Pick<Db, 'select' | 'insert' | 'update'>,
   ) {
     const action = item.action as ApprovalAction;
     switch (action) {
       case 'publish_shortlist': {
-        await db
+        const ids = Array.isArray(payload.matchIds)
+          ? payload.matchIds.filter((id): id is string => typeof id === 'string')
+          : [];
+        const entries = ids.length
+          ? await store
+              .select()
+              .from(matches)
+              .where(and(eq(matches.needId, item.subjectId), inArray(matches.id, ids)))
+          : [];
+        if (entries.length !== ids.length || entries.length === 0)
+          throw new AppError('stale_shortlist', 'Kısa liste değişti; yeniden eşleştir', 409);
+        await store
+          .update(matches)
+          .set({ shortlistedAt: new Date() })
+          .where(inArray(matches.id, ids));
+        await store
+          .insert(shortlistEntries)
+          .values(
+            entries.map((match) => ({
+              needId: match.needId,
+              talentId: match.talentId,
+              matchId: match.id,
+              rank: match.rank,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [shortlistEntries.needId, shortlistEntries.talentId],
+            set: { matchId: sql`excluded.match_id` },
+          });
+        await store
           .update(needs)
           .set({ shortlistPublishedAt: new Date() })
           .where(eq(needs.id, item.subjectId));
         // Canlı tut (04): güçlü adaylar "kartın bir ihtiyaçla eşleşti" haberini alır. Kurum adı
         // ve ihtiyaç metni verilmez (KARAR-09: tanıştırmaya kadar taraflar birbirini görmez).
-        const gucluler = await db
+        const gucluler = await store
           .select({ email: users.email, name: users.name })
           .from(matches)
           .innerJoin(talents, eq(talents.id, matches.talentId))
@@ -69,24 +104,28 @@ export function createOperatorService(
         return;
       }
       case 'introduce': {
-        const [m] = await db.select().from(matches).where(eq(matches.id, item.subjectId)).limit(1);
+        const [m] = await store
+          .select()
+          .from(matches)
+          .where(eq(matches.id, item.subjectId))
+          .limit(1);
         if (!m) throw new AppError('not_found', 'Eşleşme bulunamadı', 404);
-        const [need] = await db.select().from(needs).where(eq(needs.id, m.needId)).limit(1);
-        const [talent] = await db
+        const [need] = await store.select().from(needs).where(eq(needs.id, m.needId)).limit(1);
+        const [talent] = await store
           .select({ email: users.email, name: users.name })
           .from(talents)
           .innerJoin(users, eq(users.id, talents.userId))
           .where(eq(talents.id, m.talentId))
           .limit(1);
         const kurumUyeleri = need
-          ? await db
+          ? await store
               .select({ email: users.email, name: users.name })
               .from(organizationMembers)
               .innerJoin(users, eq(users.id, organizationMembers.userId))
               .where(eq(organizationMembers.organizationId, need.organizationId))
           : [];
         const [kurum] = need
-          ? await db
+          ? await store
               .select({ name: organizations.name })
               .from(organizations)
               .where(eq(organizations.id, need.organizationId))
@@ -112,10 +151,21 @@ export function createOperatorService(
           '',
           'Bu e-postayı "Tümünü yanıtla" ile cevaplayarak doğrudan görüşme ayarlayabilirsiniz.',
         ].join('\n');
-        if (alicilar.length > 0)
-          await email.send({ to: alicilar, subject: konu, text: `${metin}\n${iletisim}` });
-        await db.update(matches).set({ introducedAt: new Date() }).where(eq(matches.id, m.id));
-        await db.insert(collaborations).values({ matchId: m.id }).onConflictDoNothing();
+        if (alicilar.length < 2)
+          throw new AppError(
+            'missing_recipients',
+            'Tanıştırma için iki tarafın iletişim adresi gerekli',
+            409,
+          );
+        await store.insert(introductionDeliveries).values({
+          queueId: item.id,
+          matchId: m.id,
+          recipients: alicilar,
+          subject: konu,
+          message: `${metin}\n${iletisim}`,
+        });
+        await store.update(matches).set({ introducedAt: new Date() }).where(eq(matches.id, m.id));
+        await store.insert(collaborations).values({ matchId: m.id }).onConflictDoNothing();
         return;
       }
       case 'send_follow_up': {
@@ -143,7 +193,7 @@ export function createOperatorService(
           .map((a) => (a as { login?: string }).login)
           .filter((l): l is string => typeof l === 'string');
         if (loginlar.length)
-          await db
+          await store
             .insert(scoutInvites)
             .values(
               loginlar.map((login) => ({
@@ -208,14 +258,28 @@ export function createOperatorService(
         tarafIds.length
           ? (
               await db
-                .select({ id: matches.id, genc: users.name, kurum: organizations.name })
+                .select({
+                  id: matches.id,
+                  genc: users.name,
+                  kurum: organizations.name,
+                  talentConsent: matches.talentConsent,
+                  organizationConsent: matches.organizationConsent,
+                })
                 .from(matches)
                 .innerJoin(talents, eq(talents.id, matches.talentId))
                 .innerJoin(users, eq(users.id, talents.userId))
                 .innerJoin(needs, eq(needs.id, matches.needId))
                 .innerJoin(organizations, eq(organizations.id, needs.organizationId))
                 .where(inArray(matches.id, tarafIds))
-            ).map((t) => [t.id, { talent: t.genc, organization: t.kurum }])
+            ).map((t) => [
+              t.id,
+              {
+                talent: t.genc,
+                organization: t.kurum,
+                talentConsent: t.talentConsent,
+                organizationConsent: t.organizationConsent,
+              },
+            ])
           : [],
       );
       const tarafli = kayitlar.map((k) => {
@@ -265,39 +329,63 @@ export function createOperatorService(
       decision: 'approve' | 'reject' | 'edit',
       editedPayload?: Record<string, unknown>,
     ) {
-      const [item] = await db
-        .select()
-        .from(approvalQueue)
-        .where(eq(approvalQueue.id, itemId))
-        .limit(1);
-      if (!item) throw new AppError('not_found', 'Kuyruk kaydı bulunamadı', 404);
-      // Aynı kaydı iki kez yürütmek (iki tanıştırma e-postası) olmaz.
-      if (item.status !== 'proposed')
-        throw new AppError('already_decided', 'Bu kayıt karara bağlanmış', 409);
-
-      const status =
-        decision === 'approve' ? 'approved' : decision === 'edit' ? 'edited' : 'rejected';
-      const payload =
-        decision === 'edit' ? { ...item.payload, ...(editedPayload ?? {}) } : item.payload;
-
-      if (status !== 'rejected') await execute(item, payload);
-
-      const [guncel] = await db
-        .update(approvalQueue)
-        .set({
-          status,
-          decidedBy: operatorId,
-          decidedAt: new Date(),
-          editedPayload: decision === 'edit' ? (editedPayload ?? null) : null,
-          executedAt: status !== 'rejected' ? new Date() : null,
-          updatedAt: new Date(),
-        })
-        .where(eq(approvalQueue.id, itemId))
-        .returning();
-      await audit(operatorId, `approval.${status}`, item.subjectType, item.subjectId, {
-        action: item.action,
+      const result = await db.transaction(async (tx) => {
+        const [item] = await tx
+          .select()
+          .from(approvalQueue)
+          .where(eq(approvalQueue.id, itemId))
+          .for('update');
+        if (!item) throw new AppError('not_found', 'Kuyruk kaydı bulunamadı', 404);
+        if (item.status !== 'proposed')
+          throw new AppError('already_decided', 'Bu kayıt karara bağlanmış', 409);
+        if (item.action === 'introduce' && decision !== 'reject') {
+          const [match] = await tx
+            .select()
+            .from(matches)
+            .where(eq(matches.id, item.subjectId))
+            .for('update');
+          if (!match) throw new AppError('not_found', 'Eşleşme bulunamadı', 404);
+          if (match.introducedAt)
+            throw new AppError('already_introduced', 'Tanıştırma zaten tamamlandı', 409);
+          if (match.talentConsent !== 'accepted' || match.organizationConsent !== 'accepted')
+            throw new AppError(
+              'consent_required',
+              'Tanıştırma için iki tarafın da kabulü gerekiyor',
+              409,
+            );
+        }
+        const status =
+          decision === 'approve' ? 'approved' : decision === 'edit' ? 'edited' : 'rejected';
+        const payload =
+          decision === 'edit' ? { ...item.payload, ...(editedPayload ?? {}) } : item.payload;
+        if (status !== 'rejected') await execute(item, payload, tx);
+        const [updated] = await tx
+          .update(approvalQueue)
+          .set({
+            status,
+            decidedBy: operatorId,
+            decidedAt: new Date(),
+            editedPayload: decision === 'edit' ? (editedPayload ?? null) : null,
+            executedAt: status !== 'rejected' && item.action !== 'introduce' ? new Date() : null,
+            updatedAt: new Date(),
+          })
+          .where(eq(approvalQueue.id, itemId))
+          .returning();
+        await tx.insert(auditLog).values({
+          actorId: operatorId,
+          action: `approval.${status}`,
+          subjectType: item.subjectType,
+          subjectId: item.subjectId,
+          detail: { action: item.action },
+        });
+        return updated!;
       });
-      return guncel!;
+      if (result.action === 'introduce' && result.status !== 'rejected')
+        await deliveries.send(result.id);
+      return {
+        ...result,
+        deliveryStatus: result.action === 'introduce' ? await deliveries.status(result.id) : null,
+      };
     },
 
     /** İş birliği durumu (döngü adımı 06): tanıştırıldı → görüşme → başladı → sürüyor → bitti/olmadı. */
@@ -385,11 +473,33 @@ export function createOperatorService(
       const [m] = await db.select().from(matches).where(eq(matches.id, matchId)).limit(1);
       if (!m) throw new AppError('not_found', 'Eşleşme bulunamadı', 404);
       if (m.introducedAt) throw new AppError('already_introduced', 'Tanıştırma yapılmış', 409);
-      const [kayit] = await db
-        .insert(approvalQueue)
-        .values({ action: 'introduce', subjectType: 'match', subjectId: matchId, payload: draft })
-        .returning();
-      return kayit!;
+      const proposed = await db.transaction(async (tx) => {
+        const [locked] = await tx
+          .select()
+          .from(matches)
+          .where(eq(matches.id, matchId))
+          .for('update');
+        if (!locked || locked.introductionRequestedAt || locked.introducedAt)
+          throw new AppError('already_requested', 'Tanıştırma isteği zaten iletildi', 409);
+        await tx
+          .update(matches)
+          .set({
+            introductionRequestedAt: new Date(),
+            talentConsent: 'pending',
+            organizationConsent: 'pending',
+            updatedAt: new Date(),
+          })
+          .where(eq(matches.id, matchId));
+        const [item] = await tx
+          .insert(approvalQueue)
+          .values({ action: 'introduce', subjectType: 'match', subjectId: matchId, payload: draft })
+          .returning();
+        return item!;
+      });
+      await notifyIntroduction(db, email, webOrigin, matchId, true).catch((error: unknown) =>
+        console.error('[introduction notification]', error),
+      );
+      return proposed;
     },
   };
 }

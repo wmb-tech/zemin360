@@ -29,6 +29,8 @@ import { needRoutes } from './needs/routes';
 import { createNeedService } from './needs/service';
 import { createLlmFromEnv } from './lib/llm';
 import { createMatchingService } from './matching/service';
+import { createIntroductionDeliveryService } from './introductions/deliveries';
+import { introductionRoutes } from './introductions/routes';
 import { operatorRoutes } from './operator/routes';
 import { createOperatorService } from './operator/service';
 import { createMetricsService } from './metrics/service';
@@ -147,7 +149,18 @@ export function createApp(deps: AppDeps) {
   app.use('/api/checkin/*', yalnizPost(sinir(sn, 'takip', 20, 10 * 60_000)));
 
   app.route('/api/health', health);
-  const matching = createMatchingService(deps.db, llm);
+  const matching = createMatchingService(deps.db, llm, { email, webOrigin: deps.env.WEB_ORIGIN });
+  const deliveries = createIntroductionDeliveryService(deps.db, email);
+  app.route(
+    '/api/operator/deliveries',
+    new Hono()
+      .use('*', withRole(auth, 'operator'))
+      .get('/', async (c) => ok(c, await deliveries.list()))
+      .post('/:id/retry', async (c) =>
+        ok(c, await deliveries.retry(c.req.param('id'), c.get('user').id)),
+      ),
+  );
+  app.route('/api/introductions', introductionRoutes(deps.db, auth));
   const challenge = createChallengeService(
     deps.db,
     llm,
@@ -338,5 +351,5 @@ export function createApp(deps: AppDeps) {
     );
   });
 
-  return { app, followUp, network };
+  return { app, followUp, network, deliveries };
 }

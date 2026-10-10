@@ -24,7 +24,12 @@ interface QueueItem {
   payload: Record<string, unknown>;
   createdAt: string;
   /** Tanıştırma ve takipte: e-postanın gittiği taraflar (operatör tam adı görür). */
-  parties?: { talent: string; organization: string };
+  parties?: {
+    talent: string;
+    organization: string;
+    talentConsent: string | null;
+    organizationConsent: string | null;
+  };
   /** Yalnız kısa liste önerisinde: yayınlanacak adaylar (operatör tam adı görür). */
   candidates?: {
     rank: number;
@@ -111,21 +116,36 @@ export function OperatorQueuePage() {
     [items, filter],
   );
   const secili = gorunen.find((i) => i.id === selected) ?? gorunen[0] ?? null;
+  const awaitingConsent =
+    secili?.action === 'introduce' &&
+    (secili.parties?.talentConsent !== 'accepted' ||
+      secili.parties?.organizationConsent !== 'accepted');
 
   async function decide(decision: 'approve' | 'reject' | 'edit') {
-    if (!secili) return;
+    if (
+      !secili ||
+      busy ||
+      (decision !== 'reject' &&
+        secili.action === 'introduce' &&
+        (secili.parties?.talentConsent !== 'accepted' ||
+          secili.parties?.organizationConsent !== 'accepted'))
+    )
+      return;
     // Düzenleme açıkken yalnız "düzenlemeyle onayla" / "düzenlemeyi at" görünür; düz onay/ret
     // düğmeleri ve A/R kısayolları kapalı. Burada tarayıcı onay kutusu yok (modal diyalog
     // sekmeyi kilitler ve tasarım dilinde yer almaz).
     setBusy(decision);
     setError(null);
     try {
-      await api(`/api/operator/queue/${secili.id}`, {
-        method: 'POST',
-        body: JSON.stringify(
-          decision === 'edit' ? { decision: 'edit', editedPayload: edit ?? {} } : { decision },
-        ),
-      });
+      const result = await api<{ deliveryStatus?: string | null }>(
+        `/api/operator/queue/${secili.id}`,
+        {
+          method: 'POST',
+          body: JSON.stringify(
+            decision === 'edit' ? { decision: 'edit', editedPayload: edit ?? {} } : { decision },
+          ),
+        },
+      );
       // Yalnız sunucu onayından sonra listeden çıkar; sıradaki seçilir, sonuç duyurulur.
       const idx = gorunen.findIndex((i) => i.id === secili.id);
       const list = await load();
@@ -133,9 +153,13 @@ export function OperatorQueuePage() {
       setSelected(kalan[Math.min(idx, kalan.length - 1)]?.id ?? null);
       setEdit(null);
       setLive(
-        decision === 'reject'
-          ? `${ACTION[secili.action].label} reddedildi; hiçbir şey gönderilmedi.`
-          : `${ACTION[secili.action].label} ${decision === 'edit' ? 'düzenlenerek ' : ''}onaylandı ve yürütüldü.`,
+        result.deliveryStatus === 'uncertain' ||
+          result.deliveryStatus === 'pending' ||
+          result.deliveryStatus === 'sending'
+          ? 'Onay kaydedildi; e-posta durumunu Gönderimler ekranından kontrol et.'
+          : decision === 'reject'
+            ? `${ACTION[secili.action].label} reddedildi; hiçbir şey gönderilmedi.`
+            : `${ACTION[secili.action].label} ${decision === 'edit' ? 'düzenlenerek ' : ''}onaylandı ve yürütüldü.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Karar kaydedilemedi; kayıt yerinde duruyor.');
@@ -146,12 +170,22 @@ export function OperatorQueuePage() {
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      if (busy || e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
       if ((e.target as HTMLElement)?.closest('input,textarea,select')) return;
       if (!secili) return;
+      if (edit) {
+        if (e.key === 'Escape') setEdit(null);
+        return;
+      }
       const idx = gorunen.findIndex((i) => i.id === secili.id);
-      if (e.key === 'ArrowDown')
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
         setSelected(gorunen[Math.min(idx + 1, gorunen.length - 1)]?.id ?? null);
-      if (e.key === 'ArrowUp') setSelected(gorunen[Math.max(idx - 1, 0)]?.id ?? null);
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelected(gorunen[Math.max(idx - 1, 0)]?.id ?? null);
+      }
       if (e.key.toLowerCase() === 'a' && !edit) void decide('approve');
       if (e.key.toLowerCase() === 'r' && !edit) void decide('reject');
       if (e.key.toLowerCase() === 'e' && EDITABLE[secili.action].length) setEdit(baslangic(secili));
@@ -176,12 +210,12 @@ export function OperatorQueuePage() {
       <Live message={live} />
       <Enter i={0} as="header" className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <Eyebrow>GİRVAK operasyonları</Eyebrow>
           <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
             Onay kuyruğu
           </h1>
           <p className="text-ink-soft mt-1">
-            Ajanın dışa dönük her önerisi burada bekler. Sen onaylamadan hiçbir mesaj gitmez, hiçbir
-            liste açılmaz.
+            Önerileri incele, gerektiğinde düzenle ve onayla. Son karar her zaman sende.
           </p>
         </div>
         <div className="text-ink-soft hidden text-xs md:block">
@@ -195,18 +229,18 @@ export function OperatorQueuePage() {
         </p>
       )}
 
-      <Enter i={1} as="div" className="mt-5 flex flex-wrap gap-1">
+      <Enter i={1} as="div" className="border-line mt-7 flex flex-wrap gap-2 border-b pb-5">
         {(['all', ...(Object.keys(ACTION) as Action[])] as const).map((k) => (
           <button
             key={k}
-            role="tab"
-            aria-selected={filter === k}
+            aria-pressed={filter === k}
+            disabled={Boolean(busy) || Boolean(edit)}
             onClick={() => {
               setFilter(k);
               setSelected(null);
               setEdit(null);
             }}
-            className={`pressable min-h-9 rounded-full px-3 text-sm font-semibold ${filter === k ? 'bg-ink text-surface' : 'bg-surface border-line text-ink-soft hover:text-ink border'}`}
+            className={`pressable min-h-11 rounded-[var(--radius-control)] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${filter === k ? 'bg-accent-soft text-accent-strong ring-1 ring-inset ring-accent/15' : 'text-ink-soft hover:bg-paper-2 hover:text-ink'}`}
           >
             {k === 'all' ? 'Tümü' : ACTION[k].label}{' '}
             <span className="tnum opacity-70">{sayilar[k]}</span>
@@ -221,23 +255,28 @@ export function OperatorQueuePage() {
           </Empty>
         </div>
       ) : (
-        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
-          <Enter i={2} as="section" className="min-w-0 lg:sticky lg:top-6">
+        <div className="mt-6 grid items-start gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
+          <Enter i={2} as="section" className="min-w-0 xl:sticky xl:top-6">
+            <div className="text-ink-soft mb-3 flex items-center justify-between text-xs font-semibold">
+              <span>Bekleyen öneriler</span>
+              <span>{gorunen.length} kayıt</span>
+            </div>
             <ul
-              className="bg-surface border-line divide-y divide-[var(--color-line)] rounded-[var(--radius-panel)] border"
-              role="listbox"
+              className="bg-surface border-line overflow-hidden divide-y divide-[var(--color-line)] rounded-[var(--radius-panel)] border"
               aria-label="Kuyruk"
             >
               {gorunen.map((it) => {
                 const on = secili?.id === it.id;
                 return (
-                  <li key={it.id} role="option" aria-selected={on}>
+                  <li key={it.id}>
                     <button
+                      aria-current={on ? 'true' : undefined}
+                      disabled={Boolean(busy) || Boolean(edit)}
                       onClick={() => {
                         setSelected(it.id);
                         setEdit(null);
                       }}
-                      className={`pressable flex w-full flex-col gap-0.5 px-4 py-3 text-left ${on ? 'bg-accent-soft' : 'hover:bg-paper-2'}`}
+                      className={`pressable flex w-full flex-col gap-1.5 px-4 py-4 text-left focus-visible:outline-offset-[-3px] disabled:cursor-not-allowed ${on ? 'bg-accent-soft' : 'hover:bg-paper-2'}`}
                     >
                       <div className="flex w-full items-center gap-2">
                         <span
@@ -265,12 +304,38 @@ export function OperatorQueuePage() {
 
           <section className="min-w-0" aria-live="off">
             {secili && (
-              <Panel key={secili.id} className="pane-enter p-6">
+              <Panel key={secili.id} className="pane-enter p-5 md:p-7">
                 <Eyebrow>{ACTION[secili.action].label}</Eyebrow>
                 <h2 className="text-ink mt-1 text-xl font-bold tracking-[-0.02em]">
                   {konu(secili)}
                 </h2>
                 <p className="text-ink-soft mt-2 text-sm">{ACTION[secili.action].sonuc}</p>
+                {secili.action === 'introduce' && (
+                  <div
+                    className="bg-paper-2 text-ink mt-4 rounded-[var(--radius-control)] p-4 text-sm"
+                    role="status"
+                  >
+                    <p className="font-semibold">
+                      {awaitingConsent
+                        ? 'Tarafların kabulü bekleniyor'
+                        : 'İki taraf da tanıştırmayı kabul etti'}
+                    </p>
+                    <p className="text-ink-soft mt-1">
+                      Yetenek:{' '}
+                      {secili.parties?.talentConsent === 'accepted' ? 'kabul etti' : 'bekleniyor'} ·
+                      Kurum:{' '}
+                      {secili.parties?.organizationConsent === 'accepted'
+                        ? 'kabul etti'
+                        : 'bekleniyor'}
+                    </p>
+                    {awaitingConsent && (
+                      <p className="text-ink-soft mt-1">
+                        İki taraf kabul edene kadar tanıştırma yürütülemez. Güncel kararları görmek
+                        için sayfayı yenile.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="mt-5">
                   <Eyebrow>Ajanın önerisi</Eyebrow>
@@ -310,12 +375,17 @@ export function OperatorQueuePage() {
                       <Button
                         variant="primary"
                         pending={busy === 'edit'}
+                        disabled={Boolean(busy) || awaitingConsent}
                         pendingText="Kaydedilip yürütülüyor…"
                         onClick={() => void decide('edit')}
                       >
                         <Check size={16} aria-hidden /> Düzenlemeyle onayla
                       </Button>
-                      <Button variant="tertiary" onClick={() => setEdit(null)}>
+                      <Button
+                        variant="tertiary"
+                        disabled={Boolean(busy)}
+                        onClick={() => setEdit(null)}
+                      >
                         Düzenlemeyi at
                       </Button>
                     </>
@@ -324,19 +394,21 @@ export function OperatorQueuePage() {
                       <Button
                         variant="primary"
                         pending={busy === 'approve'}
+                        disabled={Boolean(busy) || awaitingConsent}
                         pendingText="Yürütülüyor…"
                         onClick={() => void decide('approve')}
                       >
                         <Check size={16} aria-hidden /> Onayla
                       </Button>
                       {EDITABLE[secili.action].length > 0 && (
-                        <Button onClick={() => setEdit(baslangic(secili))}>
+                        <Button disabled={Boolean(busy)} onClick={() => setEdit(baslangic(secili))}>
                           <Pencil size={14} aria-hidden /> Düzenle
                         </Button>
                       )}
                       <Button
                         variant="danger"
                         pending={busy === 'reject'}
+                        disabled={Boolean(busy)}
                         pendingText="…"
                         onClick={() => void decide('reject')}
                         className="ml-auto"
@@ -386,7 +458,7 @@ function Payload({ item }: { item: QueueItem }) {
   if (item.action === 'publish_shortlist') {
     const c = (p.counts ?? {}) as { strong?: number; possible?: number; weak?: number };
     return (
-      <div className="bg-paper-2 rounded-[var(--radius-control)] p-4 text-sm">
+      <div className="text-sm">
         <div className="text-ink font-semibold">{String(p.needTitle ?? 'İhtiyaç')}</div>
         <div className="text-ink-soft tnum mt-1">
           {c.strong ?? 0} güçlü · {c.possible ?? 0} olası · {c.weak ?? 0} zayıf aday
@@ -507,8 +579,8 @@ function Mektup({
     .map((p) => p.trim())
     .filter(Boolean);
   return (
-    <div className="border-line bg-surface overflow-hidden rounded-[var(--radius-panel)] border text-sm">
-      <div className="bg-paper-2 border-line text-ink-soft flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-xs">
+    <div className="bg-paper overflow-hidden rounded-[var(--radius-control)] text-sm">
+      <div className="border-line text-ink-soft flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-3 text-xs">
         <span>
           Kime: <b className="text-ink">{kime}</b>
         </span>

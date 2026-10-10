@@ -10,7 +10,6 @@ import {
   GitBranch,
   Globe,
   Handshake,
-  IdCard,
   Users,
 } from 'lucide-react';
 import {
@@ -43,6 +42,8 @@ interface Overview {
     organization: string | null;
     city: string | null;
     introduced: boolean;
+    consentRequested: boolean;
+    talentConsent: string | null;
     collaborationStatus: CollaborationStatus | null;
     fit: string | null;
     gap: string | null;
@@ -106,8 +107,9 @@ export function TalentHomePage() {
   const adim = (() => {
     if (o.card.sources === 0)
       return {
-        baslik: 'GitHub hesabını bağla',
-        aciklama: 'Repolarını sen seçersin; kod saklanmaz. Ajan kartının ilk taslağını yazar.',
+        baslik: 'İlk kanıtını bağla',
+        aciklama:
+          'GitHub reposu, canlı ürün veya PDF belgenle başla. Ajan kartının ilk taslağını yazar.',
         to: '/kart',
         cta: 'Kanıt bağla',
       };
@@ -125,6 +127,17 @@ export function TalentHomePage() {
           'Onaylı iddiaların hazır. Kart onaylanınca kurumlar seni gerekçeli listede görür.',
         to: '/kart',
         cta: 'Kartı onayla',
+      };
+    const pendingIntroduction = o.matches.find(
+      (match) => match.consentRequested && match.talentConsent === 'pending' && !match.introduced,
+    );
+    if (pendingIntroduction)
+      return {
+        baslik: 'Tanıştırma isteğine karar ver',
+        aciklama:
+          'Bir kurum seninle tanıştırılmak istiyor. Kabulün olmadan iletişim bilgilerin paylaşılmaz.',
+        to: '/tanistirmalar',
+        cta: 'İsteği incele',
       };
     if (o.card.silent)
       return {
@@ -172,12 +185,13 @@ export function TalentHomePage() {
       : `Taslak · ${o.card.approvedClaims}/${o.card.claims} iddia onaylı`;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-10">
       <div className="min-w-0">
         <Live message={params.get('onay') ? 'Kartın ağda.' : null} />
         <Enter i={0} as="header">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
+              <Eyebrow>Yetenek kartın</Eyebrow>
               <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
                 {ilkAd}, {agda ? 'kartın ağda' : 'kartın hazırlanıyor'}
               </h1>
@@ -186,30 +200,36 @@ export function TalentHomePage() {
           </div>
         </Enter>
 
-        <Enter i={1} y={10} as="section" className="mt-6">
-          <Ilerleme
-            adimlar={[
-              { ad: 'Bağla', bitti: o.card.sources > 0 },
-              { ad: 'Okut', bitti: o.card.claims > 0 || o.card.approvedClaims > 0 },
-              { ad: 'Onayla', bitti: agda },
-              { ad: 'Paylaş', bitti: Boolean(o.card.publicSlug) },
-            ]}
-          />
-          <div className="bg-accent-soft mt-4 rounded-[var(--radius-feature)] p-5 md:p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <div className="bg-surface text-accent hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl md:flex">
+        <Enter i={1} y={10} as="section" className="mt-7">
+          {!agda && (
+            <Ilerleme
+              adimlar={[
+                { ad: 'Bağla', bitti: o.card.sources > 0 },
+                { ad: 'Okut', bitti: o.card.claims > 0 || o.card.approvedClaims > 0 },
+                { ad: 'Onayla', bitti: agda },
+                { ad: 'Paylaş', bitti: Boolean(o.card.publicSlug) },
+              ]}
+            />
+          )}
+          <div className="bg-surface border-line work-panel mt-4 rounded-[var(--radius-feature)] border p-6 md:p-7">
+            <div className="flex flex-col gap-5">
+              <div className="text-accent flex items-center gap-2">
                 <FileCheck2 size={26} aria-hidden />
+                <span className="text-xs font-bold">
+                  {agda ? 'Kartın hazır' : 'Bir sonraki adım'}
+                </span>
               </div>
-              <div className="min-w-0 flex-1">
-                <Eyebrow>Sıradaki adım</Eyebrow>
-                <h2 className="text-ink mt-1 text-xl font-bold tracking-[-0.02em] md:text-[22px]">
+              <div className="min-w-0">
+                <h2 className="text-ink text-2xl font-bold tracking-[-0.025em] md:text-[28px]">
                   {adim.baslik}
                 </h2>
-                <p className="text-ink-soft mt-1 text-sm md:text-base">{adim.aciklama}</p>
+                <p className="text-ink-soft mt-2 max-w-[52ch] text-sm leading-relaxed md:text-base">
+                  {adim.aciklama}
+                </p>
               </div>
               <Link
                 to={adim.to}
-                className="pressable bg-accent text-surface hover:bg-accent-strong inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-5 text-sm font-semibold"
+                className="pressable bg-accent text-surface hover:bg-accent-strong inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-[var(--radius-control)] px-5 text-sm font-semibold"
               >
                 {adim.cta} <ChevronRight size={16} aria-hidden />
               </Link>
@@ -217,36 +237,29 @@ export function TalentHomePage() {
           </div>
         </Enter>
 
-        <Enter i={2} as="section" className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Link to="/kart" className="group">
-            <Panel className="pressable hover:border-accent/40 flex h-full items-center gap-4 p-5">
-              <div className="bg-accent-soft text-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-xl">
-                <IdCard size={20} aria-hidden />
-              </div>
-              <div className="min-w-0 flex-1">
-                <Eyebrow>Kart</Eyebrow>
-                <div className="text-ink text-xl font-bold">{agda ? 'Ağda' : 'Taslak'}</div>
-                <div className="text-ink-soft tnum text-sm">
-                  {o.card.sources} kaynak · {o.card.approvedClaims}/{o.card.claims} iddia onaylı
-                </div>
-              </div>
-              <ChevronRight size={18} className="text-ink-soft" aria-hidden />
-            </Panel>
-          </Link>
-          <Panel className="flex items-center gap-4 p-5">
-            <div className="bg-accent-soft text-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-xl">
-              <Users size={20} aria-hidden />
+        <Enter i={2} as="section" className="border-line mt-6 grid grid-cols-3 gap-3 border-y py-5">
+          <div>
+            <div className="text-ink-soft text-xs font-semibold">Kanıt kaynakları</div>
+            <Link
+              to="/kart?bolum=kaynaklar"
+              className="text-ink tnum mt-1 inline-flex min-h-11 items-center gap-2 text-lg font-bold hover:text-accent"
+            >
+              {o.card.sources} kaynak <ChevronRight size={14} aria-hidden />
+            </Link>
+          </div>
+          <div>
+            <div className="text-ink-soft text-xs font-semibold">Onaylı iddialar</div>
+            <div className="text-ink tnum mt-1 flex min-h-11 items-center text-lg font-bold">
+              {o.card.approvedClaims}
+              <span className="text-ink-soft ml-1 text-sm font-normal">/ {o.card.claims}</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <Eyebrow>Eşleşmeler</Eyebrow>
-              <div className="text-ink tnum text-xl font-bold">{o.matches.length}</div>
-              <div className="text-ink-soft tnum text-sm">
-                {o.matches.length === 0
-                  ? 'Kısa liste açılınca burada görünür'
-                  : `${o.matches.filter((m) => m.introduced).length} tanıştırma`}
-              </div>
+          </div>
+          <div>
+            <div className="text-ink-soft text-xs font-semibold">Tanıştırmalar</div>
+            <div className="text-ink tnum mt-1 flex min-h-11 items-center text-lg font-bold">
+              {o.matches.filter((m) => m.introduced).length}
             </div>
-          </Panel>
+          </div>
         </Enter>
 
         <Enter i={3} as="section" className="mt-8">
@@ -283,12 +296,12 @@ export function TalentHomePage() {
                     {(m.fit || m.gap) && (
                       <div className="mt-4 grid gap-3 sm:grid-cols-2">
                         {m.fit && (
-                          <div className="bg-verified-soft rounded-[var(--radius-control)] px-4 py-3">
+                          <div>
                             <div className="text-verified text-xs font-bold">Uyuyor</div>
                             <p className="text-ink mt-0.5 text-sm">{m.fit}</p>
                           </div>
                         )}
-                        <div className="bg-paper-2 rounded-[var(--radius-control)] px-4 py-3">
+                        <div>
                           <div className="text-ink-soft text-xs font-bold">Eksik</div>
                           <p className="text-ink mt-0.5 text-sm">
                             {m.gap ?? 'Belirgin bir eksik tespit edilmedi.'}
@@ -305,7 +318,7 @@ export function TalentHomePage() {
       </div>
 
       <Enter i={4} y={6} as="aside" className="min-w-0">
-        <Panel className="p-5">
+        <section className="border-line border-b pb-6 xl:pt-1">
           <div className="flex items-center justify-between">
             <h2 className="text-ink text-base font-bold">Son kaynaklar</h2>
             <Link to="/kart" className="text-accent text-sm font-semibold hover:underline">
@@ -335,7 +348,8 @@ export function TalentHomePage() {
                           : s.ref.replace(/^https?:\/\//, '')}
                     </div>
                     <div className="text-ink-soft text-xs">
-                      {KIND[s.kind]} · {s.verified ? 'doğrulandı' : 'beyan'} ·{' '}
+                      {KIND[s.kind]} ·{' '}
+                      {s.kind === 'document' ? 'belgeli' : s.verified ? 'doğrulandı' : 'beyan'} ·{' '}
                       {gunOnce(s.createdAt)}
                     </div>
                   </div>
@@ -343,10 +357,10 @@ export function TalentHomePage() {
               ))}
             </ul>
           )}
-        </Panel>
+        </section>
         {agda && !o.card.silent && (
-          <div className="bg-accent-soft mt-4 rounded-[var(--radius-panel)] p-5">
-            <div className="text-ink font-bold">Kartını güçlendir</div>
+          <div className="mt-6">
+            <div className="text-ink text-sm font-bold">Yeni bir iş tamamladın mı?</div>
             <p className="text-ink-soft mt-1 text-sm">
               Canlı bir ürün ya da belge bağla; her yeni kanıt eşleşmede daha çok şey söyler.
             </p>

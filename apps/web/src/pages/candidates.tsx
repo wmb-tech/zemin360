@@ -25,6 +25,9 @@ interface Candidate {
   skills: SkillRow[];
   introduced: boolean;
   introRequested: boolean;
+  consentRequested: boolean;
+  talentConsent: string | null;
+  organizationConsent: string | null;
   reasoning: {
     fits: { text: string; claimIds: string[] }[];
     gaps: string[];
@@ -66,7 +69,9 @@ export function CandidatesPage() {
     try {
       await api(`/api/needs/${id}/candidates/${matchId}/introduce`, { method: 'POST' });
       setData(await api<CandidatesResponse>(`/api/needs/${id}/candidates`));
-      setLive("Tanıştırma isteği GİRVAK'a iletildi. Onaylanınca iki tarafa e-posta gider.");
+      setLive(
+        'Tanıştırma isteğin iletildi. Yetenek de kabul ettikten sonra GİRVAK onayıyla tanıştırılırsınız.',
+      );
     } catch (err) {
       setError({ id: matchId, msg: err instanceof Error ? err.message : 'İstek gönderilemedi' });
     } finally {
@@ -88,11 +93,11 @@ export function CandidatesPage() {
         <h1 className="text-ink mt-1 text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
           Adaylar
         </h1>
-        {data.published && data.candidates.length > 0 && (
+        {data.candidates.length > 0 && (
           <p className="text-ink-soft mt-2 max-w-[65ch]">
             Sıra ajanın gerekçesine göre; skor yok. Tanıştırmaya kadar yalnız ilk ad görünür.
-            Beğendiğin adayla tanıştırılmak istediğini söyle; GİRVAK onaylayınca e-posta iki tarafa
-            gider.
+            Beğendiğin adayla tanıştırılmak istediğini söyle; iki tarafın kabulü ve GİRVAK onayıyla
+            iletişim kurabilirsiniz.
           </p>
         )}
       </Enter>
@@ -181,9 +186,15 @@ export function CandidatesPage() {
                     <span className="bg-verified-soft text-verified rounded-md px-2 py-1 text-xs font-bold">
                       Tanıştırıldınız — tam kart açık
                     </span>
-                  ) : c.introRequested ? (
+                  ) : c.consentRequested ? (
                     <span className="bg-accent-soft text-accent-strong rounded-md px-2 py-1 text-xs font-bold">
-                      GİRVAK incelemesi bekleniyor
+                      {!c.introRequested ||
+                      c.talentConsent === 'declined' ||
+                      c.organizationConsent === 'declined'
+                        ? 'Tanıştırma isteği kapandı'
+                        : c.talentConsent === 'accepted' && c.organizationConsent === 'accepted'
+                          ? 'GİRVAK incelemesi bekleniyor'
+                          : 'Tarafların kabulü bekleniyor'}
                     </span>
                   ) : (
                     <Button
@@ -194,6 +205,14 @@ export function CandidatesPage() {
                     >
                       Tanıştırılmak istiyorum
                     </Button>
+                  )}
+                  {c.consentRequested && !c.introduced && (
+                    <Link
+                      to="/tanistirmalar"
+                      className="text-accent inline-flex min-h-11 items-center text-sm font-semibold hover:underline"
+                    >
+                      Tanıştırma isteğini incele
+                    </Link>
                   )}
                   {!c.introduced && (
                     <span className="text-ink-soft text-xs">

@@ -14,7 +14,10 @@ const OAUTH_CLIENT_COOKIE = 'evidex_oauth_client';
 export const MOBILE_SCHEME = 'evidex';
 const OAUTH_STATE_COOKIE = 'evidex_oauth_state';
 
-const MagicLinkBody = z.object({ email: z.string().email() });
+const MagicLinkBody = z.object({
+  email: z.string().trim().email().max(254),
+  signupRole: z.enum(['talent', 'organization']).default('organization'),
+});
 
 /**
  * ### Kimlik uçları (KARAR-07)
@@ -80,7 +83,7 @@ export function authRoutes(deps: {
       .post('/magic-link', async (c) => {
         const body = MagicLinkBody.safeParse(await c.req.json().catch(() => ({})));
         if (!body.success) throw new AppError('validation', 'Geçerli bir e-posta girin', 422);
-        const raw = await auth.requestMagicLink(body.data.email);
+        const raw = await auth.requestMagicLink(body.data.email, body.data.signupRole);
         const link = `${env.API_ORIGIN}/api/auth/magic/${raw}`;
         await email.send({
           to: body.data.email,

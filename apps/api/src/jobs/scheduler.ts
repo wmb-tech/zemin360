@@ -1,4 +1,5 @@
 import type { FollowUpService } from '../followups/service';
+import type { IntroductionDeliveryService } from '../introductions/deliveries';
 import type { NetworkService } from '../network/service';
 
 /**
@@ -8,11 +9,20 @@ import type { NetworkService } from '../network/service';
  * ⚠ Çoklu süreçte (pm2 cluster) her süreç tarar; şimdilik tek süreç (docs/02 KARAR-14).
  */
 export function startScheduler(
-  jobs: { followUp: FollowUpService; network: NetworkService },
+  jobs: {
+    followUp: FollowUpService;
+    network: NetworkService;
+    deliveries?: IntroductionDeliveryService;
+  },
   intervalMin: number,
 ) {
   if (intervalMin <= 0) return null;
   const kos = async () => {
+    try {
+      await jobs.deliveries?.drain();
+    } catch (error) {
+      console.error('[jobs] introduction deliveries', error);
+    }
     try {
       const r = await jobs.followUp.scan();
       if (r.proposed || r.silent)

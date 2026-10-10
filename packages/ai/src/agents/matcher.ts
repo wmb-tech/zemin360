@@ -1,4 +1,4 @@
-import { MatchBatchResult, type NeedCard } from '@evidex/shared';
+import { MatchBatchResult, type NeedCard, type TalentPreferences } from '@evidex/shared';
 import type { LlmMessage, LlmProvider } from '../provider';
 
 /**
@@ -10,6 +10,7 @@ import type { LlmMessage, LlmProvider } from '../provider';
  */
 export interface CandidateCard {
   talentId: string;
+  preferences?: TalentPreferences;
   name: string;
   headline: string | null;
   story: string | null;
@@ -78,7 +79,7 @@ export function buildMatchMessages(
             `${s.name} (${s.repos} repo${s.commits > 0 ? `, ${s.commits} commit` : ''}${s.firstAt ? `, ${s.firstAt.slice(0, 7)}→${s.lastAt?.slice(0, 7) ?? '?'}` : ''})`,
         )
         .join('; ');
-      return `Aday ${c.talentId} — ${c.name}${c.headline ? ` · ${c.headline}` : ''}${c.city ? ` · ${c.city}` : ''}\n${c.story ? `  Hikâye: ${c.story}\n` : ''}${yetkinlik ? `  Yetkinlikler (kanıttan ölçülmüş): ${yetkinlik}\n` : ''}  İddialar:\n${iddialar || '  (onaylı iddia yok)'}`;
+      return `Aday ${c.talentId} — ${c.name}${c.headline ? ` · ${c.headline}` : ''}${c.city ? ` · ${c.city}` : ''}\n${c.story ? `  Hikâye: ${c.story}\n` : ''}${yetkinlik ? `  Yetkinlikler (kanıttan ölçülmüş): ${yetkinlik}\n` : ''}${c.preferences ? `  Çalışma tercihleri (kişinin beyanı): ${JSON.stringify(c.preferences)}\n` : ''}  İddialar:\n${iddialar || '  (onaylı iddia yok)'}`;
     })
     .join('\n\n');
   return [
@@ -109,15 +110,22 @@ export async function runMatcher(
   );
   // Modelin uydurduğu talentId veya claimId'yi at: kanıta bağlanmayan gerekçe karta girmez.
   const gecerliAday = new Set(candidates.map((c) => c.talentId));
-  const gecerliIddia = new Set(candidates.flatMap((c) => c.claims.map((k) => k.id)));
+  const claimsByTalent = new Map(
+    candidates.map((candidate) => [
+      candidate.talentId,
+      new Set(candidate.claims.map((claim) => claim.id)),
+    ]),
+  );
   const results = value.results
     .filter((r) => gecerliAday.has(r.talentId))
     .map((r) => ({
       ...r,
-      fits: r.fits.map((f) => ({
-        ...f,
-        claimIds: f.claimIds.filter((id) => gecerliIddia.has(id)),
-      })),
+      fits: r.fits
+        .map((f) => ({
+          ...f,
+          claimIds: f.claimIds.filter((id) => claimsByTalent.get(r.talentId)?.has(id)),
+        }))
+        .filter((fit) => fit.claimIds.length > 0),
     }));
   return { results, usage };
 }

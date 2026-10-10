@@ -41,10 +41,11 @@ export function createAuthService(db: Db) {
   }
 
   return {
-    async requestMagicLink(email: string) {
+    async requestMagicLink(email: string, signupRole: 'talent' | 'organization' = 'organization') {
       const raw = newRawToken();
       await db.insert(loginTokens).values({
-        email: email.toLowerCase(),
+        email: email.trim().toLowerCase(),
+        signupRole,
         tokenHash: hashToken(raw),
         expiresAt: new Date(Date.now() + MAGIC_LINK_TTL_MS),
       });
@@ -52,49 +53,46 @@ export function createAuthService(db: Db) {
     },
 
     async consumeMagicLink(raw: string) {
-      const [kayit] = await db
-        .select()
-        .from(loginTokens)
-        .where(
-          and(
-            eq(loginTokens.tokenHash, hashToken(raw)),
-            isNull(loginTokens.usedAt),
-            gt(loginTokens.expiresAt, new Date()),
-          ),
-        )
-        .limit(1);
-      if (!kayit) throw new AppError('invalid_link', 'Bağlantı geçersiz veya süresi dolmuş', 401);
-      // Tek kullanım yarışsız: iki eşzamanlı açılıştan yalnız biri bağlantıyı "kullanılmış" yapabilir.
-      const kullanilan = await db
-        .update(loginTokens)
-        .set({ usedAt: new Date() })
-        .where(and(eq(loginTokens.id, kayit.id), isNull(loginTokens.usedAt)))
-        .returning({ id: loginTokens.id });
-      if (kullanilan.length === 0)
-        throw new AppError('invalid_link', 'Bağlantı geçersiz veya süresi dolmuş', 401);
-
-      let [kullanici] = await db.select().from(users).where(eq(users.email, kayit.email)).limit(1);
-      if (!kullanici) {
-        // İlk giriş: kurum temsilcisi olarak açılır; kurum kaydı sonraki adımda tamamlanır.
-        [kullanici] = await db
+      const user = await db.transaction(async (tx) => {
+        const [token] = await tx
+          .update(loginTokens)
+          .set({ usedAt: new Date() })
+          .where(
+            and(
+              eq(loginTokens.tokenHash, hashToken(raw)),
+              isNull(loginTokens.usedAt),
+              gt(loginTokens.expiresAt, new Date()),
+            ),
+          )
+          .returning();
+        if (!token) throw new AppError('invalid_link', 'Bağlantı geçersiz veya süresi dolmuş', 401);
+        const [created] = await tx
           .insert(users)
           .values({
-            email: kayit.email,
-            name: kayit.email.split('@')[0] ?? kayit.email,
-            role: 'organization',
+            email: token.email,
+            name: token.email.split('@')[0] ?? token.email,
+            role: token.signupRole === 'talent' ? 'talent' : 'organization',
           })
+          .onConflictDoNothing({ target: users.email })
           .returning();
-        if (!kullanici) throw new AppError('internal', 'Kullanıcı oluşturulamadı', 500);
-        const [kurum] = await db
-          .insert(organizations)
-          .values({ name: 'Kurum (adı bekleniyor)' })
-          .returning();
-        if (kurum)
-          await db
+        const [existing] = created
+          ? [created]
+          : await tx.select().from(users).where(eq(users.email, token.email)).limit(1);
+        if (!existing) throw new AppError('internal', 'Kullanıcı oluşturulamadı', 500);
+        if (created?.role === 'talent') {
+          await tx.insert(talents).values({ userId: created.id });
+        } else if (created?.role === 'organization') {
+          const [organization] = await tx
+            .insert(organizations)
+            .values({ name: 'Kurum (adı bekleniyor)' })
+            .returning();
+          await tx
             .insert(organizationMembers)
-            .values({ organizationId: kurum.id, userId: kullanici.id });
-      }
-      return { user: kullanici, sessionToken: await createSession(kullanici.id) };
+            .values({ organizationId: organization!.id, userId: created.id });
+        }
+        return existing;
+      });
+      return { user, sessionToken: await createSession(user.id) };
     },
 
     async loginWithGithub(profile: GithubProfile) {

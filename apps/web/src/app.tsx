@@ -20,6 +20,9 @@ import { LandingPage } from './pages/landing';
 import { TalentHomePage } from './pages/talent-home';
 import { OrgSettingsPage } from './pages/org-settings';
 import { OperatorNeedsPage } from './pages/operator-needs';
+import { Skeleton } from './components/ui';
+import { IntroductionsPage } from './pages/introductions';
+import { DeliveriesPage } from './pages/deliveries';
 
 const NAV = {
   talent: [
@@ -27,10 +30,12 @@ const NAV = {
     { to: '/kart', label: 'Kartım', icon: 'card' },
     { to: '/davetler', label: 'Meydan okumalar', icon: 'flag' },
     { to: '/hesap', label: 'Hesap', icon: 'account' },
+    { to: '/tanistirmalar', label: 'Tanıştırmalar', icon: 'collab' },
   ],
   organization: [
     { to: '/ihtiyaclar', label: 'İhtiyaçlar', icon: 'needs' },
     { to: '/kurum', label: 'Kurum', icon: 'org' },
+    { to: '/tanistirmalar', label: 'Tanıştırmalar', icon: 'collab' },
   ],
   operator: [
     { to: '/kuyruk', label: 'Onay kuyruğu', icon: 'queue' },
@@ -39,12 +44,18 @@ const NAV = {
     { to: '/meydan', label: 'Meydan okumalar', icon: 'flag' },
     { to: '/isbirlikleri', label: 'İş birlikleri', icon: 'collab' },
     { to: '/olcum', label: 'Ölçüm', icon: 'metrics' },
+    { to: '/gonderimler', label: 'Gönderimler', icon: 'queue' },
   ],
 } as const satisfies Record<string, readonly NavItem[]>;
 
 function Routed() {
   const { me, loading } = useAuth();
-  if (loading) return null;
+  if (loading)
+    return (
+      <div className="mx-auto max-w-[1120px] px-6 py-10">
+        <Skeleton rows={5} />
+      </div>
+    );
   if (!me)
     return (
       <Routes>
@@ -65,6 +76,7 @@ function Routed() {
       <Route element={<Shell nav={nav} />}>
         <Route index element={<Navigate to={home} replace />} />
         <Route path="/nasil-calisir" element={<LandingPage />} />
+        {me.role !== 'operator' && <Route path="/tanistirmalar" element={<IntroductionsPage />} />}
         {me.role === 'talent' && (
           <>
             <Route path="/durum" element={<TalentHomePage />} />
@@ -91,6 +103,7 @@ function Routed() {
             <Route path="/demo-posta" element={<DemoMailPage />} />
             <Route path="/isbirlikleri" element={<CollaborationsPage />} />
             <Route path="/olcum" element={<MetricsPage />} />
+            <Route path="/gonderimler" element={<DeliveriesPage />} />
           </>
         )}
         <Route path="*" element={<Navigate to={home} replace />} />

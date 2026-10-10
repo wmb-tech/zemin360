@@ -12,7 +12,7 @@ interface Metrics {
     avgInitialMissingFields: number | null;
   };
   timeToIntroduction: { needsWithIntroduction: number; avgHours: number | null };
-  topFiveConversion: { introduced: number; reachedMeeting: number };
+  topFiveConversion: { shortlisted: number; introduced: number; reachedMeeting: number };
   agentProposals: { proposed: number; approved: number; edited: number; rejected: number };
   agentRuns: {
     agent: string;
@@ -60,24 +60,29 @@ export function MetricsPage() {
 
   const karar = m.agentProposals.approved + m.agentProposals.edited + m.agentProposals.rejected;
   const kart = oran(m.cardAccuracy.unchangedClaims, m.cardAccuracy.approvedClaims);
-  const donus = oran(m.topFiveConversion.reachedMeeting, m.topFiveConversion.introduced);
+  const donus = oran(m.topFiveConversion.reachedMeeting, m.topFiveConversion.shortlisted);
   const onay = oran(m.agentProposals.approved + m.agentProposals.edited, karar);
 
   return (
     <div>
       <Enter i={0} as="header">
+        <Eyebrow>Ağın sonuçları</Eyebrow>
         <h1 className="text-ink text-[28px] leading-tight font-extrabold tracking-[-0.035em] md:text-[34px]">
           Ölçüm
         </h1>
         <p className="text-ink-soft mt-1 max-w-[65ch]">
-          Yapay zekânın katkısı dört ürün metriği ve önerilerin akıbetiyle ölçülür. Sayaç yok; her
-          sayı tablolardan türetilir ve paydasıyla gösterilir.
+          Kart onaylarından görüşmelere, ağın nasıl ilerlediğini izle. Her ölçümün örneklemi ve
+          kapsamı yanında. Tüm ağ kayıtlarını kapsar; yüklü örnek hesaplar da dahildir.
         </p>
       </Enter>
 
-      <Enter i={1} as="section" className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Enter
+        i={1}
+        as="section"
+        className="border-line mt-7 divide-y divide-[var(--color-line)] border-y"
+      >
         <Olcum
-          label="Kart doğruluğu"
+          label="Kart taslağının kabulü"
           deger={kart.deger}
           payda={`${kart.alt} iddia ajanın yazdığı gibi onaylandı`}
           kucuk={kart.kucuk}
@@ -105,7 +110,7 @@ export function MetricsPage() {
         <Olcum
           label="İlk beşten görüşme"
           deger={donus.deger}
-          payda={`${donus.alt} tanıştırılan ilk-beş aday görüşmeye döndü`}
+          payda={`${donus.alt} yayınlanan ilk-beş aday görüşmeye döndü`}
           kucuk={donus.kucuk}
         />
       </Enter>
@@ -113,14 +118,14 @@ export function MetricsPage() {
       <Enter i={2} as="section" className="mt-6 grid items-start gap-4 lg:grid-cols-2">
         <Panel className="p-5">
           <Eyebrow>Ajan önerilerinin akıbeti</Eyebrow>
-          <div className="mt-3 grid grid-cols-4 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Sayi n={m.agentProposals.approved} label="onaylandı" cls="text-verified" />
             <Sayi n={m.agentProposals.edited} label="düzeltildi" cls="text-documented" />
             <Sayi n={m.agentProposals.rejected} label="reddedildi" cls="text-negative" />
             <Sayi n={m.agentProposals.proposed} label="bekliyor" cls="text-declared" />
           </div>
           <p className="text-ink-soft tnum mt-3 text-sm">
-            Onay oranı <b className="text-ink">{onay.deger}</b> ({onay.alt})
+            GİRVAK kararlarında onay oranı <b className="text-ink">{onay.deger}</b> ({onay.alt})
             {onay.kucuk && ' · küçük örneklem'}
           </p>
         </Panel>
@@ -148,21 +153,26 @@ export function MetricsPage() {
               </div>
             )}
           </div>
-          <table className="mt-3 w-full text-sm">
+          <table className="tablo-kart mt-3 w-full text-sm">
             <tbody>
               {m.agentRuns.map((r) => (
                 <tr key={r.agent} className="border-line border-t">
                   <td className="text-ink py-2">{AGENT_LABEL[r.agent] ?? r.agent}</td>
-                  <td className="tnum py-2 text-right">{r.runs} çağrı</td>
-                  <td className="text-ink-soft tnum py-2 text-right">
+                  <td data-label="Çağrı" className="tnum py-2 text-right">
+                    {r.runs} çağrı
+                  </td>
+                  <td data-label="Ortalama süre" className="text-ink-soft tnum py-2 text-right">
                     {r.avg_ms === null ? '—' : `${(r.avg_ms / 1000).toFixed(1)} sn`}
                   </td>
-                  <td className="text-ink-soft tnum py-2 text-right">
+                  <td data-label="Token" className="text-ink-soft tnum py-2 text-right">
                     {r.in_tokens + r.out_tokens > 0
                       ? `${((r.in_tokens + r.out_tokens) / 1000).toFixed(1)}k token`
                       : '—'}
                   </td>
-                  <td className="text-ink tnum py-2 text-right font-semibold">
+                  <td
+                    data-label="Tahmini maliyet"
+                    className="text-ink tnum py-2 text-right font-semibold"
+                  >
                     {r.cost_usd > 0 ? dolar(r.cost_usd) : '—'}
                   </td>
                 </tr>
@@ -254,18 +264,20 @@ function Olcum({
   kucuk: boolean;
 }) {
   return (
-    <Panel className="p-5">
-      <Eyebrow>{label}</Eyebrow>
-      <div
-        className={`tnum mt-2 font-extrabold tracking-[-0.02em] ${deger.startsWith('Yeterli') ? 'text-ink-soft text-lg' : 'text-ink text-[28px]'}`}
-      >
-        {deger}
+    <div className="grid gap-2 py-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] sm:gap-6">
+      <div className="text-ink text-base font-semibold">{label}</div>
+      <div>
+        <div
+          className={`tnum text-lg font-bold ${deger.startsWith('Yeterli') ? 'text-ink-soft' : 'text-ink'}`}
+        >
+          {deger}
+        </div>
+        <div className="text-ink-soft tnum mt-1 text-sm">{payda}</div>
+        {kucuk && !deger.startsWith('Yeterli') && (
+          <div className="text-declared mt-1 text-xs">Küçük örneklem; eğilim değil sayım.</div>
+        )}
       </div>
-      <div className="text-ink-soft tnum mt-1 text-sm">{payda}</div>
-      {kucuk && !deger.startsWith('Yeterli') && (
-        <div className="text-declared mt-1 text-xs">Küçük örneklem; eğilim değil sayım.</div>
-      )}
-    </Panel>
+    </div>
   );
 }
 function Sayi({ n, label, cls }: { n: number; label: string; cls: string }) {

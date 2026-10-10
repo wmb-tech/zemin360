@@ -32,6 +32,38 @@ describe('kimlik', () => {
     expect(cookieOf(ikinci, 'evidex_session')).toBe('');
   });
 
+  it('email entry creates a talent card without GitHub and cannot elevate an existing role', async () => {
+    const { app, gonderilen } = testApp();
+    await app.request(
+      '/api/auth/magic-link',
+      json({ email: 'email-talent@example.com', signupRole: 'talent' }),
+    );
+    const path = gonderilen.at(-1)!.text.match(/\/api\/auth\/magic\/\S+/)![0];
+    const cookie = cookieOf(await app.request(path), 'evidex_session');
+    const me = (await (await app.request('/api/auth/me', { headers: { cookie } })).json()).data;
+    expect(me.role).toBe('talent');
+    expect(me.githubLogin).toBeNull();
+    expect((await app.request('/api/me/card', { headers: { cookie } })).status).toBe(200);
+    await app.request(
+      '/api/auth/magic-link',
+      json({ email: 'email-talent@example.com', signupRole: 'organization' }),
+    );
+    const second = gonderilen.at(-1)!.text.match(/\/api\/auth\/magic\/\S+/)![0];
+    const existingCookie = cookieOf(await app.request(second), 'evidex_session');
+    expect(
+      (await (await app.request('/api/auth/me', { headers: { cookie: existingCookie } })).json())
+        .data.role,
+    ).toBe('talent');
+    expect(
+      (
+        await app.request(
+          '/api/auth/magic-link',
+          json({ email: 'bad-role@example.com', signupRole: 'operator' }),
+        )
+      ).status,
+    ).toBe(422);
+  });
+
   it('geçersiz e-posta 422 döner', async () => {
     const { app } = testApp();
     expect((await app.request('/api/auth/magic-link', json({ email: 'bozuk' }))).status).toBe(422);

@@ -11,11 +11,13 @@ import {
   users,
 } from '@evidex/db';
 import { runIntroducer, runMatcher, type CandidateCard, type LlmProvider } from '@evidex/ai';
-import type { MatchReasoning, NeedCard } from '@evidex/shared';
+import { TalentPreferences, type MatchReasoning, type NeedCard } from '@evidex/shared';
 import { recordAgentRun } from '../agents/runs';
 import { skillsForTalent } from '../talent/skills';
 import { AppError } from '../lib/response';
 import { DEMO_DOMAIN } from '../demo/network';
+import { notifyIntroduction } from '../introductions/notifications';
+import type { EmailSender } from '../lib/email';
 
 const MAX_CANDIDATES = 15;
 
@@ -25,7 +27,11 @@ const MAX_CANDIDATES = 15;
  * liste → operatörün onay kuyruğuna "kısa listeyi yayınla" önerisi (ADR-0004).
  * ⚠ Kurum, operatör onaylayana kadar hiçbir adayı görmez (KARAR-09).
  */
-export function createMatchingService(db: Db, llm: LlmProvider) {
+export function createMatchingService(
+  db: Db,
+  llm: LlmProvider,
+  notifications?: { email: EmailSender; webOrigin: string },
+) {
   async function loadCandidates(need: NeedCard, demoKurum: boolean): Promise<CandidateCard[]> {
     const satirlar = await db
       .select({
@@ -34,6 +40,7 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         headline: talents.headline,
         story: talents.story,
         city: talents.city,
+        preferences: talents.preferences,
       })
       .from(talents)
       .innerJoin(users, eq(users.id, talents.userId))
@@ -44,7 +51,20 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
           ? eq(talents.cardStatus, 'approved')
           : and(eq(talents.cardStatus, 'approved'), notLike(users.email, `%${DEMO_DOMAIN}`)),
       );
-    if (satirlar.length === 0) return [];
+    const eligible = satirlar.filter((candidate) => {
+      const parsed = TalentPreferences.safeParse(candidate.preferences);
+      const preferences = parsed.success ? parsed.data : TalentPreferences.parse({});
+      return (
+        preferences.availability !== 'unavailable' &&
+        (preferences.collaborationTypes.length === 0 ||
+          preferences.collaborationTypes.includes(need.collaborationType)) &&
+        (preferences.workModes.length === 0 || preferences.workModes.includes(need.workMode)) &&
+        (preferences.maxDurationWeeks === null ||
+          need.durationWeeks === null ||
+          need.durationWeeks <= preferences.maxDurationWeeks)
+      );
+    });
+    if (eligible.length === 0) return [];
 
     const iddialar = await db
       .select()
@@ -53,15 +73,15 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         and(
           inArray(
             cardClaims.talentId,
-            satirlar.map((s) => s.talentId),
+            eligible.map((s) => s.talentId),
           ),
           eq(cardClaims.approved, true),
         ),
       );
 
     const yetkinlikler = new Map<string, CandidateCard['skills']>();
-    for (const s of satirlar) yetkinlikler.set(s.talentId, await skillsForTalent(db, s.talentId));
-    const kartlar: CandidateCard[] = satirlar.map((s) => ({
+    for (const s of eligible) yetkinlikler.set(s.talentId, await skillsForTalent(db, s.talentId));
+    const kartlar: CandidateCard[] = eligible.map((s) => ({
       ...s,
       skills: yetkinlikler.get(s.talentId) ?? [],
       claims: iddialar
@@ -117,6 +137,21 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         .where(eq(organizations.id, need.organizationId))
         .limit(1);
       const { results, usage } = await runMatcher(llm, kart, adaylar, kurum?.city ?? null);
+      for (const result of results) {
+        const preferences = adaylar.find(
+          (candidate) => candidate.talentId === result.talentId,
+        )?.preferences;
+        if (preferences?.weeklyHours)
+          result.gaps.push(
+            `Kişi haftada ${preferences.weeklyHours} saat ayırabileceğini belirtti; ihtiyaç takvimi görüşmede netleştirilmeli.`,
+          );
+        if (preferences?.maxDurationWeeks && kart.durationWeeks === null)
+          result.gaps.push(
+            `Kişinin süre sınırı ${preferences.maxDurationWeeks} hafta; ihtiyacın süresi henüz netleşmedi.`,
+          );
+        if (preferences?.availability === 'limited' && !preferences.weeklyHours)
+          result.gaps.push('Kişinin zamanı sınırlı; haftalık uygunluğu görüşmede netleştirilmeli.');
+      }
       if (usage) {
         await recordAgentRun(db, {
           agent: 'matcher',
@@ -131,49 +166,96 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         });
       }
 
-      // Eski liste silinir; yeniden çalıştırma eski gerekçeleri biriktirmez.
-      await db.delete(matches).where(eq(matches.needId, needId));
-      if (results.length === 0) return { matches: [], queued: false };
+      return db.transaction(async (tx) => {
+        await tx
+          .select()
+          .from(approvalQueue)
+          .where(
+            and(
+              eq(approvalQueue.action, 'publish_shortlist'),
+              eq(approvalQueue.subjectId, needId),
+              eq(approvalQueue.status, 'proposed'),
+            ),
+          )
+          .for('update');
+        await tx.select().from(needs).where(eq(needs.id, needId)).for('update');
+        // Active introductions and collaborations must survive a shortlist refresh.
+        const preserved = await tx
+          .select()
+          .from(matches)
+          .where(eq(matches.needId, needId))
+          .for('update');
+        const retained = preserved.filter(
+          (match) => match.introducedAt || match.introductionRequestedAt,
+        );
+        const retainedTalentIds = new Set(retained.map((match) => match.talentId));
+        const staleIds = preserved
+          .filter((match) => !match.introducedAt && !match.introductionRequestedAt)
+          .map((match) => match.id);
+        if (staleIds.length) await tx.delete(matches).where(inArray(matches.id, staleIds));
+        await tx
+          .update(approvalQueue)
+          .set({ status: 'rejected', decidedAt: new Date(), updatedAt: new Date() })
+          .where(
+            and(
+              eq(approvalQueue.action, 'publish_shortlist'),
+              eq(approvalQueue.subjectId, needId),
+              eq(approvalQueue.status, 'proposed'),
+            ),
+          );
+        const freshResults = results.filter((result) => !retainedTalentIds.has(result.talentId));
+        if (freshResults.length === 0) return { matches: retained, queued: false };
 
-      const eklenen = await db
-        .insert(matches)
-        .values(
-          results.map((r, i) => ({
-            needId,
-            talentId: r.talentId,
-            strength: r.strength,
-            reasoning: {
-              fits: r.fits,
-              gaps: r.gaps,
-              summaryForOrganization: r.summaryForOrganization,
+        await tx
+          .update(needs)
+          .set({ shortlistPublishedAt: null, updatedAt: new Date() })
+          .where(eq(needs.id, needId));
+        const usedRanks = new Set(retained.map((match) => match.rank));
+        let nextRank = 1;
+        function allocateRank() {
+          while (usedRanks.has(nextRank)) nextRank++;
+          return nextRank++;
+        }
+        const eklenen = await tx
+          .insert(matches)
+          .values(
+            freshResults.map((r) => ({
+              needId,
+              talentId: r.talentId,
+              strength: r.strength,
+              reasoning: {
+                fits: r.fits,
+                gaps: r.gaps,
+                summaryForOrganization: r.summaryForOrganization,
+              },
+              rank: allocateRank(),
+            })),
+          )
+          .returning();
+
+        await tx.insert(approvalQueue).values({
+          action: 'publish_shortlist',
+          subjectType: 'need',
+          subjectId: needId,
+          payload: {
+            needTitle: kart.title,
+            matchIds: [...retained, ...eklenen].map((m) => m.id),
+            counts: {
+              strong: [...retained, ...eklenen].filter((r) => r.strength === 'strong').length,
+              possible: [...retained, ...eklenen].filter((r) => r.strength === 'possible').length,
+              weak: [...retained, ...eklenen].filter((r) => r.strength === 'weak').length,
             },
-            rank: i + 1,
-          })),
-        )
-        .returning();
-
-      await db.insert(approvalQueue).values({
-        action: 'publish_shortlist',
-        subjectType: 'need',
-        subjectId: needId,
-        payload: {
-          needTitle: kart.title,
-          matchIds: eklenen.map((m) => m.id),
-          counts: {
-            strong: results.filter((r) => r.strength === 'strong').length,
-            possible: results.filter((r) => r.strength === 'possible').length,
-            weak: results.filter((r) => r.strength === 'weak').length,
           },
-        },
+        });
+        return { matches: eklenen, queued: true };
       });
-      return { matches: eklenen, queued: true };
     },
 
     /** Kurumun gördüğü aday listesi: kısa liste yayınlanmadıysa boş; yayınlandıysa özet (KARAR-09). */
     async candidatesForNeed(needId: string) {
       const [need] = await db.select().from(needs).where(eq(needs.id, needId)).limit(1);
       if (!need) throw new AppError('not_found', 'İhtiyaç bulunamadı', 404);
-      if (!need.shortlistPublishedAt) return { published: false as const, candidates: [] };
+
       const bekleyenler = await db
         .select({ subjectId: approvalQueue.subjectId })
         .from(approvalQueue)
@@ -186,6 +268,10 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
           strength: matches.strength,
           reasoning: matches.reasoning,
           introducedAt: matches.introducedAt,
+          talentConsent: matches.talentConsent,
+          organizationConsent: matches.organizationConsent,
+          introductionRequestedAt: matches.introductionRequestedAt,
+          shortlistedAt: matches.shortlistedAt,
           name: users.name,
           headline: talents.headline,
           talentId: talents.id,
@@ -201,19 +287,26 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         if (!yetkinlikler.has(s.talentId))
           yetkinlikler.set(s.talentId, (await skillsForTalent(db, s.talentId)).slice(0, 8));
       return {
-        published: true as const,
-        candidates: satirlar.map((s) => ({
-          matchId: s.matchId,
-          rank: s.rank,
-          strength: s.strength,
-          // Tanıştırma öncesi yalnız ilk ad; tam kart tanıştırma sonrası.
-          name: s.introducedAt ? s.name : (s.name.split(' ')[0] ?? s.name),
-          headline: s.headline,
-          skills: yetkinlikler.get(s.talentId) ?? [],
-          reasoning: s.reasoning,
-          introduced: Boolean(s.introducedAt),
-          introRequested: istekte.has(s.matchId),
-        })),
+        published: Boolean(need.shortlistPublishedAt),
+        candidates: satirlar
+          .filter(
+            (match) => match.shortlistedAt || match.introducedAt || match.introductionRequestedAt,
+          )
+          .map((s) => ({
+            matchId: s.matchId,
+            rank: s.rank,
+            strength: s.strength,
+            // Tanıştırma öncesi yalnız ilk ad; tam kart tanıştırma sonrası.
+            name: s.introducedAt ? s.name : (s.name.split(' ')[0] ?? s.name),
+            headline: s.headline,
+            skills: yetkinlikler.get(s.talentId) ?? [],
+            reasoning: s.reasoning,
+            introduced: Boolean(s.introducedAt),
+            introRequested: istekte.has(s.matchId),
+            consentRequested: Boolean(s.introductionRequestedAt),
+            talentConsent: s.talentConsent,
+            organizationConsent: s.organizationConsent,
+          })),
       };
     },
 
@@ -238,8 +331,10 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         .where(and(eq(matches.id, matchId), eq(matches.needId, needId)))
         .limit(1);
       if (!m) throw new AppError('not_found', 'Aday bulunamadı', 404);
-      if (!m.need.shortlistPublishedAt)
+      if (!m.match.shortlistedAt && !m.need.shortlistPublishedAt)
         throw new AppError('not_published', 'Kısa liste henüz açılmadı', 409);
+      if (m.match.introductionRequestedAt)
+        throw new AppError('already_requested', 'Tanıştırma isteği zaten iletildi', 409);
       if (m.match.introducedAt)
         throw new AppError('already_introduced', 'Tanıştırma yapılmış', 409);
       const [bekleyen] = await db
@@ -268,20 +363,43 @@ export function createMatchingService(db: Db, llm: LlmProvider) {
         outputSummary: { subject: draft.subject },
         usage,
       });
-      const [kayit] = await db
-        .insert(approvalQueue)
-        .values({
-          action: 'introduce',
-          subjectType: 'match',
-          subjectId: matchId,
-          payload: {
-            ...draft,
-            requestedBy: 'organization',
-            needTitle: (m.need.card as NeedCard).title,
-          },
-        })
-        .returning();
-      return { queued: kayit!.id };
+      const record = await db.transaction(async (tx) => {
+        const [locked] = await tx
+          .select()
+          .from(matches)
+          .where(eq(matches.id, matchId))
+          .for('update');
+        if (!locked || locked.introductionRequestedAt || locked.introducedAt)
+          throw new AppError('already_requested', 'Tanıştırma isteği zaten iletildi', 409);
+        await tx
+          .update(matches)
+          .set({
+            introductionRequestedAt: new Date(),
+            talentConsent: 'pending',
+            organizationConsent: 'accepted',
+            updatedAt: new Date(),
+          })
+          .where(eq(matches.id, matchId));
+        const [kayit] = await tx
+          .insert(approvalQueue)
+          .values({
+            action: 'introduce',
+            subjectType: 'match',
+            subjectId: matchId,
+            payload: {
+              ...draft,
+              requestedBy: 'organization',
+              needTitle: (m.need.card as NeedCard).title,
+            },
+          })
+          .returning();
+        return kayit!;
+      });
+      if (notifications)
+        await notifyIntroduction(db, notifications.email, notifications.webOrigin, matchId).catch(
+          (error: unknown) => console.error('[introduction notification]', error),
+        );
+      return { queued: record.id };
     },
 
     async matchesForNeed(needId: string) {
